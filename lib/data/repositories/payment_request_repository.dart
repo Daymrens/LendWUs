@@ -12,6 +12,16 @@ class PaymentRequestRepository {
     return docRef.id;
   }
 
+  Future<List<PaymentRequest>> getAllPaymentRequests() async {
+    final snapshot = await FirebaseService.firestore
+        .collection('payment_requests')
+        .orderBy('requestDate', descending: true)
+        .get();
+    return snapshot.docs
+        .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
+        .toList();
+  }
+
   Future<List<PaymentRequest>> getPendingPaymentRequests() async {
     final snapshot = await FirebaseService.firestore
         .collection('payment_requests')
@@ -94,6 +104,13 @@ class PaymentRequestRepository {
       'approvedDate': DateTime.now().toIso8601String(),
       'notes': notes,
     });
+  }
+
+  Future<void> deletePaymentRequest(String id) async {
+    await FirebaseService.firestore
+        .collection('payment_requests')
+        .doc(id)
+        .delete();
   }
 
   Future<PaymentRequest?> getRequestById(String id) async {

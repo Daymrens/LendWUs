@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -226,6 +227,16 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Save Settings'),
+                  ),
+                ),
+                const Gap(24),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.storage, color: AppColors.warning),
+                    title: const Text('Data Management'),
+                    subtitle: const Text('Edit, add, delete transactions and clear all data'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/data-management'),
                   ),
                 ),
               ],

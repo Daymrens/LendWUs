@@ -79,6 +79,21 @@ class LoanRepository {
         .toList();
   }
 
+  Future<void> deleteLoan(String id) async {
+    await FirebaseService.firestore.collection('loans').doc(id).delete();
+  }
+
+  Future<void> updateRepayment(Repayment repayment) async {
+    await FirebaseService.firestore
+        .collection('repayments')
+        .doc(repayment.id!)
+        .update(repayment.toMap());
+  }
+
+  Future<void> deleteRepayment(String id) async {
+    await FirebaseService.firestore.collection('repayments').doc(id).delete();
+  }
+
   Future<void> _updateLoanStatus(String loanId) async {
     final loanDoc = await FirebaseService.firestore.collection('loans').doc(loanId).get();
     if (!loanDoc.exists) return;

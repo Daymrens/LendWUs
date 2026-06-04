@@ -19,6 +19,7 @@ import 'screens/profile/profile_screen.dart';
 
 import 'screens/admin/approvals_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
+import 'screens/admin/admin_data_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 
@@ -130,6 +131,10 @@ class SinkingFundApp extends ConsumerWidget {
             GoRoute(
               path: '/settings',
               builder: (context, state) => const AdminSettingsScreen(),
+            ),
+            GoRoute(
+              path: '/data-management',
+              builder: (context, state) => const AdminDataScreen(),
             ),
             GoRoute(
               path: '/profile',

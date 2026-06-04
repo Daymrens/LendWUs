@@ -41,4 +41,18 @@ class ContributionRepository {
     }
     return total;
   }
+
+  Future<void> updateContribution(Contribution contribution) async {
+    await FirebaseService.firestore
+        .collection('contributions')
+        .doc(contribution.id!)
+        .update(contribution.toMap());
+  }
+
+  Future<void> deleteContribution(String id) async {
+    await FirebaseService.firestore
+        .collection('contributions')
+        .doc(id)
+        .delete();
+  }
 }

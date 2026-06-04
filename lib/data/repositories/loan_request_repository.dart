@@ -10,6 +10,16 @@ class LoanRequestRepository {
     return docRef.id;
   }
 
+  Future<List<LoanRequest>> getAllLoanRequests() async {
+    final snapshot = await FirebaseService.firestore
+        .collection('loan_requests')
+        .orderBy('requestedAt', descending: true)
+        .get();
+    return snapshot.docs
+        .map((doc) => LoanRequest.fromMap({...doc.data(), 'id': doc.id}))
+        .toList();
+  }
+
   Future<List<LoanRequest>> getPendingLoanRequests() async {
     final snapshot = await FirebaseService.firestore
         .collection('loan_requests')
@@ -91,6 +101,13 @@ class LoanRequestRepository {
       'processedAt': DateTime.now().toIso8601String(),
       'notes': notes,
     });
+  }
+
+  Future<void> deleteLoanRequest(String id) async {
+    await FirebaseService.firestore
+        .collection('loan_requests')
+        .doc(id)
+        .delete();
   }
 
   Future<LoanRequest?> getRequestById(String id) async {
