@@ -14,7 +14,7 @@ A family circle sinking fund (paluwagan) app: group savings, loans, and returns 
 - **Admin Settings** — Payment limits, currency selection (PHP/USD/EUR), and loan interest percentage
 - **Reports** — Monthly contribution history and loan summaries
 - **Dark UI** — Clean, gradient-based design
-- **Marketing Website** — Responsive React TS landing page at [lmsystemm.web.app](https://lmsystemm.web.app)
+- **Marketing Website** — Responsive React + TypeScript landing page hosted on Firebase Hosting at [lmsystemm.web.app](https://lmsystemm.web.app). Sections: hero with phone mockup, feature grid (Automated Growth, Admin Controls, Instant Onboarding, Verified Transactions), admin/member previews, how-it-works steps, and Android APK download.
 
 ## Setup
 
