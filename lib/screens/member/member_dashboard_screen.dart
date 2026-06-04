@@ -4,10 +4,11 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/fund_summary_provider.dart';
-import '../../data/models/fund_summary.dart';
+import '../../providers/returns_provider.dart';
 import '../../data/repositories/contribution_repository.dart';
 import '../../data/repositories/loan_repository.dart';
+import '../../data/models/payment_request.dart';
+import 'member_pay_screen.dart';
 
 final memberContributionsTotalProvider = FutureProvider.family<double, String>((ref, memberId) async {
   final repo = ContributionRepository();
@@ -34,28 +35,15 @@ class MemberDashboardScreen extends ConsumerWidget {
       );
     }
 
-    final fundSummaryAsync = ref.watch(fundSummaryProvider);
     final memberContributionsAsync = ref.watch(memberContributionsTotalProvider(memberId));
     final memberLoansAsync = ref.watch(memberActiveLoansProvider(memberId));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Dashboard'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(currentUserProvider).logout();
-              if (context.mounted) {
-                context.go('/login');
-              }
-            },
-          ),
-        ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(fundSummaryProvider);
           ref.invalidate(memberContributionsTotalProvider(memberId));
           ref.invalidate(memberActiveLoansProvider(memberId));
         },
@@ -73,14 +61,6 @@ class MemberDashboardScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
               
-              fundSummaryAsync.when(
-                data: (summary) => _buildFundOverviewCard(context, summary),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (_, __) => const Text('Error loading fund summary'),
-              ),
-              
-              const SizedBox(height: 16),
-              
               memberContributionsAsync.when(
                 data: (total) => _buildMyContributionsCard(context, total),
                 loading: () => const Card(
@@ -92,57 +72,26 @@ class MemberDashboardScreen extends ConsumerWidget {
                 error: (_, __) => const Text('Error loading contributions'),
               ),
               
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
+              
+              Text(
+                'My Active Loans',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
               
               memberLoansAsync.when(
-                data: (loans) => _buildMyLoansCard(context, loans),
-                loading: () => const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                ),
+                data: (loans) => _buildLoansList(context, loans),
+                loading: () => const Center(child: CircularProgressIndicator()),
                 error: (_, __) => const Text('Error loading loans'),
               ),
+              
+              const SizedBox(height: 24),
+              _MemberReturnsSection(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFundOverviewCard(BuildContext context, FundSummary fundSummary) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Fund Overview',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  context,
-                  'Total Balance',
-                  CurrencyFormatter.format(fundSummary.fundBalance),
-                  AppColors.primary,
-                ),
-                _buildStatItem(
-                  context,
-                  'Available',
-                  CurrencyFormatter.format(fundSummary.availableToLoan),
-                  AppColors.success,
-                ),
-              ],
-            ),
-          ],
         ),
       ),
     );
@@ -167,10 +116,10 @@ class MemberDashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.2),
+                    color: AppColors.success.withAlpha(51),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
+                  child: const Text(
                     'Total',
                     style: TextStyle(
                       color: AppColors.success,
@@ -197,81 +146,189 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMyLoansCard(BuildContext context, List<Map<String, dynamic>> loans) {
-    final totalOutstanding = loans.fold<double>(
-      0,
-      (sum, loan) => sum + (loan['remainingBalance'] as double),
-    );
+  Widget _buildLoansList(BuildContext context, List<Map<String, dynamic>> loans) {
+    if (loans.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Text('No active loans'),
+          ),
+        ),
+      );
+    }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+    return Column(
+      children: loans.map((loanData) {
+        final loan = loanData['loan'];
+        final remainingBalance = loanData['remainingBalance'] as double;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Loan #${loan.id.substring(0, 5)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      CurrencyFormatter.format(remainingBalance),
+                      style: const TextStyle(
+                        color: AppColors.error,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Principal: ${CurrencyFormatter.format(loan.principal)}',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                    const Text(
+                      'Balance Due',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Interest Gained: ${CurrencyFormatter.format(loan.principal * loan.interestRate)}',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    ),
+                  ],
+                ),
+                const Divider(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => MemberPayScreen(
+                            loanId: loan.id,
+                            paymentType: PaymentType.loan,
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Repay Loan'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _MemberReturnsSection extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final returnsAsync = ref.watch(returnsInfoProvider);
+    final user = ref.watch(currentUserProvider).state;
+    final memberId = user?.memberId;
+
+    return returnsAsync.when(
+      data: (info) {
+        if (info.totalReturns <= 0 && info.totalHeads <= 0) return const SizedBox();
+
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'My Active Loans',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              'End of Year Returns',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Total Returns Pool',
+                                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Text(
+                                CurrencyFormatter.format(info.totalReturns),
+                                style: const TextStyle(
+                                  color: Colors.green,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Per Head Share',
+                                  style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Text(
+                                CurrencyFormatter.format(info.perHeadShare),
+                                style: const TextStyle(
+                                  color: Colors.blue,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total Heads', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                        Text(
+                          '${info.totalHeads}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
-            if (loans.isEmpty)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'No active loans',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ),
-              )
-            else
-              Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildStatItem(
-                        context,
-                        'Active Loans',
-                        loans.length.toString(),
-                        AppColors.warning,
-                      ),
-                      _buildStatItem(
-                        context,
-                        'Outstanding',
-                        CurrencyFormatter.format(totalOutstanding),
-                        AppColors.error,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(BuildContext context, String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.grey,
-          ),
-        ),
-      ],
+        );
+      },
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
     );
   }
 }

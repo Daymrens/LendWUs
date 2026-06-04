@@ -7,6 +7,7 @@ class Member {
   String? avatarPath;
   DateTime joinedAt;
   bool isActive;
+  String? linkedEmail;
 
   Member({
     this.id,
@@ -17,6 +18,7 @@ class Member {
     this.avatarPath,
     required this.joinedAt,
     this.isActive = true,
+    this.linkedEmail,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class Member {
       'avatarPath': avatarPath,
       'joinedAt': joinedAt.toIso8601String(),
       'isActive': isActive,
+      'linkedEmail': linkedEmail,
     };
   }
 
@@ -44,6 +47,7 @@ class Member {
           ? map['joinedAt']
           : DateTime.parse(map['joinedAt']),
       isActive: map['isActive'] == true || map['isActive'] == 1,
+      linkedEmail: map['linkedEmail'],
     );
   }
 }

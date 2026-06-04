@@ -1,6 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/payment_request.dart';
 import '../models/contribution.dart';
+import '../models/repayment.dart';
+import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class PaymentRequestRepository {
@@ -37,6 +38,17 @@ class PaymentRequestRepository {
     return await getPaymentRequestsByMember(memberId);
   }
 
+  Stream<List<PaymentRequest>> watchMemberPaymentRequests(String memberId) {
+    return FirebaseService.firestore
+        .collection('payment_requests')
+        .where('memberId', isEqualTo: memberId)
+        .orderBy('requestDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
   Future<void> approvePaymentRequest(String requestId, {String? notes}) async {
     final request = await getRequestById(requestId);
     if (request == null) return;
@@ -50,17 +62,28 @@ class PaymentRequestRepository {
       'notes': notes,
     });
 
-    final contribution = Contribution(
-      memberId: request.memberId,
-      amount: request.amount,
-      date: DateTime.now(),
-      month: DateTime.now().month,
-      year: DateTime.now().year,
-    );
+    if (request.type == PaymentType.contribution) {
+      final contribution = Contribution(
+        memberId: request.memberId,
+        amount: request.amount,
+        date: DateTime.now(),
+        month: DateTime.now().month,
+        year: DateTime.now().year,
+      );
 
-    await FirebaseService.firestore
-        .collection('contributions')
-        .add(contribution.toMap());
+      await FirebaseService.firestore
+          .collection('contributions')
+          .add(contribution.toMap());
+    } else if (request.type == PaymentType.loan && request.loanId != null) {
+      final repayment = Repayment(
+        loanId: request.loanId!,
+        amountPaid: request.amount,
+        date: DateTime.now(),
+      );
+
+      final loanRepo = LoanRepository();
+      await loanRepo.addRepayment(repayment);
+    }
   }
 
   Future<void> rejectPaymentRequest(String requestId, {String? notes}) async {

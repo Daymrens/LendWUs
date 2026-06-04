@@ -5,11 +5,19 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:io';
 import '../../data/models/payment_request.dart';
 import '../../data/repositories/payment_request_repository.dart';
+import '../../data/repositories/loan_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/utils/currency_formatter.dart';
 
 class MemberPayScreen extends ConsumerStatefulWidget {
-  const MemberPayScreen({super.key});
+  final String? loanId;
+  final PaymentType paymentType;
+
+  const MemberPayScreen({
+    super.key, 
+    this.loanId, 
+    this.paymentType = PaymentType.contribution,
+  });
 
   @override
   ConsumerState<MemberPayScreen> createState() => _MemberPayScreenState();
@@ -20,6 +28,28 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
   final _amountController = TextEditingController();
   File? _receiptImage;
   bool _isSubmitting = false;
+  double? _remainingBalance;
+  bool _isLoadingBalance = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.loanId != null) {
+      _fetchRemainingBalance();
+    }
+  }
+
+  Future<void> _fetchRemainingBalance() async {
+    setState(() => _isLoadingBalance = true);
+    final repo = LoanRepository();
+    final balance = await repo.getRemainingBalance(widget.loanId!);
+    if (mounted) {
+      setState(() {
+        _remainingBalance = balance;
+        _isLoadingBalance = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -55,11 +85,12 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
     final currentUser = ref.read(currentUserProvider).state;
     final paymentRequest = PaymentRequest(
       memberId: currentUser!.memberId!,
+      loanId: widget.loanId,
       amount: double.parse(_amountController.text),
       receiptPath: _receiptImage!.path,
       status: PaymentStatus.pending,
       requestDate: DateTime.now(),
-      type: PaymentType.contribution,
+      type: widget.paymentType,
     );
 
     final repo = PaymentRequestRepository();
@@ -86,7 +117,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pay Contribution'),
+        title: Text(widget.paymentType == PaymentType.loan ? 'Repay Loan' : 'Pay Contribution'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -95,6 +126,28 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.paymentType == PaymentType.loan && _remainingBalance != null)
+                Card(
+                  color: Colors.orange.withOpacity(0.1),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        const Text('Balance Due'),
+                        Text(
+                          CurrencyFormatter.format(_remainingBalance!),
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_isLoadingBalance)
+                const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -127,7 +180,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'Amount',
-                  prefixText: '₱ ',
+                  prefixText: '${CurrencyFormatter.currencySymbol} ',
                   border: const OutlineInputBorder(),
                   helperText: 'Enter the amount you paid',
                 ),
@@ -135,8 +188,12 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                   if (value == null || value.isEmpty) {
                     return 'Please enter amount';
                   }
-                  if (double.tryParse(value) == null) {
+                  final amount = double.tryParse(value);
+                  if (amount == null) {
                     return 'Please enter valid amount';
+                  }
+                  if (amount <= 0) {
+                    return 'Amount must be greater than zero';
                   }
                   return null;
                 },

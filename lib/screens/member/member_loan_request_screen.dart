@@ -4,6 +4,8 @@ import '../../data/models/loan_request.dart';
 import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class MemberLoanRequestScreen extends ConsumerStatefulWidget {
   const MemberLoanRequestScreen({super.key});
@@ -88,6 +90,13 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
 
   @override
   Widget build(BuildContext context) {
+    final settingsAsync = ref.watch(settingsProvider);
+    final defaultInterest = settingsAsync.valueOrNull?.loanInterestPercent ?? 10.0;
+
+    if (_interestController.text.isEmpty && defaultInterest > 0) {
+      _interestController.text = defaultInterest.toStringAsFixed(1);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Request Loan'),
@@ -102,10 +111,10 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
               TextFormField(
                 controller: _amountController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Loan Amount',
-                  prefixText: '₱ ',
-                  border: OutlineInputBorder(),
+                  prefixText: '${CurrencyFormatter.currencySymbol} ',
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -169,7 +178,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
                 decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: Colors.blue.withAlpha(77)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

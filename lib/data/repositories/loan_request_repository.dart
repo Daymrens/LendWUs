@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan_request.dart';
 import '../models/loan.dart';
 import '../../core/firebase/firebase_service.dart';
@@ -35,6 +34,17 @@ class LoanRequestRepository {
 
   Future<List<LoanRequest>> getMemberLoanRequests(String memberId) async {
     return await getLoanRequestsByMember(memberId);
+  }
+
+  Stream<List<LoanRequest>> watchMemberLoanRequests(String memberId) {
+    return FirebaseService.firestore
+        .collection('loan_requests')
+        .where('memberId', isEqualTo: memberId)
+        .orderBy('requestedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => LoanRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
   }
 
   Future<void> approveLoanRequest(String requestId, {String? notes}) async {

@@ -1,16 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/member_with_status.dart';
+import '../../modals/add_member_modal.dart';
+import 'link_user_sheet.dart';
 
-class MemberTileWithStatus extends StatelessWidget {
+class MemberTileWithStatus extends ConsumerWidget {
   final MemberWithStatus memberStatus;
 
   const MemberTileWithStatus({super.key, required this.memberStatus});
 
+  void _showLinkUserSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => LinkUserSheet(
+        memberId: memberStatus.member.id!,
+        memberName: memberStatus.member.name,
+        currentEmail: memberStatus.member.linkedEmail,
+      ),
+    );
+  }
+
+  void _showEditSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddMemberModal(existingMember: memberStatus.member),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final member = memberStatus.member;
     final progress = memberStatus.progress;
 
@@ -37,7 +62,7 @@ class MemberTileWithStatus extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundColor: statusColor.withOpacity(0.2),
+            backgroundColor: statusColor.withAlpha(51),
             child: Text(
               member.name[0].toUpperCase(),
               style: TextStyle(
@@ -71,23 +96,71 @@ class MemberTileWithStatus extends StatelessWidget {
                   minHeight: 6,
                   borderRadius: BorderRadius.circular(3),
                 ),
+                if (member.linkedEmail != null) ...[
+                  const Gap(4),
+                  Row(
+                    children: [
+                      Icon(Icons.email, size: 12, color: AppColors.textMuted),
+                      const Gap(4),
+                      Text(
+                        member.linkedEmail!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
           const Gap(12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              memberStatus.paymentStatus,
-              style: TextStyle(
-                color: statusColor,
-                fontWeight: FontWeight.bold,
+          Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: statusColor.withAlpha(51),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  memberStatus.paymentStatus,
+                  style: TextStyle(
+                    color: statusColor,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+              PopupMenuButton<String>(
+                icon: Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                color: AppColors.surfaceAlt,
+                onSelected: (value) {
+                  switch (value) {
+                    case 'link':
+                      _showLinkUserSheet(context);
+                      break;
+                    case 'edit':
+                      _showEditSheet(context);
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'link', child: ListTile(
+                    leading: Icon(Icons.link, color: AppColors.primary),
+                    title: Text('Link User'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  )),
+                  const PopupMenuItem(value: 'edit', child: ListTile(
+                    leading: Icon(Icons.edit, color: AppColors.secondary),
+                    title: Text('Edit'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                  )),
+                ],
+              ),
+            ],
           ),
         ],
       ),

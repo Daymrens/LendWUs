@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart' hide User;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 import '../../core/firebase/firebase_service.dart';
 
@@ -56,5 +57,17 @@ class UserRepository {
         .limit(1)
         .get();
     return snapshot.docs.isNotEmpty;
+  }
+
+  Future<List<User>> getUsersWithoutMemberId() async {
+    final allUsers = await getAllUsers();
+    return allUsers.where((u) => u.memberId == null).toList();
+  }
+
+  Future<void> updateUserMemberId(String userId, String memberId) async {
+    await FirebaseService.firestore
+        .collection('users')
+        .doc(userId)
+        .set({'memberId': memberId}, SetOptions(merge: true));
   }
 }

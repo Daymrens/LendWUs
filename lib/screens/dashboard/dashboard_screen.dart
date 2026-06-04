@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme/app_colors.dart';
+import 'package:intl/intl.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/widgets/lendwus_logo.dart';
 import '../../providers/fund_summary_provider.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/returns_provider.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/action_buttons_row.dart';
 import 'widgets/activity_chart.dart';
@@ -28,14 +30,19 @@ class DashboardScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Sinking Fund'),
+            const LendWUsLogo(fontSize: 20),
             Text(
-              'Family Circle · June 2026',
+              'Family Circle · ${DateFormat('MMMM yyyy').format(DateTime.now())}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => context.push('/settings'),
+            tooltip: 'Admin Settings',
+          ),
           IconButton(
             icon: const Icon(Icons.approval),
             onPressed: () => context.push('/approvals'),
@@ -46,15 +53,6 @@ class DashboardScreen extends ConsumerWidget {
             onPressed: () {
               ref.invalidate(fundSummaryProvider);
               ref.invalidate(membersProvider);
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(currentUserProvider).logout();
-              if (context.mounted) {
-                context.go('/login');
-              }
             },
           ),
         ],
@@ -100,6 +98,8 @@ class DashboardScreen extends ConsumerWidget {
               error: (_, __) => const Center(child: Text('Error loading summary')),
             ),
             const Gap(24),
+            _ReturnsSection(),
+            const Gap(24),
             ActionButtonsRow(
               onNewContribution: () {
                 showModalBottomSheet(
@@ -138,6 +138,106 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReturnsSection extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_ReturnsSection> createState() => _ReturnsSectionState();
+}
+
+class _ReturnsSectionState extends ConsumerState<_ReturnsSection> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(computeReturnsProvider.future);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final returnsAsync = ref.watch(returnsInfoProvider);
+
+    return returnsAsync.when(
+      data: (info) {
+        if (info.totalReturns <= 0 && info.totalHeads <= 0) return const SizedBox();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'End of Year Returns',
+              style: Theme.of(context).textTheme.displayMedium,
+            ),
+            const Gap(12),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Returns',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                          const Gap(4),
+                          Text(
+                            CurrencyFormatter.format(info.totalReturns),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const VerticalDivider(),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Per Head Share',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                          const Gap(4),
+                          Text(
+                            CurrencyFormatter.format(info.perHeadShare),
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: Colors.blue,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const VerticalDivider(),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Total Heads',
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+                          const Gap(4),
+                          Text(
+                            '${info.totalHeads}',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox(),
+      error: (_, __) => const SizedBox(),
     );
   }
 }

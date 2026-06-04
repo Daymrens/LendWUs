@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart' show FirestoreException;
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
@@ -10,14 +11,14 @@ import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
 import '../modals/member_loan_request_modal.dart';
 
-final memberPaymentRequestsProvider = FutureProvider.family<List<PaymentRequest>, String>((ref, memberId) async {
+final memberPaymentRequestsProvider = StreamProvider.family<List<PaymentRequest>, String>((ref, memberId) {
   final repo = PaymentRequestRepository();
-  return await repo.getMemberPaymentRequests(memberId);
+  return repo.watchMemberPaymentRequests(memberId);
 });
 
-final memberLoanRequestsProvider = FutureProvider.family<List<LoanRequest>, String>((ref, memberId) async {
+final memberLoanRequestsProvider = StreamProvider.family<List<LoanRequest>, String>((ref, memberId) {
   final repo = LoanRequestRepository();
-  return await repo.getMemberLoanRequests(memberId);
+  return repo.watchMemberLoanRequests(memberId);
 });
 
 class MemberRequestsScreen extends ConsumerWidget {
@@ -167,7 +168,7 @@ class _PaymentRequestsTab extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withAlpha(51),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
@@ -298,7 +299,7 @@ class _LoanRequestsTab extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withAlpha(51),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

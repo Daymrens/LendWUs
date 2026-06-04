@@ -7,15 +7,33 @@ import '../../data/repositories/payment_request_repository.dart';
 import '../../data/repositories/loan_request_repository.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../data/repositories/member_repository.dart';
+import '../../providers/members_provider.dart';
 
 final pendingPaymentsProvider = FutureProvider<List<PaymentRequest>>((ref) async {
   final repo = PaymentRequestRepository();
-  return await repo.getPendingPaymentRequests();
+  try {
+    return await repo.getPendingPaymentRequests();
+  } catch (e) {
+    debugPrint('ERROR loading pending payments: $e');
+    rethrow;
+  }
 });
 
 final pendingLoansProvider = FutureProvider<List<LoanRequest>>((ref) async {
   final repo = LoanRequestRepository();
-  return await repo.getPendingLoanRequests();
+  try {
+    return await repo.getPendingLoanRequests();
+  } catch (e) {
+    debugPrint('ERROR loading pending loans: $e');
+    rethrow;
+  }
+});
+
+final memberNamesProvider = FutureProvider<Map<String, String>>((ref) async {
+  final repo = MemberRepository();
+  final members = await repo.getAllMembers();
+  return {for (var m in members) m.id!: m.name};
 });
 
 class ApprovalsScreen extends ConsumerWidget {
@@ -70,25 +88,40 @@ class _PendingPaymentsTab extends ConsumerWidget {
             itemCount: payments.length,
             itemBuilder: (context, index) {
               final payment = payments[index];
-              return _PaymentApprovalCard(payment: payment, ref: ref);
+              return _PaymentApprovalCard(payment: payment);
             },
           ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const Center(child: Text('Error loading payments')),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Error loading payments'),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => ref.invalidate(pendingPaymentsProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _PaymentApprovalCard extends StatelessWidget {
+class _PaymentApprovalCard extends ConsumerWidget {
   final PaymentRequest payment;
-  final WidgetRef ref;
 
-  const _PaymentApprovalCard({required this.payment, required this.ref});
+  const _PaymentApprovalCard({required this.payment});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
+    final memberName = memberNames[payment.memberId] ?? 'Member ${payment.memberId}';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -99,11 +132,33 @@ class _PaymentApprovalCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Member ${payment.memberId}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      memberName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: payment.type == PaymentType.loan 
+                            ? Colors.orange.withOpacity(0.2) 
+                            : Colors.blue.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
                       ),
+                      child: Text(
+                        payment.type == PaymentType.loan ? 'Loan Repayment' : 'Contribution',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: payment.type == PaymentType.loan ? Colors.orange : Colors.blue,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 Text(
                   CurrencyFormatter.format(payment.amount),
@@ -146,7 +201,7 @@ class _PaymentApprovalCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleReject(context),
+                    onPressed: () => _handleReject(context, ref),
                     icon: const Icon(Icons.close),
                     label: const Text('Reject'),
                     style: OutlinedButton.styleFrom(
@@ -157,7 +212,7 @@ class _PaymentApprovalCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _handleApprove(context),
+                    onPressed: () => _handleApprove(context, ref),
                     icon: const Icon(Icons.check),
                     label: const Text('Approve'),
                     style: ElevatedButton.styleFrom(
@@ -210,7 +265,7 @@ class _PaymentApprovalCard extends StatelessWidget {
     );
   }
 
-  Future<void> _handleApprove(BuildContext context) async {
+  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
     final repo = PaymentRequestRepository();
     await repo.approvePaymentRequest(payment.id!);
     
@@ -226,7 +281,7 @@ class _PaymentApprovalCard extends StatelessWidget {
     }
   }
 
-  Future<void> _handleReject(BuildContext context) async {
+  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
     final notesController = TextEditingController();
     
     final shouldReject = await showDialog<bool>(
@@ -297,25 +352,39 @@ class _PendingLoansTab extends ConsumerWidget {
             itemCount: loans.length,
             itemBuilder: (context, index) {
               final loan = loans[index];
-              return _LoanApprovalCard(loan: loan, ref: ref);
+              return _LoanApprovalCard(loan: loan);
             },
           ),
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, __) => const Center(child: Text('Error loading loans')),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Error loading loans'),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => ref.invalidate(pendingLoansProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-class _LoanApprovalCard extends StatelessWidget {
+class _LoanApprovalCard extends ConsumerWidget {
   final LoanRequest loan;
-  final WidgetRef ref;
 
-  const _LoanApprovalCard({required this.loan, required this.ref});
+  const _LoanApprovalCard({required this.loan});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
+    final memberName = memberNames[loan.memberId] ?? 'Member ${loan.memberId}';
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
@@ -327,7 +396,7 @@ class _LoanApprovalCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Member ${loan.memberId}',
+                  memberName,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -364,7 +433,7 @@ class _LoanApprovalCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleReject(context),
+                    onPressed: () => _handleReject(context, ref),
                     icon: const Icon(Icons.close),
                     label: const Text('Reject'),
                     style: OutlinedButton.styleFrom(
@@ -375,7 +444,7 @@ class _LoanApprovalCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _handleApprove(context),
+                    onPressed: () => _handleApprove(context, ref),
                     icon: const Icon(Icons.check),
                     label: const Text('Approve'),
                     style: ElevatedButton.styleFrom(
@@ -391,7 +460,7 @@ class _LoanApprovalCard extends StatelessWidget {
     );
   }
 
-  Future<void> _handleApprove(BuildContext context) async {
+  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
     final repo = LoanRequestRepository();
     await repo.approveLoanRequest(loan.id!);
     
@@ -407,7 +476,7 @@ class _LoanApprovalCard extends StatelessWidget {
     }
   }
 
-  Future<void> _handleReject(BuildContext context) async {
+  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
     final notesController = TextEditingController();
     
     final shouldReject = await showDialog<bool>(

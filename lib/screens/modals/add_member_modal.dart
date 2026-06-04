@@ -4,9 +4,14 @@ import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/member.dart';
 import '../../providers/members_provider.dart';
+import '../../providers/members_with_status_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class AddMemberModal extends ConsumerStatefulWidget {
-  const AddMemberModal({super.key});
+  final Member? existingMember;
+
+  const AddMemberModal({super.key, this.existingMember});
 
   @override
   ConsumerState<AddMemberModal> createState() => _AddMemberModalState();
@@ -17,6 +22,19 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
   final _nameController = TextEditingController();
   final _headsController = TextEditingController();
   final _amountController = TextEditingController();
+
+  bool get _isEditing => widget.existingMember != null;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final m = widget.existingMember!;
+      _nameController.text = m.name;
+      _headsController.text = m.headsCount.toString();
+      _amountController.text = m.amountPerHead.toString();
+    }
+  }
 
   @override
   void dispose() {
@@ -31,18 +49,59 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
       final headsCount = int.parse(_headsController.text);
       final amountPerHead = double.parse(_amountController.text);
 
-      final member = Member(
-        name: _nameController.text,
-        headsCount: headsCount,
-        amountPerHead: amountPerHead,
-        totalRequired: headsCount * amountPerHead,
-        joinedAt: DateTime.now(),
-      );
-
       final repo = ref.read(memberRepositoryProvider);
-      await repo.addMember(member);
-      ref.invalidate(membersProvider);
 
+      if (_isEditing) {
+        final member = widget.existingMember!;
+        member.name = _nameController.text;
+        member.headsCount = headsCount;
+        member.amountPerHead = amountPerHead;
+        member.totalRequired = headsCount * amountPerHead;
+        await repo.updateMember(member);
+      } else {
+        final member = Member(
+          name: _nameController.text,
+          headsCount: headsCount,
+          amountPerHead: amountPerHead,
+          totalRequired: headsCount * amountPerHead,
+          joinedAt: DateTime.now(),
+        );
+        await repo.addMember(member);
+      }
+
+      ref.invalidate(membersProvider);
+      ref.invalidate(membersWithStatusProvider);
+
+      if (mounted) Navigator.pop(context);
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        title: const Text('Delete Member'),
+        content: Text('Remove ${widget.existingMember!.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final repo = ref.read(memberRepositoryProvider);
+      await repo.deleteMember(widget.existingMember!.id!);
+      ref.invalidate(membersProvider);
+      ref.invalidate(membersWithStatusProvider);
       if (mounted) Navigator.pop(context);
     }
   }
@@ -67,7 +126,7 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add Member',
+              _isEditing ? 'Edit Member' : 'Add Member',
               style: Theme.of(context).textTheme.displayMedium,
             ),
             const Gap(24),
@@ -113,12 +172,31 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
                     borderRadius: BorderRadius.circular(25),
                   ),
                 ),
-                child: const Text(
-                  'Add Member',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Text(
+                  _isEditing ? 'Save Changes' : 'Add Member',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
+            if (_isEditing) ...[
+              const Gap(12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: OutlinedButton.icon(
+                  onPressed: _delete,
+                  icon: const Icon(Icons.delete),
+                  label: const Text('Delete Member'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             const Gap(24),
           ],
         ),

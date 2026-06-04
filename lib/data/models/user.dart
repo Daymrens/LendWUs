@@ -7,6 +7,7 @@ class User {
   String? password;
   UserRole role;
   String? memberId;
+  String? photoUrl;
   DateTime createdAt;
 
   User({
@@ -16,6 +17,7 @@ class User {
     this.password,
     required this.role,
     this.memberId,
+    this.photoUrl,
     required this.createdAt,
   });
 
@@ -27,6 +29,7 @@ class User {
       'password': password,
       'role': role.name,
       'memberId': memberId,
+      'photoUrl': photoUrl,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -42,6 +45,7 @@ class User {
         orElse: () => UserRole.member,
       ),
       memberId: map['memberId'],
+      photoUrl: map['photoUrl'],
       createdAt: map['createdAt'] is DateTime
           ? map['createdAt']
           : DateTime.parse(map['createdAt']),

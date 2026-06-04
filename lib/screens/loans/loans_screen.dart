@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../data/repositories/loan_repository.dart';
-import '../../data/repositories/member_repository.dart';
 import '../../providers/loans_provider.dart';
 import '../../providers/members_provider.dart';
 import '../modals/issue_loan_modal.dart';
@@ -197,7 +195,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
           itemCount: loans.length,
           itemBuilder: (context, index) {
             final loan = loans[index];
-            final member = members.firstWhere((m) => m.id == loan.memberId, orElse: () => null);
+            final member = members.where((m) => m.id == loan.memberId).isEmpty ? null : members.firstWhere((m) => m.id == loan.memberId);
             
             final loanRepayments = repayments.where((r) => r.loanId == loan.id);
             final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
@@ -222,7 +220,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                     children: [
                       CircleAvatar(
                         radius: 20,
-                        backgroundColor: AppColors.secondary.withOpacity(0.2),
+                        backgroundColor: AppColors.secondary.withAlpha(51),
                         child: Text(
                           member?.name[0].toUpperCase() ?? 'L',
                           style: const TextStyle(
@@ -257,7 +255,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.warning.withOpacity(0.2),
+                            color: AppColors.warning.withAlpha(51),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Text(
@@ -380,7 +378,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
           itemCount: completedLoans.length,
           itemBuilder: (context, index) {
             final loan = completedLoans[index];
-            final member = members.firstWhere((m) => m.id == loan.memberId, orElse: () => null);
+            final member = members.where((m) => m.id == loan.memberId).isEmpty ? null : members.firstWhere((m) => m.id == loan.memberId);
 
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -393,7 +391,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                    backgroundColor: AppColors.primary.withAlpha(51),
                     child: const Icon(Icons.check, color: AppColors.primary),
                   ),
                   const Gap(12),
@@ -418,7 +416,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.2),
+                      color: AppColors.primary.withAlpha(51),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(

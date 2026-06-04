@@ -1,11 +1,42 @@
 import 'package:intl/intl.dart';
 
 class CurrencyFormatter {
-  static final _formatter = NumberFormat.currency(
-    symbol: '₱',
-    locale: 'fil_PH',
+  static String _symbol = '\u20B1';
+  static String _locale = 'en_PH';
+  
+  static NumberFormat _formatter = NumberFormat.currency(
+    symbol: _symbol,
+    locale: _locale,
     decimalDigits: 2,
   );
+
+  static void updateConfiguration(String symbol, String code) {
+    _symbol = symbol;
+    // Basic mapping for common currencies, default to en_US for others
+    if (code == 'PHP') {
+      _locale = 'en_PH';
+    } else if (code == 'USD') {
+      _locale = 'en_US';
+    } else if (code == 'EUR') {
+      _locale = 'en_IE'; // Irish English for Euro
+    } else if (code == 'GBP') {
+      _locale = 'en_GB';
+    } else if (code == 'JPY') {
+      _locale = 'ja_JP';
+    } else if (code == 'KRW') {
+      _locale = 'ko_KR';
+    } else if (code == 'INR') {
+      _locale = 'en_IN';
+    } else {
+      _locale = 'en_US';
+    }
+
+    _formatter = NumberFormat.currency(
+      symbol: _symbol,
+      locale: _locale,
+      decimalDigits: 2,
+    );
+  }
 
   /// Format centavos (int) to display string
   /// e.g. 1245000 → "₱12,450.00"
@@ -20,7 +51,9 @@ class CurrencyFormatter {
 
   /// Parse display string back to centavos
   static int parse(String input) {
-    final cleaned = input.replaceAll(RegExp(r'[₱,\s]'), '');
+    // Clean all non-numeric except decimal point
+    final cleaned = input.replaceAll(RegExp(r'[^0-9.]'), '');
+    if (cleaned.isEmpty) return 0;
     return (double.parse(cleaned) * 100).round();
   }
 
@@ -33,4 +66,7 @@ class CurrencyFormatter {
   static double toDouble(int centavos) {
     return centavos / 100;
   }
+
+  /// The currency symbol used by this formatter
+  static String get currencySymbol => _symbol;
 }

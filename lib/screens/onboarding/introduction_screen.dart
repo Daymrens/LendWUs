@@ -21,7 +21,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
 
   final List<IntroPage> _pages = [
     IntroPage(
-      title: 'Welcome to\nSinking Fund',
+      title: 'Welcome to\nLendWUs',
       description: 'Manage your group savings, track contributions, and issue loans - all in one place.',
       icon: Icons.account_balance_wallet,
       color: AppColors.primary,
@@ -182,7 +182,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
           decoration: BoxDecoration(
             color: _currentPage == index
                 ? _pages[_currentPage].color
-                : AppColors.textMuted.withOpacity(0.3),
+                : AppColors.textMuted.withAlpha(77),
             borderRadius: BorderRadius.circular(4),
           ),
         ),

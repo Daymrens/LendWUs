@@ -143,7 +143,7 @@ class ContributionsScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: color == AppColors.surfaceAlt ? AppColors.surface : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(16),
-        border: color != AppColors.surfaceAlt ? Border.all(color: color.withOpacity(0.3)) : null,
+        border: color != AppColors.surfaceAlt ? Border.all(color: color.withAlpha(77)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +252,7 @@ class ContributionsScreen extends ConsumerWidget {
                     show: true,
                     gradient: LinearGradient(
                       colors: [
-                        AppColors.primary.withOpacity(0.3),
+                        AppColors.primary.withAlpha(77),
                         AppColors.primary.withOpacity(0.0),
                       ],
                       begin: Alignment.topCenter,
@@ -435,3 +435,4 @@ class ContributionsScreen extends ConsumerWidget {
     );
   }
 }
+

@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../data/models/payment_request.dart';
 import '../../data/repositories/payment_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class MemberPaymentModal extends ConsumerStatefulWidget {
   const MemberPaymentModal({super.key});
@@ -169,9 +170,9 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                 // Amount
                 TextFormField(
                   controller: _amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Amount (₱)',
-                    prefixText: '₱ ',
+                  decoration: InputDecoration(
+                    labelText: 'Amount (${CurrencyFormatter.currencySymbol})',
+                    prefixText: '${CurrencyFormatter.currencySymbol} ',
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {

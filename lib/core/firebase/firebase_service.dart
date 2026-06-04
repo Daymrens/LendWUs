@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../data/models/user.dart';
 
 class FirebaseService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -10,8 +9,12 @@ class FirebaseService {
   static FirebaseFirestore get firestore => _firestore;
 
   static Future<void> seedDefaults() async {
-    final userSnapshot = await _firestore.collection('users').limit(1).get();
-    if (userSnapshot.docs.isNotEmpty) return;
+    try {
+      final userSnapshot = await _firestore.collection('users').limit(1).get();
+      if (userSnapshot.docs.isNotEmpty) return;
+    } catch (_) {
+      return;
+    }
 
     try {
       final adminCred = await _auth.createUserWithEmailAndPassword(
@@ -51,6 +54,13 @@ class FirebaseService {
 
       await _firestore.collection('app_settings').doc('payment_qr').set({
         'value': 'GCash: 09123456789\nName: Juan Dela Cruz',
+      });
+
+      await _firestore.collection('app_settings').doc('fund_settings').set({
+        'minPaymentPerHead': 0.0,
+        'maxPaymentPerHead': 1000.0,
+        'currencySymbol': '\u20B1',
+        'currencyCode': 'PHP',
       });
     } catch (e) {
       // Accounts may already exist in Auth

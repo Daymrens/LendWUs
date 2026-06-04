@@ -119,7 +119,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.2),
+                  color: AppColors.warning.withAlpha(51),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.warning),
                 ),
@@ -187,9 +187,9 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
             const Gap(16),
             TextFormField(
               controller: _amountController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Amount Paid',
-                prefixText: '₱ ',
+                prefixText: '${CurrencyFormatter.currencySymbol} ',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {

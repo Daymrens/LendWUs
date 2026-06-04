@@ -1,7 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/fund_summary.dart';
-import '../data/repositories/fund_repository.dart';
-import '../data/repositories/loan_repository.dart';
 import 'fund_provider.dart';
 import 'loans_provider.dart';
 

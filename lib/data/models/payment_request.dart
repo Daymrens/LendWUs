@@ -4,6 +4,7 @@ enum PaymentType { contribution, loan }
 class PaymentRequest {
   String? id;
   String memberId;
+  String? loanId;
   PaymentType type;
   double amount;
   String? receiptPath;
@@ -17,6 +18,7 @@ class PaymentRequest {
   PaymentRequest({
     this.id,
     required this.memberId,
+    this.loanId,
     required this.type,
     required this.amount,
     this.receiptPath,
@@ -32,6 +34,7 @@ class PaymentRequest {
     return {
       if (id != null) 'id': id,
       'memberId': memberId,
+      'loanId': loanId,
       'type': type.name,
       'amount': amount,
       'receiptPath': receiptPath,
@@ -48,6 +51,7 @@ class PaymentRequest {
     return PaymentRequest(
       id: map['id'],
       memberId: map['memberId'],
+      loanId: map['loanId'],
       type: PaymentType.values.firstWhere((e) => e.name == map['type']),
       amount: (map['amount'] as num).toDouble(),
       receiptPath: map['receiptPath'],

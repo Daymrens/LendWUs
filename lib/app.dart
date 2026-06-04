@@ -4,8 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
-import 'data/models/user.dart';
 import 'screens/auth/login_screen.dart';
+import 'screens/auth/unrecognized_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/members/members_screen.dart';
 import 'screens/reports/reports_screen.dart';
@@ -15,16 +15,30 @@ import 'screens/onboarding/introduction_screen.dart';
 import 'screens/member/member_dashboard_screen.dart';
 import 'screens/member/member_contributions_screen.dart';
 import 'screens/member/member_requests_screen.dart';
+import 'screens/profile/profile_screen.dart';
 
 import 'screens/admin/approvals_screen.dart';
+import 'screens/admin/admin_settings_screen.dart';
+import 'core/utils/currency_formatter.dart';
+import 'providers/settings_provider.dart';
 
 class SinkingFundApp extends ConsumerWidget {
   const SinkingFundApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Listen to settings and update CurrencyFormatter
+    ref.listen(settingsProvider, (previous, next) {
+      next.whenData((settings) {
+        CurrencyFormatter.updateConfiguration(
+          settings.currencySymbol,
+          settings.currencyCode,
+        );
+      });
+    });
+
     return MaterialApp.router(
-      title: 'Sinking Fund',
+      title: 'LendWUs',
       theme: AppTheme.darkTheme,
       routerConfig: _createRouter(ref),
     );
@@ -37,21 +51,30 @@ class SinkingFundApp extends ConsumerWidget {
       initialLocation: '/login',
       refreshListenable: authNotifier,
       redirect: (context, state) async {
-        final user = ref.read(currentUserProvider).state;
+        final auth = ref.read(currentUserProvider);
+        final user = auth.state;
+        final isRecognized = auth.isRecognized;
         final prefs = await SharedPreferences.getInstance();
         final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
         
         final isLoggingIn = state.matchedLocation == '/login';
         final isIntro = state.matchedLocation == '/intro';
+        final isUnrecognized = state.matchedLocation == '/unrecognized';
+        final isAuthPage = isLoggingIn || isIntro || isUnrecognized;
 
-        // If not logged in, redirect to login (except for intro)
-        if (user == null && !isIntro && !isLoggingIn) {
-          return '/login';
+        // Has Firebase Auth but no Firestore doc → unrecognized
+        if (auth.isFirebaseUser && !isRecognized && !isUnrecognized) {
+          return '/unrecognized';
         }
         
-        // If logged in, skip login screen
-        if (user != null && isLoggingIn) {
-          return user.role == UserRole.admin ? '/' : '/member-home';
+        // Not signed in at all → login
+        if (!auth.isFirebaseUser && !isAuthPage) {
+          return '/login';
+        }
+
+        // If logged in and recognized, skip login screen
+        if (user != null && isRecognized && isLoggingIn) {
+          return auth.isAdmin ? '/' : '/member-home';
         }
         
         // Handle intro screen
@@ -69,6 +92,10 @@ class SinkingFundApp extends ConsumerWidget {
         GoRoute(
           path: '/intro',
           builder: (context, state) => const IntroductionScreen(),
+        ),
+        GoRoute(
+          path: '/unrecognized',
+          builder: (context, state) => const UnrecognizedScreen(),
         ),
         // Admin routes
         ShellRoute(
@@ -100,6 +127,14 @@ class SinkingFundApp extends ConsumerWidget {
               path: '/approvals',
               builder: (context, state) => const ApprovalsScreen(),
             ),
+            GoRoute(
+              path: '/settings',
+              builder: (context, state) => const AdminSettingsScreen(),
+            ),
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
+            ),
           ],
         ),
         // Member routes
@@ -119,6 +154,10 @@ class SinkingFundApp extends ConsumerWidget {
             GoRoute(
               path: '/member-requests',
               builder: (context, state) => const MemberRequestsScreen(),
+            ),
+            GoRoute(
+              path: '/member-profile',
+              builder: (context, state) => const ProfileScreen(),
             ),
           ],
         ),
@@ -143,6 +182,7 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
     if (location == '/contributions') return 2;
     if (location == '/loans') return 3;
     if (location == '/reports') return 4;
+    if (location == '/profile') return 5;
     return 0;
   }
 
@@ -169,6 +209,9 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
             case 4:
               context.go('/reports');
               break;
+            case 5:
+              context.go('/profile');
+              break;
           }
         },
         type: BottomNavigationBarType.fixed,
@@ -183,7 +226,7 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
-            label: 'Contributions',
+            label: 'Contribs',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.account_balance),
@@ -192,6 +235,10 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
           BottomNavigationBarItem(
             icon: Icon(Icons.assessment),
             label: 'Reports',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),
@@ -213,6 +260,7 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
     if (location == '/member-home') return 0;
     if (location == '/member-contributions') return 1;
     if (location == '/member-requests') return 2;
+    if (location == '/member-profile') return 3;
     return 0;
   }
 
@@ -233,6 +281,9 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
             case 2:
               context.go('/member-requests');
               break;
+            case 3:
+              context.go('/member-profile');
+              break;
           }
         },
         type: BottomNavigationBarType.fixed,
@@ -243,11 +294,15 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
-            label: 'My Contributions',
+            label: 'My Contribs',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.request_page),
             label: 'Requests',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

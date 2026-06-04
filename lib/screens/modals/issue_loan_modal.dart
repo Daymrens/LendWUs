@@ -6,7 +6,8 @@ import '../../data/models/loan.dart';
 import '../../providers/loans_provider.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/fund_summary_provider.dart';
-import '../../data/repositories/loan_repository.dart';
+import '../../providers/settings_provider.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class IssueLoanModal extends ConsumerStatefulWidget {
   const IssueLoanModal({super.key});
@@ -18,7 +19,7 @@ class IssueLoanModal extends ConsumerStatefulWidget {
 class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
   final _formKey = GlobalKey<FormState>();
   final _principalController = TextEditingController();
-  final _interestController = TextEditingController(text: '5');
+  final _interestController = TextEditingController();
   String? _selectedMemberId;
   DateTime _dueDate = DateTime.now().add(const Duration(days: 30));
   String? _errorMessage;
@@ -83,6 +84,11 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
   Widget build(BuildContext context) {
     final members = ref.watch(membersProvider);
     final fundSummary = ref.watch(fundSummaryProvider);
+    final defaultInterest = ref.watch(settingsProvider).valueOrNull?.loanInterestPercent ?? 10.0;
+
+    if (_interestController.text.isEmpty && defaultInterest > 0) {
+      _interestController.text = defaultInterest.toStringAsFixed(1);
+    }
 
     return Container(
       padding: EdgeInsets.only(
@@ -120,7 +126,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withOpacity(0.2),
+                  color: AppColors.warning.withAlpha(51),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: AppColors.warning),
                 ),
@@ -156,9 +162,9 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
             const Gap(16),
             TextFormField(
               controller: _principalController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Principal Amount',
-                prefixText: '₱ ',
+                prefixText: '${CurrencyFormatter.currencySymbol} ',
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {

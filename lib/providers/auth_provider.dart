@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../data/models/user.dart';
-import '../data/repositories/user_repository.dart';
+import '../data/models/member.dart';
+import '../data/repositories/member_repository.dart';
 import '../core/firebase/firebase_service.dart';
-
-final userRepositoryProvider = Provider((ref) => UserRepository());
+import 'members_provider.dart';
 
 final currentUserProvider = ChangeNotifierProvider<CurrentUserNotifier>((ref) {
   return CurrentUserNotifier(ref);
@@ -15,35 +15,65 @@ final currentUserProvider = ChangeNotifierProvider<CurrentUserNotifier>((ref) {
 class CurrentUserNotifier extends ChangeNotifier {
   final Ref ref;
   User? _user;
+  bool _isRecognized = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   User? get state => _user;
+  bool get isRecognized => _isRecognized;
+  bool get isFirebaseUser => FirebaseService.auth.currentUser != null;
 
   CurrentUserNotifier(this.ref) {
     _initAuthListener();
   }
+
+  static const _adminEmails = ['act.drapor@gmail.com', 'daymrens@gmail.com'];
 
   void _initAuthListener() {
     FirebaseService.auth.authStateChanges().listen((firebaseUser) async {
       if (firebaseUser != null) {
         final repo = ref.read(userRepositoryProvider);
         _user = await repo.getUserById(firebaseUser.uid);
-        
-        // Failsafe: Create user document if it doesn't exist (e.g. first time Google login)
+
         if (_user == null && firebaseUser.email != null) {
-          final isFirstAdmin = firebaseUser.email == 'act.drapor@gmail.com';
-          final newUser = User(
-            id: firebaseUser.uid,
-            username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-            email: firebaseUser.email!,
-            role: isFirstAdmin ? UserRole.admin : UserRole.member,
-            createdAt: DateTime.now(),
-          );
-          await repo.createUserDoc(newUser);
-          _user = newUser;
+          if (_adminEmails.contains(firebaseUser.email)) {
+            final newUser = User(
+              id: firebaseUser.uid,
+              username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+              email: firebaseUser.email!,
+              role: UserRole.admin,
+              photoUrl: firebaseUser.photoURL,
+              createdAt: DateTime.now(),
+            );
+            await repo.createUserDoc(newUser);
+            _user = newUser;
+          } else {
+            final memberRepo = MemberRepository();
+            final linkedMember = await memberRepo.findMemberByLinkedEmail(firebaseUser.email!);
+            if (linkedMember != null) {
+              final newUser = User(
+                id: firebaseUser.uid,
+                username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+                email: firebaseUser.email!,
+                role: UserRole.member,
+                memberId: linkedMember.id,
+                photoUrl: firebaseUser.photoURL,
+                createdAt: DateTime.now(),
+              );
+              await repo.createUserDoc(newUser);
+              _user = newUser;
+            }
+          }
+        }
+
+        if (_user != null) {
+          _isRecognized = true;
+        } else {
+          _isRecognized = false;
+          _user = null;
         }
       } else {
         _user = null;
+        _isRecognized = false;
       }
       notifyListeners();
     });
@@ -74,6 +104,7 @@ class CurrentUserNotifier extends ChangeNotifier {
 
     if (user != null) {
       _user = user;
+      _isRecognized = true;
       notifyListeners();
       return true;
     }
@@ -85,10 +116,53 @@ class CurrentUserNotifier extends ChangeNotifier {
     await _googleSignIn.signOut();
     await FirebaseService.auth.signOut();
     _user = null;
+    _isRecognized = false;
     notifyListeners();
   }
 
-  bool get isAdmin => _user?.role == UserRole.admin || _user?.email == 'act.drapor@gmail.com';
+  Future<bool> joinWithGroupCode(String code) async {
+    if (code.toUpperCase() != 'LENDWUS') return false;
+
+    final firebaseUser = FirebaseService.auth.currentUser;
+    if (firebaseUser == null || firebaseUser.email == null) return false;
+
+    try {
+      final memberRepo = MemberRepository();
+      final userRepo = ref.read(userRepositoryProvider);
+
+      final memberId = await memberRepo.addMember(Member(
+        name: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+        linkedEmail: firebaseUser.email,
+        headsCount: 1,
+        amountPerHead: 150.0,
+        totalRequired: 150.0,
+        joinedAt: DateTime.now(),
+        isActive: true,
+      ));
+
+      final newUser = User(
+        id: firebaseUser.uid,
+        username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+        email: firebaseUser.email!,
+        role: UserRole.member,
+        memberId: memberId,
+        photoUrl: firebaseUser.photoURL,
+        createdAt: DateTime.now(),
+      );
+      
+      await userRepo.createUserDoc(newUser);
+      
+      _user = newUser;
+      _isRecognized = true;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Join Group Code Error: $e');
+      return false;
+    }
+  }
+
+  bool get isAdmin => _user?.role == UserRole.admin || (_user?.email != null && _adminEmails.contains(_user!.email));
   bool get isMember => _user?.role == UserRole.member;
   String? get memberId => _user?.memberId;
 }

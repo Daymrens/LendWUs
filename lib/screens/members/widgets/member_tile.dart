@@ -36,7 +36,7 @@ class MemberTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 25,
-                backgroundColor: AppColors.primary.withOpacity(0.2),
+                backgroundColor: AppColors.primary.withAlpha(51),
                 child: Text(
                   member.name[0].toUpperCase(),
                   style: const TextStyle(
@@ -78,7 +78,7 @@ class MemberTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: (progress >= 1.0 ? AppColors.primary : AppColors.warning)
-                      .withOpacity(0.2),
+                      .withAlpha(51),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(

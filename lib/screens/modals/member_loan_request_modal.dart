@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../data/models/loan_request.dart';
 import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class MemberLoanRequestModal extends ConsumerStatefulWidget {
   const MemberLoanRequestModal({super.key});
@@ -16,7 +18,7 @@ class MemberLoanRequestModal extends ConsumerStatefulWidget {
 class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal> {
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _interestRateController = TextEditingController(text: '5.0');
+  final _interestRateController = TextEditingController();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 30));
   bool _isSubmitting = false;
 
@@ -87,6 +89,13 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
 
   @override
   Widget build(BuildContext context) {
+    final settingsAsync = ref.watch(settingsProvider);
+    final defaultInterest = settingsAsync.valueOrNull?.loanInterestPercent ?? 10.0;
+
+    if (_interestRateController.text.isEmpty && defaultInterest > 0) {
+      _interestRateController.text = defaultInterest.toStringAsFixed(1);
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -123,9 +132,9 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                 
                 TextFormField(
                   controller: _amountController,
-                  decoration: const InputDecoration(
-                    labelText: 'Loan Amount (₱)',
-                    prefixText: '₱ ',
+                  decoration: InputDecoration(
+                    labelText: 'Loan Amount (${CurrencyFormatter.currencySymbol})',
+                    prefixText: '${CurrencyFormatter.currencySymbol} ',
                   ),
                   keyboardType: TextInputType.number,
                   validator: (value) {
@@ -181,7 +190,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withAlpha(26),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.info.withOpacity(0.3)),
                   ),

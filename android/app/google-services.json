@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "55723804965-ealau87hqjfna9h34obdf0mub5jd2l9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sinking_fund_app",
+            "certificate_hash": "463edee02a368a541c2b7bf9f0b54ae17cc46798"
+          }
+        },
+        {
+          "client_id": "55723804965-p44q5qkpsank1ottg9t48le0ciscs88j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.sinking_fund_app",
+            "certificate_hash": "b5bd8fc3d7f9e757832bc8ee5ddc562ffa36bffb"
+          }
+        },
+        {
           "client_id": "55723804965-fonr8chh0fufmr41mr3p1p8rafg2rsns.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -29,6 +45,13 @@
             {
               "client_id": "55723804965-fonr8chh0fufmr41mr3p1p8rafg2rsns.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "55723804965-ha2d8ocfvjjluuknec78h6ko7qalc2pa.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sinkingFundApp"
+              }
             }
           ]
         }
@@ -58,6 +81,13 @@
             {
               "client_id": "55723804965-fonr8chh0fufmr41mr3p1p8rafg2rsns.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "55723804965-ha2d8ocfvjjluuknec78h6ko7qalc2pa.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.sinkingFundApp"
+              }
             }
           ]
         }

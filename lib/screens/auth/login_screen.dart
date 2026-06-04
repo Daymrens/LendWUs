@@ -13,11 +13,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
-  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -26,19 +23,311 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) return;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.5),
+            radius: 1.5,
+            colors: [
+              AppColors.surfaceAlt.withValues(alpha: 0.5),
+              AppColors.background,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _LoginHeader(),
+                    SizedBox(height: 48),
+                    _LoginForm(),
+                    SizedBox(height: 32),
+                    _SocialLogin(),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
-    setState(() => _isLoading = true);
+class _LoginHeader extends StatelessWidget {
+  const _LoginHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.account_balance_wallet_rounded,
+            size: 64,
+            color: AppColors.primary,
+          ),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          'LendWUs',
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                letterSpacing: -1,
+              ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Financial management simplified',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textMuted,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoginForm extends ConsumerWidget {
+  const _LoginForm();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(_loginStateProvider);
+    final notifier = ref.read(_loginStateProvider.notifier);
+
+    return Form(
+      key: notifier.formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextFormField(
+            controller: notifier.emailController,
+            decoration: _getInputDecoration(
+              label: 'Email Address',
+              icon: Icons.alternate_email_rounded,
+            ),
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Please enter email';
+              if (!value.contains('@')) return 'Please enter a valid email';
+              return null;
+            },
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 20),
+          TextFormField(
+            controller: notifier.passwordController,
+            obscureText: state.obscurePassword,
+            decoration: _getInputDecoration(
+              label: 'Password',
+              icon: Icons.lock_outline_rounded,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  state.obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  size: 20,
+                  color: AppColors.textMuted,
+                ),
+                onPressed: notifier.togglePasswordVisibility,
+              ),
+            ),
+            validator: (value) {
+              if (value == null || value.isEmpty) return 'Please enter password';
+              return null;
+            },
+            onFieldSubmitted: (_) => notifier.login(context, ref),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 56,
+            child: ElevatedButton(
+              onPressed: state.isLoading ? null : () => notifier.login(context, ref),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                elevation: 0,
+              ),
+              child: state.isLoading
+                  ? const SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Text(
+                      'Sign In',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialLogin extends ConsumerWidget {
+  const _SocialLogin();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(_loginStateProvider);
+    final notifier = ref.read(_loginStateProvider.notifier);
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            const Expanded(child: Divider(color: AppColors.surfaceAlt)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'OR CONTINUE WITH',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textMuted,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+            const Expanded(child: Divider(color: AppColors.surfaceAlt)),
+          ],
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton(
+            onPressed: state.isLoading ? null : () => notifier.signInWithGoogle(context, ref),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: AppColors.surfaceAlt),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.login_rounded, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Sign in with Google',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+InputDecoration _getInputDecoration({
+  required String label,
+  required IconData icon,
+  Widget? suffixIcon,
+}) {
+  return InputDecoration(
+    labelText: label,
+    prefixIcon: Icon(icon, size: 20, color: AppColors.textMuted),
+    suffixIcon: suffixIcon,
+    labelStyle: const TextStyle(color: AppColors.textMuted),
+    floatingLabelStyle: const TextStyle(color: AppColors.primary),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: AppColors.surfaceAlt),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: AppColors.primary, width: 2),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Colors.redAccent),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+    ),
+    filled: true,
+    fillColor: AppColors.surfaceAlt.withValues(alpha: 0.2),
+  );
+}
+
+final _loginStateProvider = StateNotifierProvider<_LoginNotifier, _LoginState>((ref) {
+  return _LoginNotifier();
+});
+
+class _LoginState {
+  final bool isLoading;
+  final bool obscurePassword;
+
+  _LoginState({
+    this.isLoading = false,
+    this.obscurePassword = true,
+  });
+
+  _LoginState copyWith({
+    bool? isLoading,
+    bool? obscurePassword,
+  }) {
+    return _LoginState(
+      isLoading: isLoading ?? this.isLoading,
+      obscurePassword: obscurePassword ?? this.obscurePassword,
+    );
+  }
+}
+
+class _LoginNotifier extends StateNotifier<_LoginState> {
+  _LoginNotifier() : super(_LoginState());
+
+  final formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
+  void togglePasswordVisibility() {
+    state = state.copyWith(obscurePassword: !state.obscurePassword);
+  }
+
+  Future<void> login(BuildContext context, WidgetRef ref) async {
+    if (!formKey.currentState!.validate()) return;
+
+    state = state.copyWith(isLoading: true);
 
     try {
       final success = await ref.read(currentUserProvider).login(
-        _emailController.text.trim(),
-        _passwordController.text,
-      );
+            emailController.text.trim(),
+            passwordController.text,
+          );
 
-      if (mounted) {
-        setState(() => _isLoading = false);
+      if (context.mounted) {
+        state = state.copyWith(isLoading: false);
 
         if (success) {
           final user = ref.read(currentUserProvider).state;
@@ -57,8 +346,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
+      if (context.mounted) {
+        state = state.copyWith(isLoading: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Login error: ${e.toString()}'),
@@ -69,12 +358,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
+  Future<void> signInWithGoogle(BuildContext context, WidgetRef ref) async {
+    state = state.copyWith(isLoading: true);
     try {
       final success = await ref.read(currentUserProvider).signInWithGoogle();
-      if (mounted) {
-        setState(() => _isLoading = false);
+      if (context.mounted) {
+        state = state.copyWith(isLoading: false);
         if (!success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -85,8 +374,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         }
       }
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
+      if (context.mounted) {
+        state = state.copyWith(isLoading: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
@@ -98,158 +387,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.account_balance_wallet,
-                  size: 80,
-                  color: AppColors.primary,
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Sinking Fund',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sign in to continue',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 48),
-                Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
-                          prefixIcon: Icon(Icons.email),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter email';
-                          }
-                          return null;
-                        },
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        decoration: InputDecoration(
-                          labelText: 'Password',
-                          prefixIcon: const Icon(Icons.lock),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                            ),
-                            onPressed: () {
-                              setState(() => _obscurePassword = !_obscurePassword);
-                            },
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter password';
-                          }
-                          return null;
-                        },
-                        onFieldSubmitted: (_) => _handleLogin(),
-                      ),
-                      const SizedBox(height: 32),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleLogin,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text('Login'),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Row(
-                        children: [
-                          Expanded(child: Divider()),
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 16),
-                            child: Text('OR', style: TextStyle(color: Colors.grey)),
-                          ),
-                          Expanded(child: Divider()),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: OutlinedButton.icon(
-                          onPressed: _isLoading ? null : _handleGoogleSignIn,
-                          icon: const Icon(Icons.login),
-                          label: const Text('Sign in with Google'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardBackground.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Default Credentials:',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Admin: admin@sinkingfund.app / admin123',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Member: member@sinkingfund.app / member123',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }

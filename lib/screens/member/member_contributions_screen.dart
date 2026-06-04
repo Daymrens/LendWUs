@@ -90,7 +90,7 @@ class MemberContributionsScreen extends ConsumerWidget {
                               margin: const EdgeInsets.only(bottom: 12),
                               child: ListTile(
                                 leading: CircleAvatar(
-                                  backgroundColor: AppColors.success.withOpacity(0.2),
+                                  backgroundColor: AppColors.success.withAlpha(51),
                                   child: Icon(
                                     Icons.check,
                                     color: AppColors.success,

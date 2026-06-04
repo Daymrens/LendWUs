@@ -4,7 +4,6 @@ import 'package:gap/gap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../providers/fund_provider.dart';
-import '../../../providers/members_provider.dart';
 
 class RecentActivityList extends ConsumerWidget {
   const RecentActivityList({super.key});
@@ -34,7 +33,7 @@ class RecentActivityList extends ConsumerWidget {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: AppColors.primary.withOpacity(0.2),
+                    backgroundColor: AppColors.primary.withAlpha(51),
                     child: const Text(
                       'M',
                       style: TextStyle(
