@@ -1,49 +1,99 @@
 # LendWUs
 
-A Flutter mobile app for managing group sinking funds (paluwagan/family circle savings), powered by Firebase.
+A family circle sinking fund (paluwagan) app: group savings, loans, and returns tracking. Built with **Flutter** (mobile) + **React** (marketing website), powered by **Firebase**.
 
 ## Features
 
-- **Dashboard** - View total fund, members, loans, and interest at a glance
-- **Member Management** - Add members with custom heads/shares and track payment status
-- **Contributions** - Record member contributions with dates
-- **Loan System** - Issue loans with interest rates and track repayments
-- **Approvals** - Admin approval workflow for payment and loan requests
-- **Reports** - Monthly contribution history and loan summaries
-- **Onboarding** - Introduction screens for first-time users
-- **Dark UI** - Clean, gradient-based design
+- **Dashboard** — Total fund, member count, active loans, interest earned (admin & per-member views)
+- **Member Management** — Add/edit members with custom contribution heads; link Firebase accounts
+- **Self-Onboarding** — Members join instantly with group code **`LENDWUS`**
+- **Contributions** — Record contributions with receipt uploads
+- **Loan System** — Issue loans with configurable interest; track repayments with auto-calculated balances
+- **Approvals** — Admin approval workflow for payment and loan requests (real-time via StreamProvider)
+- **Returns Tracking** — Admin auto-computes end-of-year returns (total interest ÷ heads); members see their per-head share
+- **Admin Settings** — Payment limits, currency selection (PHP/USD/EUR), and loan interest percentage
+- **Reports** — Monthly contribution history and loan summaries
+- **Dark UI** — Clean, gradient-based design
+- **Marketing Website** — Responsive React TS landing page at [lmsystemm.web.app](https://lmsystemm.web.app)
 
 ## Setup
 
-1. Install dependencies:
 ```bash
+# Install Flutter dependencies
 flutter pub get
+
+# Install website dependencies
+cd website && npm install
 ```
 
-2. Enable Email/Password and Google Sign-In in [Firebase Console](https://console.firebase.google.com/project/lmsystemm/authentication/providers).
+Enable **Email/Password** and **Google Sign-In** in [Firebase Console](https://console.firebase.google.com/project/lmsystemm/authentication/providers).
 
-3. Run the app:
+Google Sign-In debug SHA-1: `B5:BD:8F:C3:D7:F9:E7:57:83:2B:C8:EE:5D:DC:56:2F:FA:36:BF:FB`
+
+Hardcoded admin emails (auto-linked on Google sign-in):
+- `act.drapor@gmail.com`
+- `daymrens@gmail.com`
+
+## Run
+
 ```bash
+# Mobile app
 flutter run
+
+# Website (dev)
+cd website && npm start
+
+# Website (deploy)
+cd website && npm run build
+npx firebase deploy --only hosting
 ```
 
-## Default Credentials
+## Build APK
 
-| Role   | Email                     | Password  |
-|--------|---------------------------|-----------|
-| Admin  | admin@sinkingfund.app     | admin123  |
-| Member | member@sinkingfund.app    | member123 |
+```bash
+flutter build apk --debug
+# Output: build/app/outputs/flutter-apk/app-debug.apk
+```
 
 ## Tech Stack
 
-- **Flutter** & Dart
-- **Firebase Auth** (email/password + Google Sign-In)
-- **Cloud Firestore** (NoSQL database)
-- **Riverpod** (state management)
-- **go_router** (navigation)
-- **fl_chart** (charts)
+| Layer          | Technology                          |
+|----------------|-------------------------------------|
+| Mobile         | Flutter & Dart                      |
+| Web            | React 18 + TypeScript               |
+| State Mgmt     | Riverpod (providers + StreamProvider) |
+| Navigation     | go_router                           |
+| Auth           | Firebase Auth (email + Google)      |
+| Database       | Cloud Firestore (NoSQL)             |
+| Backend        | Firebase (Spark plan — no Functions) |
+| Hosting        | Firebase Hosting                    |
+| Charts         | fl_chart                            |
+| Icons          | lucide-react (website)              |
+
+## Project Structure
+
+```
+lib/
+├── core/
+│   ├── theme/          # AppColors, dark theme
+│   ├── utils/          # CurrencyFormatter
+│   └── widgets/        # LendWUsLogo
+├── data/
+│   ├── models/         # Loan, Member, PaymentRequest, Repayment, etc.
+│   └── repositories/   # Firestore CRUD per collection
+├── providers/          # Riverpod providers
+└── screens/            # UI screens organized by role/feature
+
+website/
+├── public/
+└── src/
+    ├── App.tsx         # Single-page landing with nav, hero, features, etc.
+    ├── App.css         # Fully responsive (mobile hamburger nav)
+    └── firebase.ts     # Firebase config
+```
 
 ## Target Platforms
 
-- Android
+- Android (8.0+)
 - iOS
+- Web (marketing site)
