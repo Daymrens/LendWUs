@@ -57,6 +57,7 @@ class _AdminDataScreenState extends ConsumerState<AdminDataScreen>
       ),
     );
     if (confirmed != true) return;
+    if (!mounted) return;
 
     final reconfirm = await showDialog<bool>(
       context: context,

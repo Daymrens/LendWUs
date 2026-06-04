@@ -3,36 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:io';
 import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
+import '../../data/models/head_change_request.dart';
 import '../../data/repositories/payment_request_repository.dart';
 import '../../data/repositories/loan_request_repository.dart';
+import '../../data/repositories/head_change_request_repository.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
-import '../../data/repositories/member_repository.dart';
 import '../../providers/members_provider.dart';
+import '../../providers/auth_provider.dart';
 
-final pendingPaymentsProvider = FutureProvider<List<PaymentRequest>>((ref) async {
-  final repo = PaymentRequestRepository();
-  try {
-    return await repo.getPendingPaymentRequests();
-  } catch (e) {
-    debugPrint('ERROR loading pending payments: $e');
-    rethrow;
-  }
+final pendingPaymentsProvider = StreamProvider.autoDispose<List<PaymentRequest>>((ref) {
+  return ref.watch(paymentRequestRepositoryProvider).watchPendingPaymentRequests();
 });
 
-final pendingLoansProvider = FutureProvider<List<LoanRequest>>((ref) async {
-  final repo = LoanRequestRepository();
-  try {
-    return await repo.getPendingLoanRequests();
-  } catch (e) {
-    debugPrint('ERROR loading pending loans: $e');
-    rethrow;
-  }
+final pendingLoansProvider = StreamProvider.autoDispose<List<LoanRequest>>((ref) {
+  return ref.watch(loanRequestRepositoryProvider).watchPendingLoanRequests();
+});
+
+final pendingHeadChangesProvider = StreamProvider.autoDispose<List<HeadChangeRequest>>((ref) {
+  return ref.watch(headChangeRequestRepositoryProvider).watchPendingHeadChangeRequests();
 });
 
 final memberNamesProvider = FutureProvider<Map<String, String>>((ref) async {
-  final repo = MemberRepository();
-  final members = await repo.getAllMembers();
+  final members = await ref.watch(memberRepositoryProvider).getAllMembers();
   return {for (var m in members) m.id!: m.name};
 });
 
@@ -42,14 +35,16 @@ class ApprovalsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Pending Approvals'),
           bottom: const TabBar(
+            isScrollable: true,
             tabs: [
               Tab(text: 'Payments'),
               Tab(text: 'Loans'),
+              Tab(text: 'Heads'),
             ],
           ),
         ),
@@ -57,6 +52,7 @@ class ApprovalsScreen extends ConsumerWidget {
           children: [
             _PendingPaymentsTab(),
             _PendingLoansTab(),
+            _PendingHeadChangesTab(),
           ],
         ),
       ),
@@ -145,8 +141,8 @@ class _PaymentApprovalCard extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
                         color: payment.type == PaymentType.loan 
-                            ? Colors.orange.withOpacity(0.2) 
-                            : Colors.blue.withOpacity(0.2),
+                            ? Colors.orange.withValues(alpha: 0.2) 
+                            : Colors.blue.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
@@ -515,6 +511,241 @@ class _LoanApprovalCard extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Loan request rejected'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+class _PendingHeadChangesTab extends ConsumerWidget {
+  const _PendingHeadChangesTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final headsAsync = ref.watch(pendingHeadChangesProvider);
+
+    return headsAsync.when(
+      data: (requests) {
+        if (requests.isEmpty) {
+          return const Center(
+            child: Text('No pending head change requests'),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(pendingHeadChangesProvider);
+          },
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: requests.length,
+            itemBuilder: (context, index) {
+              final request = requests[index];
+              return _HeadChangeApprovalCard(request: request);
+            },
+          ),
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Error loading head change requests'),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () => ref.invalidate(pendingHeadChangesProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeadChangeApprovalCard extends ConsumerWidget {
+  final HeadChangeRequest request;
+
+  const _HeadChangeApprovalCard({required this.request});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
+    final memberName = memberNames[request.memberId] ?? 'Member ${request.memberId}';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      memberName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Column(
+                          children: [
+                            const Text('Current', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                            const SizedBox(height: 4),
+                            Text('${request.currentHeads}',
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Icon(Icons.arrow_forward, color: Colors.grey),
+                        ),
+                        Column(
+                          children: [
+                            const Text('Requested', style: TextStyle(color: Colors.orange, fontSize: 11)),
+                            const SizedBox(height: 4),
+                            Text('${request.requestedHeads}',
+                              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.orange)),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                Text(
+                  '${request.requestedHeads - request.currentHeads >= 0 ? '+' : ''}${request.requestedHeads - request.currentHeads}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: request.requestedHeads >= request.currentHeads ? Colors.green : Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+            _InfoRow('Current Heads', '${request.currentHeads}'),
+            const SizedBox(height: 4),
+            _InfoRow('Requested Heads', '${request.requestedHeads}'),
+            const SizedBox(height: 4),
+            _InfoRow('Difference', '${request.requestedHeads - request.currentHeads >= 0 ? '+' : ''}${request.requestedHeads - request.currentHeads}'),
+            const SizedBox(height: 4),
+            _InfoRow('Requested', DateFormatter.format(request.requestedAt)),
+            const Divider(height: 16),
+            Text(
+              'Notes:',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Colors.grey,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              request.reason ?? 'No reason provided',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _handleReject(context, ref),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleApprove(context, ref),
+                    icon: const Icon(Icons.check),
+                    label: const Text('Approve'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
+    final repo = HeadChangeRequestRepository();
+    final user = ref.read(currentUserProvider).state;
+    await repo.approveHeadChangeRequest(request.id!,
+      processedBy: user?.username ?? 'Admin',
+    );
+
+    ref.invalidate(pendingHeadChangesProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Head change approved'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
+    final notesController = TextEditingController();
+
+    final shouldReject = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reject Head Change'),
+        content: TextField(
+          controller: notesController,
+          decoration: const InputDecoration(
+            labelText: 'Reason (optional)',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldReject == true && context.mounted) {
+      final repo = HeadChangeRequestRepository();
+      final user = ref.read(currentUserProvider).state;
+      await repo.rejectHeadChangeRequest(request.id!,
+        processedBy: user?.username ?? 'Admin',
+        notes: notesController.text,
+      );
+
+      ref.invalidate(pendingHeadChangesProvider);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Head change rejected'),
             backgroundColor: Colors.red,
           ),
         );

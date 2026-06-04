@@ -6,6 +6,7 @@ import '../../providers/settings_provider.dart';
 import '../../data/models/loan_request.dart';
 import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
+import '../../data/repositories/contribution_repository.dart';
 import '../../core/utils/currency_formatter.dart';
 
 class MemberLoanRequestModal extends ConsumerStatefulWidget {
@@ -21,6 +22,27 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
   final _interestRateController = TextEditingController();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 30));
   bool _isSubmitting = false;
+  bool _hasContributions = true;
+  bool _checkingContribs = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkContributions());
+  }
+
+  Future<void> _checkContributions() async {
+    final user = ref.read(currentUserProvider).state;
+    if (user?.memberId == null) return;
+    final repo = ContributionRepository();
+    final total = await repo.getMemberTotalContributions(user!.memberId!);
+    if (mounted) {
+      setState(() {
+        _hasContributions = total > 0;
+        _checkingContribs = false;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -97,9 +119,9 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
     }
 
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -128,6 +150,40 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                     ),
                   ],
                 ),
+                if (_checkingContribs)
+                  const Center(child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ))
+                else if (!_hasContributions)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: [
+                        Icon(Icons.payments_outlined, size: 64, color: AppColors.warning.withAlpha(150)),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No Contributions Recorded',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'You need to have at least one contribution before applying for a loan. Please make a payment first.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('OK'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else ...[
                 const SizedBox(height: 24),
                 
                 TextFormField(
@@ -192,15 +248,15 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                   decoration: BoxDecoration(
                     color: AppColors.info.withAlpha(26),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.info.withOpacity(0.3)),
+                    border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
                   ),
-                  child: Column(
+                  child: const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Icon(Icons.info_outline, color: AppColors.info, size: 20),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8),
                           Text(
                             'Note',
                             style: TextStyle(
@@ -210,8 +266,8 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      const Text(
+                      SizedBox(height: 8),
+                      Text(
                         'Your loan request will be reviewed by the admin. You will be notified once it\'s processed.',
                         style: TextStyle(fontSize: 12),
                       ),
@@ -235,6 +291,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                         : const Text('Submit Request'),
                   ),
                 ),
+                ], // else block
               ],
             ),
           ),

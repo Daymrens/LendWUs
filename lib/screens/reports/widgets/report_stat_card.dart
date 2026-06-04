@@ -19,7 +19,7 @@ class ReportStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withAlpha(77), color.withOpacity(0.1)],
+          colors: [color.withAlpha(77), color.withValues(alpha: 0.1)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

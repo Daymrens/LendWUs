@@ -6,6 +6,7 @@ import '../data/models/user.dart';
 import '../data/models/member.dart';
 import '../data/repositories/member_repository.dart';
 import '../core/firebase/firebase_service.dart';
+import '../core/services/notification_service.dart';
 import 'members_provider.dart';
 
 final currentUserProvider = ChangeNotifierProvider<CurrentUserNotifier>((ref) {
@@ -16,10 +17,12 @@ class CurrentUserNotifier extends ChangeNotifier {
   final Ref ref;
   User? _user;
   bool _isRecognized = false;
+  bool _isLoading = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   User? get state => _user;
   bool get isRecognized => _isRecognized;
+  bool get isLoading => _isLoading;
   bool get isFirebaseUser => FirebaseService.auth.currentUser != null;
 
   CurrentUserNotifier(this.ref) {
@@ -67,6 +70,7 @@ class CurrentUserNotifier extends ChangeNotifier {
 
         if (_user != null) {
           _isRecognized = true;
+          _registerFcmToken();
         } else {
           _isRecognized = false;
           _user = null;
@@ -76,6 +80,18 @@ class CurrentUserNotifier extends ChangeNotifier {
         _isRecognized = false;
       }
       notifyListeners();
+    });
+  }
+
+  Future<void> _registerFcmToken() async {
+    if (_user?.id == null) return;
+    final repo = ref.read(userRepositoryProvider);
+    final token = await NotificationService.getFcmToken();
+    if (token != null) {
+      await repo.updateFcmToken(_user!.id!, token);
+    }
+    NotificationService.onTokenRefresh.listen((newToken) {
+      repo.updateFcmToken(_user!.id!, newToken);
     });
   }
 
@@ -99,24 +115,35 @@ class CurrentUserNotifier extends ChangeNotifier {
   }
 
   Future<bool> login(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
+
     final repo = ref.read(userRepositoryProvider);
     final user = await repo.login(email, password);
 
     if (user != null) {
+      await Future.delayed(const Duration(milliseconds: 800));
       _user = user;
       _isRecognized = true;
+      _isLoading = false;
       notifyListeners();
       return true;
     }
 
+    _isLoading = false;
+    notifyListeners();
     return false;
   }
 
   Future<void> logout() async {
+    _isLoading = true;
+    notifyListeners();
+    await Future.delayed(const Duration(milliseconds: 600));
     await _googleSignIn.signOut();
     await FirebaseService.auth.signOut();
     _user = null;
     _isRecognized = false;
+    _isLoading = false;
     notifyListeners();
   }
 

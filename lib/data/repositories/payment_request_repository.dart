@@ -48,10 +48,32 @@ class PaymentRequestRepository {
     return await getPaymentRequestsByMember(memberId);
   }
 
+  Stream<List<PaymentRequest>> watchAllPaymentRequests() {
+    return FirebaseService.firestore
+        .collection('payment_requests')
+        .orderBy('requestDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<PaymentRequest>> watchPendingPaymentRequests() {
+    return FirebaseService.firestore
+        .collection('payment_requests')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('requestDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
   Stream<List<PaymentRequest>> watchMemberPaymentRequests(String memberId) {
     return FirebaseService.firestore
         .collection('payment_requests')
         .where('memberId', isEqualTo: memberId)
+        .orderBy('requestDate', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
@@ -75,14 +97,69 @@ class PaymentRequestRepository {
       final contribution = Contribution(
         memberId: request.memberId,
         amount: request.amount,
-        date: DateTime.now(),
-        month: DateTime.now().month,
-        year: DateTime.now().year,
+        date: request.requestDate,
+        month: request.requestDate.month,
+        year: request.requestDate.year,
       );
 
       await FirebaseService.firestore
           .collection('contributions')
           .add(contribution.toMap());
+
+      // Track overpayment as balance
+      final contribsSnap = await FirebaseService.firestore
+          .collection('contributions')
+          .where('memberId', isEqualTo: request.memberId)
+          .where('month', isEqualTo: request.requestDate.month)
+          .where('year', isEqualTo: request.requestDate.year)
+          .get();
+      double monthTotal = contribsSnap.docs.fold<double>(
+        0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
+      );
+
+      final memberDoc = await FirebaseService.firestore
+          .collection('members')
+          .doc(request.memberId)
+          .get();
+      
+      if (memberDoc.exists) {
+        final memberData = memberDoc.data()!;
+        final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
+        double currentBalance = (memberData['balance'] as num?)?.toDouble() ?? 0.0;
+
+        if (monthTotal > required) {
+          final excess = monthTotal - required;
+          await FirebaseService.firestore
+              .collection('members')
+              .doc(request.memberId)
+              .update({'balance': currentBalance + excess});
+        } else if (monthTotal < required && currentBalance > 0) {
+          // Apply balance if current month total is below required
+          final needed = required - monthTotal;
+          final toApply = currentBalance >= needed ? needed : currentBalance;
+          
+          if (toApply > 0) {
+            // Record the balance application as a contribution
+            final balanceContribution = Contribution(
+              memberId: request.memberId,
+              amount: toApply,
+              date: DateTime.now(),
+              month: request.requestDate.month,
+              year: request.requestDate.year,
+              notes: 'Applied from balance',
+            );
+
+            await FirebaseService.firestore
+                .collection('contributions')
+                .add(balanceContribution.toMap());
+
+            await FirebaseService.firestore
+                .collection('members')
+                .doc(request.memberId)
+                .update({'balance': currentBalance - toApply});
+          }
+        }
+      }
     } else if (request.type == PaymentType.loan && request.loanId != null) {
       final repayment = Repayment(
         loanId: request.loanId!,

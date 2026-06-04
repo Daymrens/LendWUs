@@ -1,5 +1,6 @@
 import '../models/loan.dart';
 import '../models/repayment.dart';
+import 'fund_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class LoanRepository {
@@ -41,6 +42,16 @@ class LoanRepository {
   }
 
   Future<String> addLoan(Loan loan) async {
+    if (await hasActiveLoan(loan.memberId)) {
+      throw Exception('Member already has an unpaid loan');
+    }
+    
+    final fundRepo = FundRepository();
+    final available = await fundRepo.getAvailableToLoan();
+    if (loan.principal > available) {
+      throw Exception('Insufficient fund balance');
+    }
+
     final docRef = await FirebaseService.firestore.collection('loans').add(loan.toMap());
     return docRef.id;
   }
@@ -130,6 +141,30 @@ class LoanRepository {
     }
 
     return totalInterest;
+  }
+
+  Stream<List<Loan>> watchAllLoans() {
+    return FirebaseService.firestore.collection('loans').snapshots().map(
+        (snapshot) => snapshot.docs
+            .map((doc) => Loan.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<Loan>> watchActiveLoans() {
+    return FirebaseService.firestore
+        .collection('loans')
+        .where('isFullyRepaid', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Loan.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<Repayment>> watchAllRepayments() {
+    return FirebaseService.firestore.collection('repayments').snapshots().map(
+        (snapshot) => snapshot.docs
+            .map((doc) => Repayment.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
   }
 
   Future<double> getRemainingBalance(String loanId) async {

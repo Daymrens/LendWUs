@@ -16,12 +16,19 @@ import 'screens/member/member_dashboard_screen.dart';
 import 'screens/member/member_contributions_screen.dart';
 import 'screens/member/member_requests_screen.dart';
 import 'screens/profile/profile_screen.dart';
+import 'screens/profile/help_support_screen.dart';
+import 'screens/profile/about_screen.dart';
+import 'screens/profile/privacy_security_screen.dart';
+import 'screens/profile/edit_profile_screen.dart';
+import 'screens/notifications/notifications_screen.dart';
 
 import 'screens/admin/approvals_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
 import 'screens/admin/admin_data_screen.dart';
+import 'screens/admin/member_balance_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
+import 'providers/theme_provider.dart';
 
 class SinkingFundApp extends ConsumerWidget {
   const SinkingFundApp({super.key});
@@ -38,10 +45,22 @@ class SinkingFundApp extends ConsumerWidget {
       });
     });
 
+    final themeMode = ref.watch(themeModeProvider);
+
     return MaterialApp.router(
       title: 'LendWUs',
-      theme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: _createRouter(ref),
+      builder: (context, child) {
+        if (child == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        return child;
+      },
     );
   }
 
@@ -55,8 +74,12 @@ class SinkingFundApp extends ConsumerWidget {
         final auth = ref.read(currentUserProvider);
         final user = auth.state;
         final isRecognized = auth.isRecognized;
-        final prefs = await SharedPreferences.getInstance();
-        final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+        bool onboardingComplete = false;
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+        } catch (_) {}
         
         final isLoggingIn = state.matchedLocation == '/login';
         final isIntro = state.matchedLocation == '/intro';
@@ -98,6 +121,26 @@ class SinkingFundApp extends ConsumerWidget {
           path: '/unrecognized',
           builder: (context, state) => const UnrecognizedScreen(),
         ),
+        GoRoute(
+          path: '/help',
+          builder: (context, state) => const HelpSupportScreen(),
+        ),
+        GoRoute(
+          path: '/about',
+          builder: (context, state) => const AboutScreen(),
+        ),
+        GoRoute(
+          path: '/privacy-security',
+          builder: (context, state) => const PrivacySecurityScreen(),
+        ),
+        GoRoute(
+          path: '/edit-profile',
+          builder: (context, state) => const EditProfileScreen(),
+        ),
+        GoRoute(
+          path: '/notifications',
+          builder: (context, state) => const NotificationsScreen(),
+        ),
         // Admin routes
         ShellRoute(
           builder: (context, state, child) {
@@ -135,6 +178,10 @@ class SinkingFundApp extends ConsumerWidget {
             GoRoute(
               path: '/data-management',
               builder: (context, state) => const AdminDataScreen(),
+            ),
+            GoRoute(
+              path: '/member-balances',
+              builder: (context, state) => const MemberBalanceScreen(),
             ),
             GoRoute(
               path: '/profile',

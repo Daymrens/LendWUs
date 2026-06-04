@@ -1,4 +1,5 @@
 import '../models/member.dart';
+import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class MemberRepository {
@@ -35,7 +36,18 @@ class MemberRepository {
   }
 
   Future<void> deleteMember(String id) async {
+    final loanRepo = LoanRepository();
+    if (await loanRepo.hasActiveLoan(id)) {
+      throw Exception('Cannot remove member with outstanding loan');
+    }
     await FirebaseService.firestore.collection('members').doc(id).delete();
+  }
+
+  Stream<List<Member>> watchAllMembers() {
+    return FirebaseService.firestore.collection('members').snapshots().map(
+        (snapshot) => snapshot.docs
+            .map((doc) => Member.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
   }
 
   Future<Member?> findMemberByLinkedEmail(String email) async {

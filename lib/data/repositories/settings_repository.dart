@@ -15,6 +15,8 @@ class SettingsRepository {
         loanInterestPercent: 10.0,
         currencySymbol: '\u20B1',
         currencyCode: 'PHP',
+        cutoffDay1: 13,
+        cutoffDay2: 28,
       );
       await saveSettings(defaultSettings);
       return defaultSettings;
@@ -35,6 +37,8 @@ class SettingsRepository {
           loanInterestPercent: 10.0,
           currencySymbol: '\u20B1',
           currencyCode: 'PHP',
+          cutoffDay1: 13,
+          cutoffDay2: 28,
         );
       }
       return AppSettings.fromMap(doc.data()!);

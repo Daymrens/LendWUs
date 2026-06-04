@@ -4,6 +4,7 @@ class Member {
   int headsCount;
   double amountPerHead;
   double totalRequired;
+  double balance;
   String? avatarPath;
   DateTime joinedAt;
   bool isActive;
@@ -15,6 +16,7 @@ class Member {
     required this.headsCount,
     required this.amountPerHead,
     required this.totalRequired,
+    this.balance = 0.0,
     this.avatarPath,
     required this.joinedAt,
     this.isActive = true,
@@ -28,6 +30,7 @@ class Member {
       'headsCount': headsCount,
       'amountPerHead': amountPerHead,
       'totalRequired': totalRequired,
+      'balance': balance,
       'avatarPath': avatarPath,
       'joinedAt': joinedAt.toIso8601String(),
       'isActive': isActive,
@@ -42,6 +45,7 @@ class Member {
       headsCount: map['headsCount'],
       amountPerHead: (map['amountPerHead'] as num).toDouble(),
       totalRequired: (map['totalRequired'] as num).toDouble(),
+      balance: (map['balance'] ?? 0.0).toDouble(),
       avatarPath: map['avatarPath'],
       joinedAt: map['joinedAt'] is DateTime
           ? map['joinedAt']

@@ -20,9 +20,9 @@ class LendWUsLogo extends StatelessWidget {
           letterSpacing: -1,
         ),
         children: [
-          TextSpan(
+          const TextSpan(
             text: 'Lend',
-            style: const TextStyle(color: Colors.white),
+            style: TextStyle(color: Colors.white),
           ),
           TextSpan(
             text: 'WUs',

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/csv_export_service.dart';
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -18,6 +19,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   late TextEditingController _minPaymentController;
   late TextEditingController _maxPaymentController;
   late TextEditingController _loanInterestController;
+  late TextEditingController _cutoffDay1Controller;
+  late TextEditingController _cutoffDay2Controller;
   String _selectedCurrencyCode = 'PHP';
   String _selectedCurrencySymbol = '\u20B1';
 
@@ -37,6 +40,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _minPaymentController = TextEditingController();
     _maxPaymentController = TextEditingController();
     _loanInterestController = TextEditingController();
+    _cutoffDay1Controller = TextEditingController();
+    _cutoffDay2Controller = TextEditingController();
   }
 
   @override
@@ -44,6 +49,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _minPaymentController.dispose();
     _maxPaymentController.dispose();
     _loanInterestController.dispose();
+    _cutoffDay1Controller.dispose();
+    _cutoffDay2Controller.dispose();
     super.dispose();
   }
 
@@ -57,7 +64,12 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     if (_loanInterestController.text.isEmpty) {
       _loanInterestController.text = settings.loanInterestPercent.toString();
     }
-    // Only set if not already set by user interaction to avoid jumping
+    if (_cutoffDay1Controller.text.isEmpty) {
+      _cutoffDay1Controller.text = settings.cutoffDay1.toString();
+    }
+    if (_cutoffDay2Controller.text.isEmpty) {
+      _cutoffDay2Controller.text = settings.cutoffDay2.toString();
+    }
     if (_selectedCurrencyCode != settings.currencyCode && _formKey.currentState == null) {
        _selectedCurrencyCode = settings.currencyCode;
        _selectedCurrencySymbol = settings.currencySymbol;
@@ -158,7 +170,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const Gap(16),
                         DropdownButtonFormField<String>(
-                          value: _selectedCurrencyCode,
+                          initialValue: _selectedCurrencyCode,
                           decoration: const InputDecoration(
                             labelText: 'Select Currency',
                             border: OutlineInputBorder(),
@@ -216,6 +228,68 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                     ),
                   ),
                 ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Monthly Cutoff Dates',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        const Text('Payments are due on these days each month. Members can pay early or on time.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _cutoffDay1Controller,
+                                decoration: const InputDecoration(
+                                  labelText: '1st Cutoff Day',
+                                  border: OutlineInputBorder(),
+                                  helperText: 'e.g. 13',
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  final day = int.tryParse(value);
+                                  if (day == null || day < 1 || day > 31) return '1-31';
+                                  return null;
+                                },
+                              ),
+                            ),
+                            const Gap(16),
+                            Expanded(
+                              child: TextFormField(
+                                controller: _cutoffDay2Controller,
+                                decoration: const InputDecoration(
+                                  labelText: '2nd Cutoff Day',
+                                  border: OutlineInputBorder(),
+                                  helperText: 'e.g. 28',
+                                ),
+                                keyboardType: TextInputType.number,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) return 'Required';
+                                  final day = int.tryParse(value);
+                                  if (day == null || day < 1 || day > 31) return '1-31';
+                                  return null;
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const Gap(32),
                 SizedBox(
                   width: double.infinity,
@@ -239,6 +313,24 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                     onTap: () => context.push('/data-management'),
                   ),
                 ),
+                const Gap(16),
+                Text('Export Data', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                const Gap(8),
+                Row(
+                  children: [
+                    Expanded(child: _exportButton('Contributions', Icons.attach_money, () => CsvExportService().exportContributions())),
+                    const Gap(8),
+                    Expanded(child: _exportButton('Loans', Icons.account_balance, () => CsvExportService().exportLoans())),
+                  ],
+                ),
+                const Gap(8),
+                Row(
+                  children: [
+                    Expanded(child: _exportButton('Members', Icons.people, () => CsvExportService().exportMembers())),
+                    const Gap(8),
+                    Expanded(child: _exportButton('Payments', Icons.receipt, () => CsvExportService().exportPaymentRequests())),
+                  ],
+                ),
               ],
             ),
           );
@@ -257,6 +349,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
         loanInterestPercent: double.parse(_loanInterestController.text),
         currencySymbol: _selectedCurrencySymbol,
         currencyCode: _selectedCurrencyCode,
+        cutoffDay1: int.parse(_cutoffDay1Controller.text),
+        cutoffDay2: int.parse(_cutoffDay2Controller.text),
       );
 
       try {
@@ -274,5 +368,17 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
         }
       }
     }
+  }
+
+  Widget _exportButton(String label, IconData icon, VoidCallback onTap) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
   }
 }

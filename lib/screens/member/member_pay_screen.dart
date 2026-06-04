@@ -128,7 +128,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
             children: [
               if (widget.paymentType == PaymentType.loan && _remainingBalance != null)
                 Card(
-                  color: Colors.orange.withOpacity(0.1),
+                  color: Colors.orange.withValues(alpha: 0.1),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(

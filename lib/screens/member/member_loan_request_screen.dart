@@ -176,22 +176,22 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: Colors.blue.withAlpha(77)),
                 ),
-                child: Column(
+                child: const Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Important Notes:',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.blue,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8),
+                    Text(
                       '• Your request will be reviewed by admin\n'
                       '• Approval depends on fund availability\n'
                       '• You can only have one active loan at a time\n'

@@ -4,7 +4,6 @@ import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../data/models/repayment.dart';
-import '../../data/repositories/loan_repository.dart';
 import '../../providers/loans_provider.dart';
 import '../../providers/fund_summary_provider.dart';
 
@@ -154,7 +153,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
 
                 return DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Select Loan'),
-                  value: _selectedLoanId,
+                  initialValue: _selectedLoanId,
                   items: activeLoans.map((loan) {
                     return DropdownMenuItem(
                       value: loan.id,

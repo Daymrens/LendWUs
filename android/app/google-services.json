@@ -56,42 +56,6 @@
           ]
         }
       }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:55723804965:android:6d261ce35e601d0fe2b2cc",
-        "android_client_info": {
-          "package_name": "com.nextdev.lending"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "55723804965-fonr8chh0fufmr41mr3p1p8rafg2rsns.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDF3jCWG2-kJpL5_Bnxt9Mc54ya6U4958I"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "55723804965-fonr8chh0fufmr41mr3p1p8rafg2rsns.apps.googleusercontent.com",
-              "client_type": 3
-            },
-            {
-              "client_id": "55723804965-ha2d8ocfvjjluuknec78h6ko7qalc2pa.apps.googleusercontent.com",
-              "client_type": 2,
-              "ios_info": {
-                "bundle_id": "com.example.sinkingFundApp"
-              }
-            }
-          ]
-        }
-      }
     }
   ],
   "configuration_version": "1"

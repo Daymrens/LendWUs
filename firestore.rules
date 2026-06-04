@@ -113,6 +113,16 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    // ─── head_change_requests ─────────────────────────────────
+    match /head_change_requests/{requestId} {
+      // Members can create their own head change requests
+      allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
+      // Members can read their own; admins can read all
+      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      // Only admins can update (approve/reject) or delete
+      allow update, delete: if isAdmin();
+    }
+
     // ─── returns ─────────────────────────────────────────────
     match /returns/{docId} {
       // Any authenticated user can read returns info

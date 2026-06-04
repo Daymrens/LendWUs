@@ -55,4 +55,25 @@ class ContributionRepository {
         .doc(id)
         .delete();
   }
+
+  Stream<List<Contribution>> watchAllContributions() {
+    return FirebaseService.firestore
+        .collection('contributions')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Contribution.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<Contribution>> watchMemberContributions(String memberId) {
+    return FirebaseService.firestore
+        .collection('contributions')
+        .where('memberId', isEqualTo: memberId)
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Contribution.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
 }

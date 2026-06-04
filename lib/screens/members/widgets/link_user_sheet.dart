@@ -96,7 +96,7 @@ class _LinkUserSheetState extends ConsumerState<LinkUserSheet> {
             ),
           ),
           const Gap(8),
-          Text(
+          const Text(
             'Enter the email of the user to link them to this member:',
             style: TextStyle(color: AppColors.textMuted),
           ),

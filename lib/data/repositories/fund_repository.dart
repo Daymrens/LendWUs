@@ -1,4 +1,5 @@
 import '../models/contribution.dart';
+import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class FundRepository {
@@ -51,5 +52,32 @@ class FundRepository {
   Future<double> getMemberTotalContributions(String memberId) async {
     final contributions = await getMemberContributions(memberId);
     return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
+  }
+
+  Future<double> getTotalRepayments() async {
+    final snapshot = await FirebaseService.firestore.collection('repayments').get();
+    return snapshot.docs.fold<double>(
+      0.0,
+      (sum, doc) => sum + (doc.data()['amountPaid'] as num).toDouble(),
+    );
+  }
+
+  Future<double> getAvailableToLoan() async {
+    final totalContributions = await getTotalFund();
+    final loanRepo = LoanRepository();
+    final loans = await loanRepo.getAllLoans();
+    final repayments = await getTotalRepayments();
+
+    final totalLoansIssued = loans.fold<double>(0.0, (sum, l) => sum + l.principal);
+    final fundBalance = totalContributions - totalLoansIssued + repayments;
+
+    double outstanding = 0.0;
+    for (var loan in loans) {
+      if (!loan.isFullyRepaid) {
+        outstanding += await loanRepo.getRemainingBalance(loan.id!);
+      }
+    }
+
+    return fundBalance - outstanding;
   }
 }

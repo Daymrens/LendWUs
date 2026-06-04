@@ -24,6 +24,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) setState(() => _showContent = true);
+    });
+  }
+
+  bool _showContent = false;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
@@ -43,22 +53,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _LoginHeader(),
-                    SizedBox(height: 48),
-                    _LoginForm(),
-                    SizedBox(height: 32),
-                    _SocialLogin(),
-                  ],
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 600),
+                  opacity: _showContent ? 1 : 0,
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _DelayedWidget(delay: 0, child: _LoginHeader()),
+                      SizedBox(height: 48),
+                      _DelayedWidget(delay: 150, child: _LoginForm()),
+                      SizedBox(height: 32),
+                      _DelayedWidget(delay: 300, child: _SocialLogin()),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DelayedWidget extends StatefulWidget {
+  final int delay;
+  final Widget child;
+  const _DelayedWidget({required this.delay, required this.child});
+
+  @override
+  State<_DelayedWidget> createState() => _DelayedWidgetState();
+}
+
+class _DelayedWidgetState extends State<_DelayedWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<Offset> _slide;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.08),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+    _fade = Tween<double>(begin: 0, end: 1).animate(_controller);
+    Future.delayed(Duration(milliseconds: widget.delay), _controller.forward);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slide,
+      child: FadeTransition(opacity: _fade, child: widget.child),
     );
   }
 }
@@ -165,22 +224,27 @@ class _LoginForm extends ConsumerWidget {
                 ),
                 elevation: 0,
               ),
-              child: state.isLoading
-                  ? const SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.5,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: state.isLoading
+                    ? const SizedBox(
+                        key: ValueKey('spinner'),
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Sign In',
+                        key: ValueKey('text'),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    )
-                  : const Text(
-                      'Sign In',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+              ),
             ),
           ),
         ],

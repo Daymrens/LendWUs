@@ -4,10 +4,12 @@ import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/theme/app_colors.dart';
 import '../../core/widgets/lendwus_logo.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/fund_summary_provider.dart';
 import '../../providers/members_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/loans_provider.dart';
 import '../../providers/returns_provider.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/action_buttons_row.dart';
@@ -16,14 +18,24 @@ import 'widgets/recent_activity_list.dart';
 import '../modals/new_contribution_modal.dart';
 import '../modals/issue_loan_modal.dart';
 import '../modals/record_repayment_modal.dart';
+import '../../providers/notification_provider.dart';
+import '../notifications/notifications_screen.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  Widget build(BuildContext context) {
     final fundSummary = ref.watch(fundSummaryProvider);
-    final members = ref.watch(membersProvider);
+    final members = ref.watch(membersStreamProvider);
+    final pendingApprovals = ref.watch(pendingApprovalsCountProvider);
+    final activeLoansCount = ref.watch(activeLoansCountProvider);
+    final overdueLoansCount = ref.watch(overdueLoansCountProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -32,28 +44,97 @@ class DashboardScreen extends ConsumerWidget {
           children: [
             const LendWUsLogo(fontSize: 20),
             Text(
-              'Family Circle · ${DateFormat('MMMM yyyy').format(DateTime.now())}',
+              DateFormat('MMMM yyyy').format(DateTime.now()),
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
         ),
         actions: [
+          Consumer(
+            builder: (context, ref, _) {
+              final auth = ref.watch(currentUserProvider);
+              final userId = auth.state?.id;
+              final unread = userId != null
+                  ? (ref.watch(unreadCountProvider(userId)).value ?? 0)
+                  : 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined),
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen(),
+                      ));
+                    },
+                    tooltip: 'Notifications',
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.warning,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unread.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
             tooltip: 'Admin Settings',
           ),
-          IconButton(
-            icon: const Icon(Icons.approval),
-            onPressed: () => context.push('/approvals'),
-            tooltip: 'Pending Approvals',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.invalidate(fundSummaryProvider);
-              ref.invalidate(membersProvider);
-            },
+          Stack(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.approval),
+                onPressed: () => context.push('/approvals'),
+                tooltip: 'Pending Approvals',
+              ),
+              if (pendingApprovals > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.warning,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Text(
+                      pendingApprovals.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -63,42 +144,83 @@ class DashboardScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             fundSummary.when(
-              data: (summary) => GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.5,
+              data: (summary) => Column(
                 children: [
-                  StatCard(
-                    title: 'Total Fund',
-                    value: CurrencyFormatter.format(summary.fundBalance),
-                    isGradient: true,
+                  GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.5,
+                    children: [
+                      StatCard(
+                        title: 'Total Fund',
+                        value: CurrencyFormatter.format(summary.fundBalance),
+                        isGradient: true,
+                        icon: Icons.account_balance,
+                        iconColor: AppColors.primary,
+                      ),
+                      StatCard(
+                        title: 'Total Members',
+                        value: members.when(
+                          data: (list) => list.length.toString(),
+                          loading: () => '...',
+                          error: (_, __) => '0',
+                        ),
+                        icon: Icons.people,
+                        iconColor: AppColors.secondary,
+                      ),
+                      StatCard(
+                        title: 'Active Loans',
+                        value: activeLoansCount.toString(),
+                        icon: Icons.account_balance_wallet,
+                        iconColor: AppColors.warning,
+                      ),
+                      StatCard(
+                        title: 'Interest Earned',
+                        value: CurrencyFormatter.format(summary.totalInterestEarned),
+                        icon: Icons.trending_up,
+                        iconColor: AppColors.primary,
+                      ),
+                    ],
                   ),
-                  StatCard(
-                    title: 'Total Members',
-                    value: members.when(
-                      data: (list) => list.length.toString(),
-                      loading: () => '...',
-                      error: (_, __) => '0',
-                    ),
-                  ),
-                  StatCard(
-                    title: 'Total Loans',
-                    value: CurrencyFormatter.format(summary.totalLoansIssued),
-                  ),
-                  StatCard(
-                    title: 'Interest Earned',
-                    value: CurrencyFormatter.format(summary.totalInterestEarned),
+                  const Gap(12),
+                  GridView.count(
+                    crossAxisCount: 4,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 1.2,
+                    children: [
+                      _miniStat(
+                        'Total Loans',
+                        CurrencyFormatter.format(summary.totalLoansIssued),
+                        AppColors.textMuted,
+                      ),
+                      _miniStat(
+                        'Overdue',
+                        overdueLoansCount.toString(),
+                        overdueLoansCount > 0 ? AppColors.warning : AppColors.textMuted,
+                      ),
+                      _miniStat(
+                        'Pending',
+                        pendingApprovals.toString(),
+                        pendingApprovals > 0 ? AppColors.warning : AppColors.textMuted,
+                      ),
+                      _miniStat(
+                        'Balance',
+                        CurrencyFormatter.format(summary.fundBalance),
+                        AppColors.primary,
+                      ),
+                    ],
                   ),
                 ],
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const Center(child: Text('Error loading summary')),
             ),
-            const Gap(24),
-            _ReturnsSection(),
             const Gap(24),
             ActionButtonsRow(
               onNewContribution: () {
@@ -125,10 +247,15 @@ class DashboardScreen extends ConsumerWidget {
                   builder: (context) => const RecordRepaymentModal(),
                 );
               },
+              onViewMembers: () => context.push('/members'),
+              onViewReports: () => context.push('/reports'),
+              onViewApprovals: () => context.push('/approvals'),
             ),
             const Gap(24),
+            _ReturnsSection(),
+            const Gap(24),
             Text(
-              'Recent Activity',
+              'Activity',
               style: Theme.of(context).textTheme.displayMedium,
             ),
             const Gap(16),
@@ -137,6 +264,38 @@ class DashboardScreen extends ConsumerWidget {
             const RecentActivityList(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _miniStat(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 9,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }

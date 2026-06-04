@@ -5,8 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../data/models/member.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/members_with_status_provider.dart';
-import '../../providers/settings_provider.dart';
-import '../../core/utils/currency_formatter.dart';
 
 class AddMemberModal extends ConsumerStatefulWidget {
   final Member? existingMember;

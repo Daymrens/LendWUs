@@ -100,11 +100,11 @@ class MemberTileWithStatus extends ConsumerWidget {
                   const Gap(4),
                   Row(
                     children: [
-                      Icon(Icons.email, size: 12, color: AppColors.textMuted),
+                      const Icon(Icons.email, size: 12, color: AppColors.textMuted),
                       const Gap(4),
                       Text(
                         member.linkedEmail!,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 11,
                           color: AppColors.textMuted,
                         ),
@@ -133,7 +133,7 @@ class MemberTileWithStatus extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
                 color: AppColors.surfaceAlt,
                 onSelected: (value) {
                   switch (value) {

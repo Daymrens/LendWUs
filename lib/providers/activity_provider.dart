@@ -1,15 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'fund_provider.dart';
+import 'members_provider.dart';
 import 'loans_provider.dart';
 
 final fundGrowthSpotsProvider = FutureProvider<List<FlSpot>>((ref) async {
-  final fundRepo = ref.watch(fundRepositoryProvider);
-  final loanRepo = ref.watch(loanRepositoryProvider);
-
-  final contributions = await fundRepo.getAllContributions();
-  final loans = await loanRepo.getAllLoans();
-  final repayments = await loanRepo.getAllRepayments();
+  final contributions = [...?ref.watch(contributionsStreamProvider).asData?.value];
+  final loans = [...?ref.watch(loansStreamProvider).asData?.value];
+  final repayments = [...?ref.watch(repaymentsStreamProvider).asData?.value];
 
   final now = DateTime.now();
   final firstDayOfMonth = DateTime(now.year, now.month, 1);

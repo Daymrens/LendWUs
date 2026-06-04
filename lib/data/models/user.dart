@@ -8,6 +8,7 @@ class User {
   UserRole role;
   String? memberId;
   String? photoUrl;
+  String? fcmToken;
   DateTime createdAt;
 
   User({
@@ -18,6 +19,7 @@ class User {
     required this.role,
     this.memberId,
     this.photoUrl,
+    this.fcmToken,
     required this.createdAt,
   });
 
@@ -30,6 +32,7 @@ class User {
       'role': role.name,
       'memberId': memberId,
       'photoUrl': photoUrl,
+      'fcmToken': fcmToken,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -46,6 +49,7 @@ class User {
       ),
       memberId: map['memberId'],
       photoUrl: map['photoUrl'],
+      fcmToken: map['fcmToken'],
       createdAt: map['createdAt'] is DateTime
           ? map['createdAt']
           : DateTime.parse(map['createdAt']),

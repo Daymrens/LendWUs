@@ -115,7 +115,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
             fundSummary.when(
               data: (summary) => Text(
                 'Available to loan: ${summary.availableToLoan.toStringAsFixed(2)}',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
               loading: () => const SizedBox(),
               error: (_, __) => const SizedBox(),
@@ -146,7 +146,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
             members.when(
               data: (list) => DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Member'),
-                value: _selectedMemberId,
+                initialValue: _selectedMemberId,
                 items: list.map((member) {
                   return DropdownMenuItem(
                     value: member.id,

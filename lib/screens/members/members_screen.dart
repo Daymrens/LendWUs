@@ -3,123 +3,163 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../data/models/member_with_status.dart';
 import '../../providers/members_with_status_provider.dart';
-import '../../providers/fund_provider.dart';
 import 'widgets/member_tile_with_status.dart';
 import '../modals/add_member_modal.dart';
 
-class MembersScreen extends ConsumerWidget {
+class MembersScreen extends ConsumerStatefulWidget {
   const MembersScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MembersScreen> createState() => _MembersScreenState();
+}
+
+class _MembersScreenState extends ConsumerState<MembersScreen> {
+  int _selectedTab = 0;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  static const _tabs = ['All', 'Active', 'Pending', 'Overdue'];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final membersWithStatus = ref.watch(membersWithStatusProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Members'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_circle),
-            onPressed: () {},
-          ),
-        ],
       ),
-      body: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppColors.surface,
-            child: Column(
-              children: [
-                Row(
+      body: membersWithStatus.when(
+        data: (allMembers) {
+          final filtered = _filterMembers(allMembers);
+          final activeCount = allMembers.where((m) => m.paymentStatus == 'PAID').length;
+          final pendingCount = allMembers.where((m) => m.paymentStatus == 'PENDING').length;
+          final overdueCount = allMembers.where((m) => m.paymentStatus == 'OVERDUE').length;
+          final totalContributions = allMembers.fold<double>(0.0, (sum, m) => sum + m.amountPaid);
+
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                color: AppColors.surface,
+                child: Column(
                   children: [
-                    _buildTab('All', true),
-                    const Gap(8),
-                    _buildTab('Active', false),
-                    const Gap(8),
-                    _buildTab('Pending', false),
-                  ],
-                ),
-                const Gap(16),
-                membersWithStatus.when(
-                  data: (list) {
-                    return FutureBuilder(
-                      future: _getTotalContributions(ref),
-                      builder: (context, snapshot) {
-                        final total = snapshot.data ?? 0.0;
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${list.length} Members',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                    TextField(
+                      controller: _searchController,
+                      onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
+                      decoration: InputDecoration(
+                        hintText: 'Search members...',
+                        prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _searchQuery = '');
+                                },
+                              )
+                            : null,
+                        filled: true,
+                        fillColor: AppColors.surfaceAlt,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      ),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const Gap(12),
+                    Row(
+                      children: _tabs.asMap().entries.map((entry) {
+                        final i = entry.key;
+                        final label = entry.value;
+                        final isActive = i == _selectedTab;
+                        return Padding(
+                          padding: EdgeInsets.only(right: i < _tabs.length - 1 ? 8 : 0),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedTab = i),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isActive ? AppColors.primary : AppColors.surfaceAlt,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                label,
+                                style: TextStyle(
+                                  color: isActive ? Colors.white : AppColors.textMuted,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                            Text(
-                              'Total: ${CurrencyFormatter.format(total)}',
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ],
+                          ),
                         );
-                      },
-                    );
-                  },
-                  loading: () => const CircularProgressIndicator(),
-                  error: (_, __) => const Text('Error loading members'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: membersWithStatus.when(
-              data: (list) {
-                if (list.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                      }).toList(),
+                    ),
+                    const Gap(12),
+                    Row(
                       children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 64,
-                          color: AppColors.textMuted,
-                        ),
-                        const Gap(16),
-                        Text(
-                          'No members yet',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
+                        _chip('$activeCount Active', AppColors.primary),
                         const Gap(8),
+                        _chip('$pendingCount Pending', AppColors.warning),
+                        const Gap(8),
+                        _chip('$overdueCount Overdue', AppColors.error),
+                        const Spacer(),
                         Text(
-                          'Tap + to add your first member',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textMuted,
-                          ),
+                          'Total: ${CurrencyFormatter.format(totalContributions)}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                         ),
                       ],
                     ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: list.length,
-                  itemBuilder: (context, index) {
-                    return MemberTileWithStatus(memberStatus: list[index]);
+                    const Gap(12),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(membersWithStatusProvider);
                   },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(child: Text('Error loading members')),
-            ),
-          ),
-        ],
+                  child: filtered.isEmpty
+                      ? SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.people_outline, size: 48, color: AppColors.textMuted),
+                                const Gap(12),
+                                Text(
+                                  allMembers.isEmpty ? 'No members yet' : 'No matches',
+                                  style: const TextStyle(fontSize: 16, color: AppColors.textMuted),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+                          itemCount: filtered.length,
+                          itemBuilder: (context, index) {
+                            return MemberTileWithStatus(memberStatus: filtered[index]);
+                          },
+                        ),
+                ),
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, __) => const Center(child: Text('Error loading members')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -136,25 +176,33 @@ class MembersScreen extends ConsumerWidget {
     );
   }
 
-  Future<double> _getTotalContributions(WidgetRef ref) async {
-    final contributions = await ref.read(fundRepositoryProvider).getAllContributions();
-    return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
+  List<MemberWithStatus> _filterMembers(List<MemberWithStatus> members) {
+    var result = members;
+    switch (_selectedTab) {
+      case 1:
+        result = result.where((m) => m.paymentStatus == 'PAID').toList();
+        break;
+      case 2:
+        result = result.where((m) => m.paymentStatus == 'PENDING').toList();
+        break;
+      case 3:
+        result = result.where((m) => m.paymentStatus == 'OVERDUE').toList();
+        break;
+    }
+    if (_searchQuery.isNotEmpty) {
+      result = result.where((m) => m.member.name.toLowerCase().contains(_searchQuery)).toList();
+    }
+    return result;
   }
 
-  Widget _buildTab(String label, bool isActive) {
+  Widget _chip(String label, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primary : AppColors.surfaceAlt,
-        borderRadius: BorderRadius.circular(20),
+        color: color.withAlpha(30),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isActive ? Colors.white : AppColors.textMuted,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 }

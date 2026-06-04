@@ -18,7 +18,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
   final _amountController = TextEditingController();
   final _notesController = TextEditingController();
   String? _selectedMemberId;
-  DateTime _selectedDate = DateTime.now();
+  final DateTime _selectedDate = DateTime.now();
 
   @override
   void dispose() {
@@ -75,7 +75,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
             members.when(
               data: (list) => DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Member'),
-                value: _selectedMemberId,
+                initialValue: _selectedMemberId,
                 items: list.map((member) {
                   return DropdownMenuItem(
                     value: member.id,

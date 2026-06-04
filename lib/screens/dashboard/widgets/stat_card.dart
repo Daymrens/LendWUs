@@ -6,12 +6,16 @@ class StatCard extends StatelessWidget {
   final String title;
   final String value;
   final bool isGradient;
+  final IconData? icon;
+  final Color? iconColor;
 
   const StatCard({
     super.key,
     required this.title,
     required this.value,
     this.isGradient = false,
+    this.icon,
+    this.iconColor,
   });
 
   @override
@@ -32,14 +36,18 @@ class StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const Gap(8),
+          if (icon != null) ...[
+            Icon(icon, color: iconColor ?? AppColors.primary, size: 22),
+            const Gap(8),
+          ],
           Text(
             value,
             style: Theme.of(context).textTheme.displayMedium,
+          ),
+          const Gap(4),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
         ],
       ),

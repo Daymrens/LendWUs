@@ -46,6 +46,27 @@ class LoanRequestRepository {
     return await getLoanRequestsByMember(memberId);
   }
 
+  Stream<List<LoanRequest>> watchAllLoanRequests() {
+    return FirebaseService.firestore
+        .collection('loan_requests')
+        .orderBy('requestedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => LoanRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<LoanRequest>> watchPendingLoanRequests() {
+    return FirebaseService.firestore
+        .collection('loan_requests')
+        .where('status', isEqualTo: 'pending')
+        .orderBy('requestedAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => LoanRequest.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
   Stream<List<LoanRequest>> watchMemberLoanRequests(String memberId) {
     return FirebaseService.firestore
         .collection('loan_requests')

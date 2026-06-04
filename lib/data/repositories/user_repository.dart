@@ -70,4 +70,23 @@ class UserRepository {
         .doc(userId)
         .set({'memberId': memberId}, SetOptions(merge: true));
   }
+
+  Future<void> updateFcmToken(String userId, String? token) async {
+    await FirebaseService.firestore
+        .collection('users')
+        .doc(userId)
+        .set({'fcmToken': token}, SetOptions(merge: true));
+  }
+
+  Future<void> updateUserProfile(String userId, {String? name, String? photoUrl}) async {
+    final data = <String, dynamic>{};
+    if (name != null) data['username'] = name;
+    if (photoUrl != null) data['photoUrl'] = photoUrl;
+    if (data.isNotEmpty) {
+      await FirebaseService.firestore
+          .collection('users')
+          .doc(userId)
+          .set(data, SetOptions(merge: true));
+    }
+  }
 }
