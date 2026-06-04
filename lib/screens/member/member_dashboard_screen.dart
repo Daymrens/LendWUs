@@ -251,8 +251,6 @@ class _MemberReturnsSection extends ConsumerWidget {
 
     return returnsAsync.when(
       data: (info) {
-        if (info.totalReturns <= 0 && info.totalHeads <= 0) return const SizedBox();
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
