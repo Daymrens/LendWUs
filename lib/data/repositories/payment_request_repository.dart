@@ -42,7 +42,6 @@ class PaymentRequestRepository {
     return FirebaseService.firestore
         .collection('payment_requests')
         .where('memberId', isEqualTo: memberId)
-        .orderBy('requestDate', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))

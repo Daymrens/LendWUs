@@ -206,7 +206,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Interest Gained: ${CurrencyFormatter.format(loan.principal * loan.interestRate)}',
+                      'Interest: ${CurrencyFormatter.format(loan.principal * loan.interestRate)}',
                       style: TextStyle(color: Colors.grey[400], fontSize: 12),
                     ),
                   ],

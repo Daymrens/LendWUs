@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart' show FirestoreException;
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
@@ -85,15 +84,18 @@ class _PaymentRequestsTab extends ConsumerWidget {
           return const Center(child: Text('No payment requests'));
         }
 
+        final sorted = List<PaymentRequest>.from(requests)
+          ..sort((a, b) => b.requestDate.compareTo(a.requestDate));
+
         return RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(memberPaymentRequestsProvider(memberId));
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: requests.length,
+            itemCount: sorted.length,
             itemBuilder: (context, index) {
-              final request = requests[index];
+              final request = sorted[index];
               return Card(
                 margin: const EdgeInsets.only(bottom: 12),
                 child: Padding(
@@ -200,7 +202,7 @@ class _LoanRequestsTab extends ConsumerWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            ref.invalidate(memberLoanRequestsProvider(memberId));
+            ref.invalidate(memberPaymentRequestsProvider(memberId));
           },
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
