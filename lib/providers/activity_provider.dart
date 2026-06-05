@@ -12,60 +12,43 @@ final fundGrowthSpotsProvider = FutureProvider<List<FlSpot>>((ref) async {
   final firstDayOfMonth = DateTime(now.year, now.month, 1);
   final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
 
-  // Calculate balance before this month
+  // Balance carried over from prior months.
   double runningBalance = 0.0;
-  
-  for (var c in contributions) {
-    if (c.date.isBefore(firstDayOfMonth)) {
-      runningBalance += c.amount;
+  for (final c in contributions) {
+    if (c.date.isBefore(firstDayOfMonth)) runningBalance += c.amount;
+  }
+  for (final l in loans) {
+    if (l.issuedDate.isBefore(firstDayOfMonth)) runningBalance -= l.principal;
+  }
+  for (final r in repayments) {
+    if (r.date.isBefore(firstDayOfMonth)) runningBalance += r.amountPaid;
+  }
+
+  // Bucket this-month movements by day-of-month so the per-day loop is O(D).
+  final List<double> contribsByDay = List.filled(lastDayOfMonth.day + 1, 0);
+  for (final c in contributions) {
+    if (c.date.year == now.year && c.date.month == now.month) {
+      contribsByDay[c.date.day] += c.amount;
     }
   }
-  
-  for (var l in loans) {
-    if (l.issuedDate.isBefore(firstDayOfMonth)) {
-      runningBalance -= l.principal;
+  final List<double> loansByDay = List.filled(lastDayOfMonth.day + 1, 0);
+  for (final l in loans) {
+    if (l.issuedDate.year == now.year && l.issuedDate.month == now.month) {
+      loansByDay[l.issuedDate.day] += l.principal;
     }
   }
-  
-  for (var r in repayments) {
-    if (r.date.isBefore(firstDayOfMonth)) {
-      runningBalance += r.amountPaid;
+  final List<double> repayByDay = List.filled(lastDayOfMonth.day + 1, 0);
+  for (final r in repayments) {
+    if (r.date.year == now.year && r.date.month == now.month) {
+      repayByDay[r.date.day] += r.amountPaid;
     }
   }
 
-  List<FlSpot> spots = [];
-  
+  final spots = <FlSpot>[];
   for (int day = 1; day <= lastDayOfMonth.day; day++) {
-    final currentDate = DateTime(now.year, now.month, day);
-    final nextDate = DateTime(now.year, now.month, day + 1);
-
-    // Add contributions on this day
-    final dayContribs = contributions.where((c) => 
-      c.date.isAfter(currentDate.subtract(const Duration(seconds: 1))) && 
-      c.date.isBefore(nextDate)
-    );
-    for (var c in dayContribs) {
-      runningBalance += c.amount;
-    }
-
-    // Subtract loans on this day
-    final dayLoans = loans.where((l) => 
-      l.issuedDate.isAfter(currentDate.subtract(const Duration(seconds: 1))) && 
-      l.issuedDate.isBefore(nextDate)
-    );
-    for (var l in dayLoans) {
-      runningBalance -= l.principal;
-    }
-
-    // Add repayments on this day
-    final dayRepayments = repayments.where((r) => 
-      r.date.isAfter(currentDate.subtract(const Duration(seconds: 1))) && 
-      r.date.isBefore(nextDate)
-    );
-    for (var r in dayRepayments) {
-      runningBalance += r.amountPaid;
-    }
-
+    runningBalance += contribsByDay[day];
+    runningBalance -= loansByDay[day];
+    runningBalance += repayByDay[day];
     spots.add(FlSpot(day.toDouble(), runningBalance));
   }
 

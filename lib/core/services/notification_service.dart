@@ -7,6 +7,7 @@ const _channelName = 'Sinking Fund Notifications';
 const _channelDescription = 'Payment, loan, and head change notifications';
 
 final FlutterLocalNotificationsPlugin _localPlugin = FlutterLocalNotificationsPlugin();
+bool _foregroundListenerInstalled = false;
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -63,12 +64,15 @@ class NotificationService {
 
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    FirebaseMessaging.onMessage.listen((message) {
-      final notification = message.notification;
-      if (notification != null) {
-        _showLocalNotification(notification.title ?? '', notification.body ?? '');
-      }
-    });
+    if (!_foregroundListenerInstalled) {
+      _foregroundListenerInstalled = true;
+      FirebaseMessaging.onMessage.listen((message) {
+        final notification = message.notification;
+        if (notification != null) {
+          _showLocalNotification(notification.title ?? '', notification.body ?? '');
+        }
+      });
+    }
   }
 
   static Future<bool> requestPermission() async {

@@ -155,6 +155,29 @@ exports.onHeadChangeRequestCreate = functions.firestore
     await notifyAdmins("New Head Change Request", `${memberName} wants ${requested} heads.`, { route: "/approvals", type: "heads" });
 });
 // ─── existing callable ────────────────────────────────────────
+function formatMemberId(n) {
+    if (!Number.isInteger(n) || n < 1 || n > 999999) {
+        throw new Error(`MemberID number out of range (got ${n})`);
+    }
+    return `LWS${String(n).padStart(6, "0")}`;
+}
+async function generateNextMemberId() {
+    const counterRef = db.doc("meta/member_counter");
+    return db.runTransaction(async (tx) => {
+        var _a, _b;
+        const counter = await tx.get(counterRef);
+        const existingMax = (_b = (_a = counter.data()) === null || _a === void 0 ? void 0 : _a.lastNumber) !== null && _b !== void 0 ? _b : 0;
+        const start = existingMax + 1;
+        if (start > 999999) {
+            throw new Error("MemberID limit reached (max 999999)");
+        }
+        tx.set(counterRef, {
+            lastNumber: start,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return formatMemberId(start);
+    });
+}
 exports.joinWithGroupCode = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "User must be signed in");
@@ -173,12 +196,14 @@ exports.joinWithGroupCode = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("already-exists", "User already registered");
     }
     const displayName = data.name;
+    const memberId = await generateNextMemberId();
     const memberRef = await db.collection("members").add({
+        memberId,
         name: displayName || email.split("@")[0],
         linkedEmail: email,
         headsCount: 1,
-        amountPerHead: 150.0,
-        totalRequired: 150.0,
+        amountPerHead: 500.0,
+        totalRequired: 500.0,
         isActive: true,
         joinedAt: admin.firestore.FieldValue.serverTimestamp(),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -193,6 +218,7 @@ exports.joinWithGroupCode = functions.https.onCall(async (data, context) => {
     return {
         success: true,
         memberId: memberRef.id,
+        publicId: memberId,
     };
 });
 //# sourceMappingURL=index.js.map

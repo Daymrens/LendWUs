@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 class Repayment {
   String? id;
   String loanId;
@@ -23,11 +25,9 @@ class Repayment {
   factory Repayment.fromMap(Map<String, dynamic> map) {
     return Repayment(
       id: map['id'],
-      loanId: map['loanId'],
-      amountPaid: (map['amountPaid'] as num).toDouble(),
-      date: map['date'] is DateTime
-          ? map['date']
-          : DateTime.parse(map['date']),
+      loanId: map['loanId'] ?? '',
+      amountPaid: (map['amountPaid'] as num?)?.toDouble() ?? 0.0,
+      date: parseFirestoreDate(map['date']),
     );
   }
 }

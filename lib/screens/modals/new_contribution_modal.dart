@@ -19,6 +19,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
   final _notesController = TextEditingController();
   String? _selectedMemberId;
   final DateTime _selectedDate = DateTime.now();
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -28,7 +29,12 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
   }
 
   Future<void> _submit() async {
-    if (_formKey.currentState!.validate() && _selectedMemberId != null) {
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate() || _selectedMemberId == null) return;
+
+    setState(() => _isSaving = true);
+
+    try {
       final contribution = Contribution(
         memberId: _selectedMemberId!,
         amount: double.parse(_amountController.text),
@@ -43,6 +49,14 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
       ref.invalidate(totalFundProvider);
 
       if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add contribution: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -75,7 +89,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
             members.when(
               data: (list) => DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Member'),
-                value: _selectedMemberId,
+                initialValue: _selectedMemberId,
                 items: list.map((member) {
                   return DropdownMenuItem(
                     value: member.id,
@@ -95,7 +109,9 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
               keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Enter amount';
-                if (double.tryParse(value) == null) return 'Invalid amount';
+                final parsed = double.tryParse(value);
+                if (parsed == null) return 'Invalid amount';
+                if (parsed <= 0) return 'Amount must be greater than 0';
                 return null;
               },
             ),
@@ -110,17 +126,22 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _submit,
+                onPressed: _isSaving ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
                   ),
                 ),
-                child: const Text(
-                  'Add Contribution',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Add Contribution',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
             const Gap(24),

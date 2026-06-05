@@ -140,5 +140,27 @@ service cloud.firestore {
       // Since it's a list query usually, the query must filter by userId
       allow read, update, delete: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
     }
+
+    // ─── meta ────────────────────────────────────────────────
+    // System metadata: seed flag, backfill flag, etc.
+    // Admins can read and write.
+    match /meta/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── meta/member_counter ─────────────────────────────────
+    // MemberID counter. Self-signup via group code writes to this
+    // counter from the client, so any authenticated user needs write
+    // access. The rule constrains the write to the expected shape so
+    // a malicious user cannot inject unrelated fields or out-of-range
+    // values.
+    match /meta/member_counter {
+      allow read: if isAuth();
+      allow write: if isAuth()
+        && request.resource.data.keys().hasOnly(['lastNumber', 'updatedAt'])
+        && request.resource.data.lastNumber is int
+        && request.resource.data.lastNumber >= 1
+        && request.resource.data.lastNumber <= 999999;
+    }
   }
 }

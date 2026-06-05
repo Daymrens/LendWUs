@@ -13,59 +13,7 @@ import '../../data/models/member.dart';
 import '../../data/repositories/payment_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../core/utils/currency_formatter.dart';
-
-String _cutoffStatus(int cutoffDay1, int cutoffDay2) {
-  final now = DateTime.now();
-  final today = now.day;
-
-  // Find nearest past and upcoming cutoffs
-  final cutoffs = [cutoffDay1, cutoffDay2]..sort();
-  int? nextCutoff;
-  int? prevCutoff;
-  for (final c in cutoffs) {
-    if (c >= today) {
-      nextCutoff = c;
-      break;
-    }
-    prevCutoff = c;
-  }
-  if (nextCutoff == null) {
-    // All cutoffs passed this month; next is first cutoff next month
-    nextCutoff = cutoffs.first + DateTime.now().add(const Duration(days: 31)).day;
-    prevCutoff = cutoffs.last;
-  }
-
-  final daysUntilNext = nextCutoff - today;
-  final daysSincePrev = today - (prevCutoff ?? 0);
-
-  if (daysUntilNext <= 0) return 'Due today';
-  if (daysUntilNext <= 3) return '$daysUntilNext day${daysUntilNext == 1 ? "" : "s"} until cutoff';
-  if (daysSincePrev > 0 && daysSincePrev <= 3) return 'Overdue by $daysSincePrev day${daysSincePrev == 1 ? "" : "s"}';
-  return 'Next cutoff in $daysUntilNext days';
-}
-
-Color _cutoffColor(int cutoffDay1, int cutoffDay2) {
-  final now = DateTime.now();
-  final today = now.day;
-  final cutoffs = [cutoffDay1, cutoffDay2]..sort();
-  int? nextCutoff;
-  int? prevCutoff;
-  for (final c in cutoffs) {
-    if (c >= today) {
-      nextCutoff = c;
-      break;
-    }
-    prevCutoff = c;
-  }
-  nextCutoff ??= cutoffs.first;
-  final daysUntilNext = nextCutoff - today;
-  final daysSincePrev = today - (prevCutoff ?? 0);
-
-  if (daysUntilNext <= 0) return AppColors.warning;
-  if (daysUntilNext <= 3) return Colors.orange;
-  if (daysSincePrev > 0 && daysSincePrev <= 7) return AppColors.error;
-  return AppColors.success;
-}
+import '../../core/utils/cutoff_calculator.dart';
 
 class MemberPaymentModal extends ConsumerStatefulWidget {
   const MemberPaymentModal({super.key});
@@ -76,9 +24,10 @@ class MemberPaymentModal extends ConsumerStatefulWidget {
 
 class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
   final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController(text: '150.00');
+  final _amountController = TextEditingController();
   File? _receiptImage;
   bool _isSubmitting = false;
+  bool _amountInitialized = false;
   final _imagePicker = ImagePicker();
   bool _showQR = true;
   Member? _member;
@@ -188,8 +137,13 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final user = ref.watch(currentUserProvider).state;
     final memberId = user?.memberId;
     final settings = ref.watch(settingsProvider).asData?.value;
-    final minAmount = settings?.minPaymentPerHead ?? 150.0;
+    final minAmount = settings?.minPaymentPerHead ?? 500.0;
     final maxAmount = settings?.maxPaymentPerHead ?? 1000.0;
+
+    if (!_amountInitialized && _amountController.text.isEmpty) {
+      _amountController.text = minAmount.toStringAsFixed(2);
+      _amountInitialized = true;
+    }
 
     final contributionsAsync = ref.watch(contributionsStreamProvider);
     final contribs = [...?contributionsAsync.asData?.value];
@@ -220,6 +174,20 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
 
     // Quick amounts cap at maxAmount from settings
     final cappedQuickAmounts = quickAmounts.map((a) => a > maxAmount ? maxAmount : a).toList();
+
+    final cutoffInfo = CutoffCalculator.compute(
+      now: DateTime.now(),
+      cutoffDay1: cutoffDay1,
+      cutoffDay2: cutoffDay2,
+    );
+    final cutoffStatus = CutoffCalculator.statusText(cutoffInfo);
+    final cutoffColor = CutoffCalculator.statusColor(
+      cutoffInfo,
+      normal: AppColors.success,
+      nearDeadline: Colors.orange,
+      dueToday: AppColors.warning,
+      error: AppColors.error,
+    );
 
     return Container(
       decoration: const BoxDecoration(
@@ -344,12 +312,12 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                           const Gap(8),
                           Row(
                             children: [
-                              Icon(Icons.schedule, size: 14, color: _cutoffColor(cutoffDay1, cutoffDay2)),
+                              Icon(Icons.schedule, size: 14, color: cutoffColor),
                               const Gap(4),
                               Text(
-                                _cutoffStatus(cutoffDay1, cutoffDay2),
+                                cutoffStatus,
                                 style: TextStyle(
-                                  color: _cutoffColor(cutoffDay1, cutoffDay2),
+                                  color: cutoffColor,
                                   fontSize: 11, fontWeight: FontWeight.w500,
                                 ),
                               ),

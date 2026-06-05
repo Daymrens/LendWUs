@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 enum LoanRequestStatus { pending, approved, rejected, disbursed }
 
 class LoanRequest {
@@ -46,22 +48,17 @@ class LoanRequest {
   factory LoanRequest.fromMap(Map<String, dynamic> map) {
     return LoanRequest(
       id: map['id'],
-      memberId: map['memberId'],
-      memberName: map['memberName'],
-      amount: (map['amount'] as num).toDouble(),
-      interestRate: (map['interestRate'] as num).toDouble(),
-      dueDate: map['dueDate'] is DateTime
-          ? map['dueDate']
-          : DateTime.parse(map['dueDate']),
-      status: LoanRequestStatus.values.firstWhere((e) => e.name == map['status']),
-      requestedAt: map['requestedAt'] is DateTime
-          ? map['requestedAt']
-          : DateTime.parse(map['requestedAt']),
-      processedAt: map['processedAt'] != null
-          ? (map['processedAt'] is DateTime
-              ? map['processedAt']
-              : DateTime.parse(map['processedAt']))
-          : null,
+      memberId: map['memberId'] ?? '',
+      memberName: map['memberName'] ?? 'Unknown',
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
+      dueDate: parseFirestoreDate(map['dueDate']),
+      status: LoanRequestStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => LoanRequestStatus.pending,
+      ),
+      requestedAt: parseFirestoreDate(map['requestedAt']),
+      processedAt: parseFirestoreDateOrNull(map['processedAt']),
       notes: map['notes'],
       loanId: map['loanId'],
     );

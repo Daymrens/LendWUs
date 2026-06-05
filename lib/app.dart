@@ -30,12 +30,181 @@ import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
 
-class SinkingFundApp extends ConsumerWidget {
+final onboardingCompleteProvider = StateProvider<bool>((ref) => false);
+
+Future<void> bootstrapOnboardingFlag(WidgetRef ref) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getBool('onboarding_complete') ?? false;
+    ref.read(onboardingCompleteProvider.notifier).state = value;
+  } catch (_) {
+    // ignore; default to false
+  }
+}
+
+final goRouterProvider = Provider<GoRouter>((ref) {
+  final authNotifier = ref.watch(currentUserProvider);
+
+  return GoRouter(
+    initialLocation: '/login',
+    refreshListenable: authNotifier,
+    redirect: (context, state) {
+      final auth = ref.read(currentUserProvider);
+      final user = auth.state;
+      final isRecognized = auth.isRecognized;
+
+      final onboardingComplete = ref.read(onboardingCompleteProvider);
+
+      final isLoggingIn = state.matchedLocation == '/login';
+      final isIntro = state.matchedLocation == '/intro';
+      final isUnrecognized = state.matchedLocation == '/unrecognized';
+      final isAuthPage = isLoggingIn || isIntro || isUnrecognized;
+
+      if (auth.isFirebaseUser && isRecognized && isUnrecognized) {
+        return auth.isAdmin ? '/' : '/member-home';
+      }
+
+      if (auth.isFirebaseUser && !isRecognized && !isUnrecognized) {
+        return '/unrecognized';
+      }
+
+      if (!auth.isFirebaseUser && !isAuthPage) {
+        return '/login';
+      }
+
+      if (user != null && isRecognized && isLoggingIn) {
+        return auth.isAdmin ? '/' : '/member-home';
+      }
+
+      if (isIntro && onboardingComplete) {
+        return '/login';
+      }
+
+      return null;
+    },
+    routes: [
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/intro',
+        builder: (context, state) => const IntroductionScreen(),
+      ),
+      GoRoute(
+        path: '/unrecognized',
+        builder: (context, state) => const UnrecognizedScreen(),
+      ),
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const HelpSupportScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-security',
+        builder: (context, state) => const PrivacySecurityScreen(),
+      ),
+      GoRoute(
+        path: '/edit-profile',
+        builder: (context, state) => const EditProfileScreen(),
+      ),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return AdminScaffoldWithNavBar(location: state.matchedLocation, child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (context, state) => const DashboardScreen(),
+          ),
+          GoRoute(
+            path: '/members',
+            builder: (context, state) => const MembersScreen(),
+          ),
+          GoRoute(
+            path: '/contributions',
+            builder: (context, state) => const ContributionsScreen(),
+          ),
+          GoRoute(
+            path: '/loans',
+            builder: (context, state) => const LoansScreen(),
+          ),
+          GoRoute(
+            path: '/reports',
+            builder: (context, state) => const ReportsScreen(),
+          ),
+          GoRoute(
+            path: '/approvals',
+            builder: (context, state) => const ApprovalsScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (context, state) => const AdminSettingsScreen(),
+          ),
+          GoRoute(
+            path: '/data-management',
+            builder: (context, state) => const AdminDataScreen(),
+          ),
+          GoRoute(
+            path: '/member-balances',
+            builder: (context, state) => const MemberBalanceScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
+      ),
+      ShellRoute(
+        builder: (context, state, child) {
+          return MemberScaffoldWithNavBar(location: state.matchedLocation, child: child);
+        },
+        routes: [
+          GoRoute(
+            path: '/member-home',
+            builder: (context, state) => const MemberDashboardScreen(),
+          ),
+          GoRoute(
+            path: '/member-contributions',
+            builder: (context, state) => const MemberContributionsScreen(),
+          ),
+          GoRoute(
+            path: '/member-requests',
+            builder: (context, state) => const MemberRequestsScreen(),
+          ),
+          GoRoute(
+            path: '/member-profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
+        ],
+      ),
+    ],
+  );
+});
+
+class SinkingFundApp extends ConsumerStatefulWidget {
   const SinkingFundApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Listen to settings and update CurrencyFormatter
+  ConsumerState<SinkingFundApp> createState() => _SinkingFundAppState();
+}
+
+class _SinkingFundAppState extends ConsumerState<SinkingFundApp> {
+  @override
+  void initState() {
+    super.initState();
+    bootstrapOnboardingFlag(ref);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.listen(settingsProvider, (previous, next) {
       next.whenData((settings) {
         CurrencyFormatter.updateConfiguration(
@@ -46,13 +215,14 @@ class SinkingFundApp extends ConsumerWidget {
     });
 
     final themeMode = ref.watch(themeModeProvider);
+    final router = ref.watch(goRouterProvider);
 
     return MaterialApp.router(
       title: 'LendWUs',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      routerConfig: _createRouter(ref),
+      routerConfig: router,
       builder: (context, child) {
         if (child == null) {
           return const Scaffold(
@@ -63,159 +233,6 @@ class SinkingFundApp extends ConsumerWidget {
       },
     );
   }
-
-  GoRouter _createRouter(WidgetRef ref) {
-    final authNotifier = ref.watch(currentUserProvider);
-    
-    return GoRouter(
-      initialLocation: '/login',
-      refreshListenable: authNotifier,
-      redirect: (context, state) async {
-        final auth = ref.read(currentUserProvider);
-        final user = auth.state;
-        final isRecognized = auth.isRecognized;
-
-        bool onboardingComplete = false;
-        try {
-          final prefs = await SharedPreferences.getInstance();
-          onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
-        } catch (_) {}
-        
-        final isLoggingIn = state.matchedLocation == '/login';
-        final isIntro = state.matchedLocation == '/intro';
-        final isUnrecognized = state.matchedLocation == '/unrecognized';
-        final isAuthPage = isLoggingIn || isIntro || isUnrecognized;
-
-        // Has Firebase Auth but no Firestore doc → unrecognized
-        if (auth.isFirebaseUser && !isRecognized && !isUnrecognized) {
-          return '/unrecognized';
-        }
-        
-        // Not signed in at all → login
-        if (!auth.isFirebaseUser && !isAuthPage) {
-          return '/login';
-        }
-
-        // If logged in and recognized, skip login screen
-        if (user != null && isRecognized && isLoggingIn) {
-          return auth.isAdmin ? '/' : '/member-home';
-        }
-        
-        // Handle intro screen
-        if (isIntro && onboardingComplete) {
-          return '/login';
-        }
-        
-        return null;
-      },
-      routes: [
-        GoRoute(
-          path: '/login',
-          builder: (context, state) => const LoginScreen(),
-        ),
-        GoRoute(
-          path: '/intro',
-          builder: (context, state) => const IntroductionScreen(),
-        ),
-        GoRoute(
-          path: '/unrecognized',
-          builder: (context, state) => const UnrecognizedScreen(),
-        ),
-        GoRoute(
-          path: '/help',
-          builder: (context, state) => const HelpSupportScreen(),
-        ),
-        GoRoute(
-          path: '/about',
-          builder: (context, state) => const AboutScreen(),
-        ),
-        GoRoute(
-          path: '/privacy-security',
-          builder: (context, state) => const PrivacySecurityScreen(),
-        ),
-        GoRoute(
-          path: '/edit-profile',
-          builder: (context, state) => const EditProfileScreen(),
-        ),
-        GoRoute(
-          path: '/notifications',
-          builder: (context, state) => const NotificationsScreen(),
-        ),
-        // Admin routes
-        ShellRoute(
-          builder: (context, state, child) {
-            return AdminScaffoldWithNavBar(location: state.matchedLocation, child: child);
-          },
-          routes: [
-            GoRoute(
-              path: '/',
-              builder: (context, state) => const DashboardScreen(),
-            ),
-            GoRoute(
-              path: '/members',
-              builder: (context, state) => const MembersScreen(),
-            ),
-            GoRoute(
-              path: '/contributions',
-              builder: (context, state) => const ContributionsScreen(),
-            ),
-            GoRoute(
-              path: '/loans',
-              builder: (context, state) => const LoansScreen(),
-            ),
-            GoRoute(
-              path: '/reports',
-              builder: (context, state) => const ReportsScreen(),
-            ),
-            GoRoute(
-              path: '/approvals',
-              builder: (context, state) => const ApprovalsScreen(),
-            ),
-            GoRoute(
-              path: '/settings',
-              builder: (context, state) => const AdminSettingsScreen(),
-            ),
-            GoRoute(
-              path: '/data-management',
-              builder: (context, state) => const AdminDataScreen(),
-            ),
-            GoRoute(
-              path: '/member-balances',
-              builder: (context, state) => const MemberBalanceScreen(),
-            ),
-            GoRoute(
-              path: '/profile',
-              builder: (context, state) => const ProfileScreen(),
-            ),
-          ],
-        ),
-        // Member routes
-        ShellRoute(
-          builder: (context, state, child) {
-            return MemberScaffoldWithNavBar(location: state.matchedLocation, child: child);
-          },
-          routes: [
-            GoRoute(
-              path: '/member-home',
-              builder: (context, state) => const MemberDashboardScreen(),
-            ),
-            GoRoute(
-              path: '/member-contributions',
-              builder: (context, state) => const MemberContributionsScreen(),
-            ),
-            GoRoute(
-              path: '/member-requests',
-              builder: (context, state) => const MemberRequestsScreen(),
-            ),
-            GoRoute(
-              path: '/member-profile',
-              builder: (context, state) => const ProfileScreen(),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
 class AdminScaffoldWithNavBar extends StatelessWidget {
@@ -223,8 +240,8 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
   final String location;
 
   const AdminScaffoldWithNavBar({
-    super.key, 
-    required this.child, 
+    super.key,
+    required this.child,
     required this.location,
   });
 
@@ -303,7 +320,7 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
   final String location;
 
   const MemberScaffoldWithNavBar({
-    super.key, 
+    super.key,
     required this.child,
     required this.location,
   });

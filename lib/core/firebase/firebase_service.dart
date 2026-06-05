@@ -1,66 +1,68 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/member_id_generator.dart';
 
 class FirebaseService {
   static FirebaseAuth get auth => FirebaseAuth.instance;
   static FirebaseFirestore get firestore => FirebaseFirestore.instance;
 
+  static const _seedFlagDoc = 'meta/seeded';
+  static const _memberIdBackfillFlagDoc = 'meta/member_ids_backfilled';
+  static const _appSettingsCollection = 'app_settings';
+
   static Future<void> seedDefaults() async {
     try {
-      final userSnapshot = await firestore.collection('users').limit(1).get();
-      if (userSnapshot.docs.isNotEmpty) return;
-    } catch (_) {
-      return;
-    }
+      await firestore.runTransaction((tx) async {
+        final flag = await tx.get(firestore.doc(_seedFlagDoc));
+        if (flag.exists) return;
 
-    try {
-      final adminCred = await auth.createUserWithEmailAndPassword(
-        email: 'admin@sinkingfund.app',
-        password: 'admin123',
-      );
+        final settingsRef = firestore.doc('$_appSettingsCollection/fund_settings');
+        final qrRef = firestore.doc('$_appSettingsCollection/payment_qr');
 
-      await firestore.collection('users').doc(adminCred.user!.uid).set({
-        'username': 'admin',
-        'email': 'admin@sinkingfund.app',
-        'role': 'admin',
-        'memberId': null,
-        'createdAt': DateTime.now().toIso8601String(),
+        final existing = await tx.get(settingsRef);
+        if (!existing.exists) {
+          tx.set(settingsRef, {
+            'minPaymentPerHead': 0.0,
+            'maxPaymentPerHead': 1000.0,
+            'loanInterestPercent': 10.0,
+            'currencySymbol': '\u20B1',
+            'currencyCode': 'PHP',
+            'cutoffDay1': 13,
+            'cutoffDay2': 28,
+          });
+        }
+
+        final qrExisting = await tx.get(qrRef);
+        if (!qrExisting.exists) {
+          tx.set(qrRef, {
+            'value': 'GCash: 09123456789\nName: Juan Dela Cruz',
+          });
+        }
+
+        tx.set(firestore.doc(_seedFlagDoc), {
+          'seededAt': FieldValue.serverTimestamp(),
+        });
       });
 
-      final memberDoc = await firestore.collection('members').add({
-        'name': 'Test Member',
-        'headsCount': 1,
-        'amountPerHead': 150.0,
-        'totalRequired': 150.0,
-        'joinedAt': DateTime.now().toIso8601String(),
-        'isActive': true,
-      });
-
-      final memberCred = await auth.createUserWithEmailAndPassword(
-        email: 'member@sinkingfund.app',
-        password: 'member123',
-      );
-
-      await firestore.collection('users').doc(memberCred.user!.uid).set({
-        'username': 'member',
-        'email': 'member@sinkingfund.app',
-        'role': 'member',
-        'memberId': memberDoc.id,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-
-      await firestore.collection('app_settings').doc('payment_qr').set({
-        'value': 'GCash: 09123456789\nName: Juan Dela Cruz',
-      });
-
-      await firestore.collection('app_settings').doc('fund_settings').set({
-        'minPaymentPerHead': 0.0,
-        'maxPaymentPerHead': 1000.0,
-        'currencySymbol': '\u20B1',
-        'currencyCode': 'PHP',
-      });
+      await backfillMemberIdsOnce();
     } catch (e) {
-      // Accounts may already exist in Auth
+      debugPrint('seedDefaults error: $e');
+    }
+  }
+
+  static Future<void> backfillMemberIdsOnce() async {
+    try {
+      final flagRef = firestore.doc(_memberIdBackfillFlagDoc);
+      final flag = await flagRef.get();
+      if (flag.exists) return;
+      final count = await MemberIdGenerator.backfillMissingMemberIds(firestore);
+      if (count > 0) {
+        debugPrint('Backfilled $count member(s) with MemberID');
+      }
+      await flagRef.set({'at': FieldValue.serverTimestamp()});
+    } catch (e) {
+      debugPrint('backfillMemberIdsOnce error: $e');
     }
   }
 }

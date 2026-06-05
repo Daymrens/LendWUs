@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 enum HeadChangeStatus { pending, approved, rejected }
 
 class HeadChangeRequest {
@@ -46,20 +48,17 @@ class HeadChangeRequest {
   factory HeadChangeRequest.fromMap(Map<String, dynamic> map) {
     return HeadChangeRequest(
       id: map['id'],
-      memberId: map['memberId'],
-      memberName: map['memberName'],
-      currentHeads: (map['currentHeads'] as num).toInt(),
-      requestedHeads: (map['requestedHeads'] as num).toInt(),
+      memberId: map['memberId'] ?? '',
+      memberName: map['memberName'] ?? 'Unknown',
+      currentHeads: (map['currentHeads'] as num?)?.toInt() ?? 0,
+      requestedHeads: (map['requestedHeads'] as num?)?.toInt() ?? 0,
       reason: map['reason'],
-      status: HeadChangeStatus.values.firstWhere((e) => e.name == map['status']),
-      requestedAt: map['requestedAt'] is DateTime
-          ? map['requestedAt']
-          : DateTime.parse(map['requestedAt']),
-      processedAt: map['processedAt'] != null
-          ? (map['processedAt'] is DateTime
-              ? map['processedAt']
-              : DateTime.parse(map['processedAt']))
-          : null,
+      status: HeadChangeStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => HeadChangeStatus.pending,
+      ),
+      requestedAt: parseFirestoreDate(map['requestedAt']),
+      processedAt: parseFirestoreDateOrNull(map['processedAt']),
       processedBy: map['processedBy'],
       notes: map['notes'],
     );

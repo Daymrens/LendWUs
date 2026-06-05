@@ -1,6 +1,5 @@
 import '../models/head_change_request.dart';
-import '../models/member.dart';
-import 'member_repository.dart';
+import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class HeadChangeRequestRepository {
@@ -8,6 +7,15 @@ class HeadChangeRequestRepository {
     final docRef = await FirebaseService.firestore
         .collection('head_change_requests')
         .add(request.toMap());
+
+    final change = request.requestedHeads - request.currentHeads;
+    final changeStr = change >= 0 ? '+$change' : '$change';
+    NotificationRepository.notifyAdmins(
+      'New Head Change Request',
+      '${request.memberName} wants to change heads from ${request.currentHeads} to ${request.requestedHeads} ($changeStr)',
+      type: 'head_change_request_created',
+    );
+
     return docRef.id;
   }
 
@@ -75,44 +83,82 @@ class HeadChangeRequestRepository {
             .toList());
   }
 
-  Future<void> approveHeadChangeRequest(String requestId, {String? processedBy, String? notes}) async {
-    final request = await getRequestById(requestId);
-    if (request == null) return;
+  Future<bool> approveHeadChangeRequest(String requestId, {String? processedBy, String? notes}) async {
+    final firestore = FirebaseService.firestore;
+    final requestRef = firestore.collection('head_change_requests').doc(requestId);
 
-    await FirebaseService.firestore
-        .collection('head_change_requests')
-        .doc(requestId)
-        .update({
-      'status': 'approved',
-      'processedAt': DateTime.now().toIso8601String(),
-      'processedBy': processedBy,
-      'notes': notes,
+    final result = await firestore.runTransaction<({String memberId, int currentHeads, int requestedHeads})?>((tx) async {
+      final snap = await tx.get(requestRef);
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['status'] != 'pending') return null;
+
+      final memberId = data['memberId'] as String;
+      final memberRef = firestore.collection('members').doc(memberId);
+      final memberDoc = await tx.get(memberRef);
+      if (!memberDoc.exists) return null;
+
+      final memberData = memberDoc.data()!;
+      final amountPerHead = (memberData['amountPerHead'] as num?)?.toDouble() ?? 0.0;
+      final requestedHeads = (data['requestedHeads'] as num).toInt();
+
+      tx.update(memberRef, {
+        'headsCount': requestedHeads,
+        'totalRequired': requestedHeads * amountPerHead,
+      });
+      tx.update(requestRef, {
+        'status': 'approved',
+        'processedAt': DateTime.now().toIso8601String(),
+        'processedBy': processedBy,
+        'notes': notes,
+      });
+
+      return (
+        memberId: memberId,
+        currentHeads: (data['currentHeads'] as num).toInt(),
+        requestedHeads: requestedHeads,
+      );
     });
 
-    final memberRepo = MemberRepository();
-    final memberDoc = await FirebaseService.firestore
-        .collection('members')
-        .doc(request.memberId)
-        .get();
+    if (result == null) return false;
 
-    if (memberDoc.exists) {
-      final member = Member.fromMap({...memberDoc.data()!, 'id': memberDoc.id});
-      member.headsCount = request.requestedHeads;
-      member.totalRequired = member.headsCount * member.amountPerHead;
-      await memberRepo.updateMember(member);
-    }
+    NotificationRepository.notifyMember(
+      result.memberId,
+      'Head Change Approved',
+      'Your request to change heads from ${result.currentHeads} to ${result.requestedHeads} has been approved',
+      type: 'head_change_approved',
+    );
+    return true;
   }
 
-  Future<void> rejectHeadChangeRequest(String requestId, {String? processedBy, String? notes}) async {
-    await FirebaseService.firestore
-        .collection('head_change_requests')
-        .doc(requestId)
-        .update({
-      'status': 'rejected',
-      'processedAt': DateTime.now().toIso8601String(),
-      'processedBy': processedBy,
-      'notes': notes,
+  Future<bool> rejectHeadChangeRequest(String requestId, {String? processedBy, String? notes}) async {
+    final firestore = FirebaseService.firestore;
+    final requestRef = firestore.collection('head_change_requests').doc(requestId);
+
+    final request = await firestore.runTransaction((tx) async {
+      final snap = await tx.get(requestRef);
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['status'] != 'pending') return null;
+      tx.update(requestRef, {
+        'status': 'rejected',
+        'processedAt': DateTime.now().toIso8601String(),
+        'processedBy': processedBy,
+        'notes': notes,
+      });
+      return HeadChangeRequest.fromMap({...data, 'id': requestId});
     });
+
+    if (request == null) return false;
+
+    final reason = notes != null && notes.isNotEmpty ? ': $notes' : '';
+    NotificationRepository.notifyMember(
+      request.memberId,
+      'Head Change Rejected',
+      'Your request to change heads from ${request.currentHeads} to ${request.requestedHeads} has been rejected$reason',
+      type: 'head_change_rejected',
+    );
+    return true;
   }
 
   Future<void> deleteHeadChangeRequest(String id) async {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/firebase/firebase_service.dart';
 
 class UnrecognizedScreen extends ConsumerStatefulWidget {
   const UnrecognizedScreen({super.key});
@@ -15,6 +16,60 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
   final _codeController = TextEditingController();
   bool _isLoading = false;
   String? _error;
+  bool _dialogShown = false;
+  bool _welcomeMode = false;
+  String _displayName = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkDeactivation());
+  }
+
+  void _checkDeactivation() {
+    if (_dialogShown) return;
+    final reason = ref.read(currentUserProvider).deactivationReason;
+    if (reason != null) {
+      _dialogShown = true;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.warning, size: 28),
+              SizedBox(width: 12),
+              Text('Account Updated'),
+            ],
+          ),
+          content: Text(
+            reason,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+              height: 1.5,
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(ctx).pop();
+                ref.read(currentUserProvider).clearDeactivationReason();
+                await ref.read(currentUserProvider).logout();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text('Sign Out'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -32,7 +87,12 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
 
     if (mounted) {
       if (success) {
-        context.go('/member-home');
+        final firebaseUser = FirebaseService.auth.currentUser;
+        final auth = ref.read(currentUserProvider);
+        setState(() {
+          _welcomeMode = true;
+          _displayName = firebaseUser?.displayName ?? auth.state?.username ?? 'Member';
+        });
       } else {
         setState(() {
           _isLoading = false;
@@ -45,7 +105,75 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
+    if (_welcomeMode) {
+      return Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 80,
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(Icons.handshake_rounded, size: 44, color: AppColors.primary),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Welcome to LendWUs!',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Hi, $_displayName!',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "You've successfully joined the group. Start contributing or request a loan from the app.",
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: () => context.go('/member-home'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Text("Let's Get Started",
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(

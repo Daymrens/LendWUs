@@ -36,5 +36,5 @@ final activeLoansCountProvider = Provider<int>((ref) {
 final overdueLoansCountProvider = Provider<int>((ref) {
   final loans = [...?ref.watch(activeLoansStreamProvider).asData?.value];
   final now = DateTime.now();
-  return loans.where((l) => l.dueDate.isBefore(now)).length;
+  return loans.where((l) => !l.isFullyRepaid && l.dueDate.isBefore(now)).length;
 });

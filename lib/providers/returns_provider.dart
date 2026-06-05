@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/returns_info.dart';
 import '../data/repositories/returns_repository.dart';
-import '../data/repositories/loan_repository.dart';
-import '../data/repositories/member_repository.dart';
+import 'loans_provider.dart';
+import 'members_provider.dart';
 
 final returnsRepositoryProvider = Provider<ReturnsRepository>((ref) {
   return ReturnsRepository();
@@ -14,8 +14,8 @@ final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
 });
 
 final computeReturnsProvider = FutureProvider<void>((ref) async {
-  final loanRepo = LoanRepository();
-  final memberRepo = MemberRepository();
+  final loanRepo = ref.read(loanRepositoryProvider);
+  final memberRepo = ref.read(memberRepositoryProvider);
 
   final loans = await loanRepo.getAllLoans();
   final repayments = await loanRepo.getAllRepayments();
@@ -38,6 +38,6 @@ final computeReturnsProvider = FutureProvider<void>((ref) async {
     perHeadShare: totalHeads > 0 ? totalInterestEarned / totalHeads : 0.0,
   );
 
-  final repo = ref.watch(returnsRepositoryProvider);
+  final repo = ref.read(returnsRepositoryProvider);
   await repo.saveReturns(info);
 });

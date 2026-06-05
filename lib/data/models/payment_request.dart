@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 enum PaymentStatus { pending, approved, rejected }
 enum PaymentType { contribution, loan }
 
@@ -50,20 +52,20 @@ class PaymentRequest {
   factory PaymentRequest.fromMap(Map<String, dynamic> map) {
     return PaymentRequest(
       id: map['id'],
-      memberId: map['memberId'],
+      memberId: map['memberId'] ?? '',
       loanId: map['loanId'],
-      type: PaymentType.values.firstWhere((e) => e.name == map['type']),
-      amount: (map['amount'] as num).toDouble(),
+      type: PaymentType.values.firstWhere(
+        (e) => e.name == map['type'],
+        orElse: () => PaymentType.contribution,
+      ),
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       receiptPath: map['receiptPath'],
-      status: PaymentStatus.values.firstWhere((e) => e.name == map['status']),
-      requestDate: map['requestDate'] is DateTime
-          ? map['requestDate']
-          : DateTime.parse(map['requestDate']),
-      approvedDate: map['approvedDate'] != null
-          ? (map['approvedDate'] is DateTime
-              ? map['approvedDate']
-              : DateTime.parse(map['approvedDate']))
-          : null,
+      status: PaymentStatus.values.firstWhere(
+        (e) => e.name == map['status'],
+        orElse: () => PaymentStatus.pending,
+      ),
+      requestDate: parseFirestoreDate(map['requestDate']),
+      approvedDate: parseFirestoreDateOrNull(map['approvedDate']),
       approvedBy: map['approvedBy'],
       notes: map['notes'],
       rejectReason: map['rejectReason'],

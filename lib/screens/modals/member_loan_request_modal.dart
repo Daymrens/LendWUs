@@ -24,6 +24,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
   bool _isSubmitting = false;
   bool _hasContributions = true;
   bool _checkingContribs = true;
+  bool _interestInitialized = false;
 
   @override
   void initState() {
@@ -114,8 +115,9 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
     final settingsAsync = ref.watch(settingsProvider);
     final defaultInterest = settingsAsync.valueOrNull?.loanInterestPercent ?? 10.0;
 
-    if (_interestRateController.text.isEmpty && defaultInterest > 0) {
+    if (!_interestInitialized && _interestRateController.text.isEmpty && defaultInterest > 0) {
       _interestRateController.text = defaultInterest.toStringAsFixed(1);
+      _interestInitialized = true;
     }
 
     return Container(

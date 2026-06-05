@@ -71,12 +71,11 @@ class FundRepository {
     final totalLoansIssued = loans.fold<double>(0.0, (sum, l) => sum + l.principal);
     final fundBalance = totalContributions - totalLoansIssued + repayments;
 
-    double outstanding = 0.0;
-    for (var loan in loans) {
-      if (!loan.isFullyRepaid) {
-        outstanding += await loanRepo.getRemainingBalance(loan.id!);
-      }
-    }
+    final activeLoans = loans.where((l) => !l.isFullyRepaid && l.id != null).toList();
+    final balances = await Future.wait(
+      activeLoans.map((loan) => loanRepo.getRemainingBalance(loan.id!)),
+    );
+    final outstanding = balances.fold<double>(0.0, (sum, b) => sum + b);
 
     return fundBalance - outstanding;
   }

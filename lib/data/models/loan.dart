@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 class Loan {
   String? id;
   String memberId;
@@ -32,15 +34,11 @@ class Loan {
   factory Loan.fromMap(Map<String, dynamic> map) {
     return Loan(
       id: map['id'],
-      memberId: map['memberId'],
-      principal: (map['principal'] as num).toDouble(),
-      interestRate: (map['interestRate'] as num).toDouble(),
-      issuedDate: map['issuedDate'] is DateTime
-          ? map['issuedDate']
-          : DateTime.parse(map['issuedDate']),
-      dueDate: map['dueDate'] is DateTime
-          ? map['dueDate']
-          : DateTime.parse(map['dueDate']),
+      memberId: map['memberId'] ?? '',
+      principal: (map['principal'] as num?)?.toDouble() ?? 0.0,
+      interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
+      issuedDate: parseFirestoreDate(map['issuedDate']),
+      dueDate: parseFirestoreDate(map['dueDate']),
       isFullyRepaid: map['isFullyRepaid'] == true || map['isFullyRepaid'] == 1,
     );
   }

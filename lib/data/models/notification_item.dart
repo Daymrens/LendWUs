@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 class NotificationItem {
   String? id;
   String userId;
@@ -41,9 +43,7 @@ class NotificationItem {
       type: map['type'] ?? '',
       data: map['data'] is Map<String, dynamic> ? map['data'] : null,
       read: map['read'] ?? false,
-      createdAt: map['createdAt'] is DateTime
-          ? map['createdAt']
-          : DateTime.parse(map['createdAt']),
+      createdAt: parseFirestoreDate(map['createdAt']),
     );
   }
 

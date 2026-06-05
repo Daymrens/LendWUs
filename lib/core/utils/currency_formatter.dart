@@ -49,12 +49,24 @@ class CurrencyFormatter {
     return _formatter.format(amount);
   }
 
-  /// Parse display string back to centavos
+  /// Parse display string back to centavos.
+  /// Strips non-numeric characters (allowing only the first decimal point).
+  /// Returns 0 for invalid or empty input.
   static int parse(String input) {
-    // Clean all non-numeric except decimal point
     final cleaned = input.replaceAll(RegExp(r'[^0-9.]'), '');
     if (cleaned.isEmpty) return 0;
-    return (double.parse(cleaned) * 100).round();
+    final firstDot = cleaned.indexOf('.');
+    String sanitized;
+    if (firstDot == -1) {
+      sanitized = cleaned;
+    } else {
+      sanitized =
+          cleaned.substring(0, firstDot + 1) +
+          cleaned.substring(firstDot + 1).replaceAll('.', '');
+    }
+    final value = double.tryParse(sanitized);
+    if (value == null) return 0;
+    return (value * 100).round();
   }
 
   /// Convert double to centavos

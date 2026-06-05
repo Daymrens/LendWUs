@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../data/models/loan.dart';
 import '../../data/models/repayment.dart';
 import '../../providers/loans_provider.dart';
 import '../../providers/fund_summary_provider.dart';
@@ -19,7 +20,16 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
   final _amountController = TextEditingController();
   String? _selectedLoanId;
   String? _errorMessage;
-  double _remainingBalance = 0.0;
+
+  List<Loan> _activeLoans = const [];
+  Map<String, double> _balances = const {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLoans();
+  }
 
   @override
   void dispose() {
@@ -27,13 +37,24 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
     super.dispose();
   }
 
-  Future<void> _loadRemainingBalance() async {
-    if (_selectedLoanId != null) {
-      final loanRepo = ref.read(loanRepositoryProvider);
-      final balance = await loanRepo.getRemainingBalance(_selectedLoanId!);
-      setState(() => _remainingBalance = balance);
+  Future<void> _loadLoans() async {
+    final loanRepo = ref.read(loanRepositoryProvider);
+    final loans = await loanRepo.getActiveLoans();
+    final active = loans.where((l) => l.id != null).toList();
+    final balances = <String, double>{};
+    for (final loan in active) {
+      balances[loan.id!] = await loanRepo.getRemainingBalance(loan.id!);
     }
+    if (!mounted) return;
+    setState(() {
+      _activeLoans = active;
+      _balances = balances;
+      _loading = false;
+    });
   }
+
+  double get _selectedBalance =>
+      _balances[_selectedLoanId] ?? 0.0;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _selectedLoanId == null) {
@@ -49,13 +70,14 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
       return;
     }
 
-    if (amount > _remainingBalance) {
+    final balance = _selectedBalance;
+    if (amount > balance) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Overpayment Warning'),
           content: Text(
-            'Amount exceeds remaining balance (${CurrencyFormatter.format(_remainingBalance)}). Excess will be credited to member.',
+            'Amount exceeds remaining balance (${CurrencyFormatter.format(balance)}). Excess will be credited to member.',
           ),
           actions: [
             TextButton(
@@ -89,8 +111,6 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
 
   @override
   Widget build(BuildContext context) {
-    final loanRepo = ref.read(loanRepositoryProvider);
-
     return Container(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -135,51 +155,36 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                   ],
                 ),
               ),
-            FutureBuilder(
-              future: loanRepo.getActiveLoans(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const CircularProgressIndicator();
-                }
-
-                final activeLoans = snapshot.data!;
-
-                if (activeLoans.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('No active loans to repay'),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_activeLoans.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text('No active loans to repay'),
+              )
+            else
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: 'Select Loan'),
+                initialValue: _selectedLoanId,
+                items: _activeLoans.map((loan) {
+                  final balance = _balances[loan.id!] ?? 0.0;
+                  return DropdownMenuItem(
+                    value: loan.id,
+                    child: Text(
+                      'Loan - ${CurrencyFormatter.format(balance)} remaining',
+                    ),
                   );
-                }
-
-                return DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(labelText: 'Select Loan'),
-                  value: _selectedLoanId,
-                  items: activeLoans.map((loan) {
-                    return DropdownMenuItem(
-                      value: loan.id,
-                      child: FutureBuilder<double>(
-                        future: loanRepo.getRemainingBalance(loan.id!),
-                        builder: (context, balanceSnapshot) {
-                          final balance = balanceSnapshot.data ?? 0.0;
-                          return Text(
-                            'Loan - ${CurrencyFormatter.format(balance)} remaining',
-                          );
-                        },
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    setState(() => _selectedLoanId = value);
-                    _loadRemainingBalance();
-                  },
-                  validator: (value) => value == null ? 'Select a loan' : null,
-                );
-              },
-            ),
-            if (_selectedLoanId != null && _remainingBalance > 0) ...[
+                }).toList(),
+                onChanged: (value) => setState(() => _selectedLoanId = value),
+                validator: (value) => value == null ? 'Select a loan' : null,
+              ),
+            if (_selectedLoanId != null && _selectedBalance > 0) ...[
               const Gap(8),
               Text(
-                'Remaining balance: ${CurrencyFormatter.format(_remainingBalance)}',
+                'Remaining balance: ${CurrencyFormatter.format(_selectedBalance)}',
                 style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
               ),
             ],

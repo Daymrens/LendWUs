@@ -1,3 +1,5 @@
+import '../../core/utils/firestore_helpers.dart';
+
 class Contribution {
   String? id;
   String memberId;
@@ -32,13 +34,11 @@ class Contribution {
   factory Contribution.fromMap(Map<String, dynamic> map) {
     return Contribution(
       id: map['id'],
-      memberId: map['memberId'],
-      amount: (map['amount'] as num).toDouble(),
-      date: map['date'] is DateTime
-          ? map['date']
-          : DateTime.parse(map['date']),
-      month: map['month'],
-      year: map['year'],
+      memberId: map['memberId'] ?? '',
+      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      date: parseFirestoreDate(map['date']),
+      month: map['month'] ?? DateTime.now().month,
+      year: map['year'] ?? DateTime.now().year,
       notes: map['notes'],
     );
   }

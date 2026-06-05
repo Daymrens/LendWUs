@@ -23,6 +23,8 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
   String? _selectedMemberId;
   DateTime _dueDate = DateTime.now().add(const Duration(days: 30));
   String? _errorMessage;
+  bool _interestInitialized = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -32,52 +34,76 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     if (!_formKey.currentState!.validate() || _selectedMemberId == null) {
       return;
     }
 
-    setState(() => _errorMessage = null);
+    setState(() {
+      _errorMessage = null;
+      _isSubmitting = true;
+    });
 
     final principal = double.parse(_principalController.text);
     final interestRate = double.parse(_interestController.text) / 100;
 
-    final fundSummary = await ref.read(fundSummaryProvider.future);
     final loanRepo = ref.read(loanRepositoryProvider);
 
-    if (principal <= 0) {
-      setState(() => _errorMessage = 'Loan amount must be greater than zero');
-      return;
+    try {
+      if (principal <= 0) {
+        setState(() {
+          _errorMessage = 'Loan amount must be greater than zero';
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      if (_dueDate.isBefore(DateTime.now())) {
+        setState(() {
+          _errorMessage = 'Due date must be in the future';
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      final fundSummary = await ref.read(fundSummaryProvider.future);
+      if (principal > fundSummary.availableToLoan) {
+        setState(() {
+          _errorMessage = 'Insufficient fund balance. Available: ${CurrencyFormatter.format(fundSummary.availableToLoan)}';
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      final hasActive = await loanRepo.hasActiveLoan(_selectedMemberId!);
+      if (hasActive) {
+        setState(() {
+          _errorMessage = 'Member already has an unpaid loan';
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      final loan = Loan(
+        memberId: _selectedMemberId!,
+        principal: principal,
+        interestRate: interestRate,
+        issuedDate: DateTime.now(),
+        dueDate: _dueDate,
+      );
+
+      await loanRepo.addLoan(loan);
+      ref.invalidate(totalLoansProvider);
+      ref.invalidate(fundSummaryProvider);
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Could not issue loan: $e');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
-
-    if (principal > fundSummary.availableToLoan) {
-      setState(() => _errorMessage = 'Insufficient fund balance. Available: ${fundSummary.availableToLoan.toStringAsFixed(2)}');
-      return;
-    }
-
-    final hasActive = await loanRepo.hasActiveLoan(_selectedMemberId!);
-    if (hasActive) {
-      setState(() => _errorMessage = 'Member already has an unpaid loan');
-      return;
-    }
-
-    if (_dueDate.isBefore(DateTime.now())) {
-      setState(() => _errorMessage = 'Due date must be in the future');
-      return;
-    }
-
-    final loan = Loan(
-      memberId: _selectedMemberId!,
-      principal: principal,
-      interestRate: interestRate,
-      issuedDate: DateTime.now(),
-      dueDate: _dueDate,
-    );
-
-    await loanRepo.addLoan(loan);
-    ref.invalidate(totalLoansProvider);
-    ref.invalidate(fundSummaryProvider);
-
-    if (mounted) Navigator.pop(context);
   }
 
   @override
@@ -86,8 +112,9 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
     final fundSummary = ref.watch(fundSummaryProvider);
     final defaultInterest = ref.watch(settingsProvider).valueOrNull?.loanInterestPercent ?? 10.0;
 
-    if (_interestController.text.isEmpty && defaultInterest > 0) {
+    if (!_interestInitialized && _interestController.text.isEmpty && defaultInterest > 0) {
       _interestController.text = defaultInterest.toStringAsFixed(1);
+      _interestInitialized = true;
     }
 
     return Container(
@@ -146,7 +173,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
             members.when(
               data: (list) => DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Member'),
-                value: _selectedMemberId,
+                initialValue: _selectedMemberId,
                 items: list.map((member) {
                   return DropdownMenuItem(
                     value: member.id,
@@ -169,7 +196,9 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Enter amount';
-                if (double.tryParse(value) == null) return 'Invalid amount';
+                final parsed = double.tryParse(value);
+                if (parsed == null) return 'Invalid amount';
+                if (parsed <= 0) return 'Amount must be greater than 0';
                 return null;
               },
             ),
@@ -183,7 +212,10 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
                 if (value == null || value.isEmpty) return 'Enter rate';
-                if (double.tryParse(value) == null) return 'Invalid rate';
+                final parsed = double.tryParse(value);
+                if (parsed == null) return 'Invalid rate';
+                if (parsed < 0) return 'Rate cannot be negative';
+                if (parsed > 100) return 'Rate cannot exceed 100%';
                 return null;
               },
             ),
@@ -210,17 +242,22 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _submit,
+                onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(25),
                   ),
                 ),
-                child: const Text(
-                  'Issue Loan',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text(
+                        'Issue Loan',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
             ),
             const Gap(24),

@@ -203,7 +203,8 @@ class QuickSetupScreen extends ConsumerStatefulWidget {
 class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _numberOfMembersController = TextEditingController(text: '10');
-  final _contributionController = TextEditingController(text: '150');
+  final _contributionController = TextEditingController(text: '500');
+  bool _isSaving = false;
 
   @override
   void dispose() {
@@ -213,29 +214,38 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
   }
 
   Future<void> _saveSettings() async {
-    if (_formKey.currentState!.validate()) {
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+
+    final numberOfMembers = int.parse(_numberOfMembersController.text);
+    final defaultContribution = double.parse(_contributionController.text);
+
+    try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('number_of_members', int.parse(_numberOfMembersController.text));
-      await prefs.setDouble('default_contribution', double.parse(_contributionController.text));
+      await prefs.setInt('number_of_members', numberOfMembers);
+      await prefs.setDouble('default_contribution', defaultContribution);
 
-      // Create placeholder members
-      final numberOfMembers = int.parse(_numberOfMembersController.text);
-      final defaultContribution = double.parse(_contributionController.text);
       final repo = ref.read(memberRepositoryProvider);
-
-      for (int i = 1; i <= numberOfMembers; i++) {
-        final member = Member(
-          name: 'Member $i',
-          headsCount: 1,
-          amountPerHead: defaultContribution,
-          totalRequired: defaultContribution,
-          joinedAt: DateTime.now(),
-        );
-        await repo.addMember(member);
-      }
+      final members = List.generate(numberOfMembers, (i) => Member(
+        name: 'Member ${i + 1}',
+        headsCount: 1,
+        amountPerHead: defaultContribution,
+        totalRequired: defaultContribution,
+        joinedAt: DateTime.now(),
+      ));
+      await repo.addMembersSequential(members);
 
       ref.invalidate(membersProvider);
       widget.onComplete();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Setup failed: $e'), backgroundColor: AppColors.error),
+        );
+        setState(() => _isSaving = false);
+      }
     }
   }
 
@@ -291,7 +301,9 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Enter contribution amount';
-                    if (double.tryParse(value) == null) return 'Invalid amount';
+                    final parsed = double.tryParse(value);
+                    if (parsed == null) return 'Invalid amount';
+                    if (parsed <= 0) return 'Amount must be greater than 0';
                     return null;
                   },
                 ),
@@ -308,21 +320,26 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _saveSettings,
+                    onPressed: _isSaving ? null : _saveSettings,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
-                    child: const Text(
-                      'COMPLETE SETUP',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            height: 22, width: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text(
+                            'COMPLETE SETUP',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
                 const Gap(16),

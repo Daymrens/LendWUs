@@ -6,6 +6,7 @@ import '../../data/models/app_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/csv_export_service.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -24,7 +25,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   String _selectedCurrencyCode = 'PHP';
   String _selectedCurrencySymbol = '\u20B1';
 
-  final List<Map<String, String>> _currencies = [
+  final List<Map<String, String>> _currencies = const [
     {'code': 'PHP', 'symbol': '\u20B1'},
     {'code': 'USD', 'symbol': '\$'},
     {'code': 'EUR', 'symbol': '€'},
@@ -33,6 +34,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     {'code': 'KRW', 'symbol': '₩'},
     {'code': 'INR', 'symbol': '₹'},
   ];
+
+  bool _initialized = false;
 
   @override
   void initState() {
@@ -54,26 +57,16 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     super.dispose();
   }
 
-  void _loadSettings(AppSettings settings) {
-    if (_minPaymentController.text.isEmpty) {
-      _minPaymentController.text = settings.minPaymentPerHead.toString();
-    }
-    if (_maxPaymentController.text.isEmpty) {
-      _maxPaymentController.text = settings.maxPaymentPerHead.toString();
-    }
-    if (_loanInterestController.text.isEmpty) {
-      _loanInterestController.text = settings.loanInterestPercent.toString();
-    }
-    if (_cutoffDay1Controller.text.isEmpty) {
-      _cutoffDay1Controller.text = settings.cutoffDay1.toString();
-    }
-    if (_cutoffDay2Controller.text.isEmpty) {
-      _cutoffDay2Controller.text = settings.cutoffDay2.toString();
-    }
-    if (_selectedCurrencyCode != settings.currencyCode && _formKey.currentState == null) {
-       _selectedCurrencyCode = settings.currencyCode;
-       _selectedCurrencySymbol = settings.currencySymbol;
-    }
+  void _loadSettingsOnce(AppSettings settings) {
+    if (_initialized) return;
+    _minPaymentController.text = settings.minPaymentPerHead.toString();
+    _maxPaymentController.text = settings.maxPaymentPerHead.toString();
+    _loanInterestController.text = settings.loanInterestPercent.toString();
+    _cutoffDay1Controller.text = settings.cutoffDay1.toString();
+    _cutoffDay2Controller.text = settings.cutoffDay2.toString();
+    _selectedCurrencyCode = settings.currencyCode;
+    _selectedCurrencySymbol = settings.currencySymbol;
+    _initialized = true;
   }
 
   @override
@@ -86,7 +79,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       ),
       body: settingsAsync.when(
         data: (settings) {
-          _loadSettings(settings);
+          _loadSettingsOnce(settings);
           return Form(
             key: _formKey,
             child: ListView(
@@ -170,7 +163,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const Gap(16),
                         DropdownButtonFormField<String>(
-                          value: _selectedCurrencyCode,
+                          initialValue: _selectedCurrencyCode,
                           decoration: const InputDecoration(
                             labelText: 'Select Currency',
                             border: OutlineInputBorder(),
@@ -337,31 +330,59 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   }
 
   void _saveSettings() async {
-    if (_formKey.currentState!.validate()) {
-      final newSettings = AppSettings(
-        minPaymentPerHead: double.parse(_minPaymentController.text),
-        maxPaymentPerHead: double.parse(_maxPaymentController.text),
-        loanInterestPercent: double.parse(_loanInterestController.text),
-        currencySymbol: _selectedCurrencySymbol,
-        currencyCode: _selectedCurrencyCode,
-        cutoffDay1: int.parse(_cutoffDay1Controller.text),
-        cutoffDay2: int.parse(_cutoffDay2Controller.text),
-      );
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        await ref.read(settingsRepositoryProvider).saveSettings(newSettings);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Settings saved successfully')),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to save settings: $e')),
-          );
-        }
+    final minPay = double.parse(_minPaymentController.text);
+    final maxPay = double.parse(_maxPaymentController.text);
+    final interest = double.parse(_loanInterestController.text);
+    final cutoff1 = int.parse(_cutoffDay1Controller.text);
+    final cutoff2 = int.parse(_cutoffDay2Controller.text);
+
+    if (minPay <= 0 || maxPay <= 0) {
+      _showError('Min and max payment must be greater than 0');
+      return;
+    }
+    if (minPay > maxPay) {
+      _showError('Min payment cannot be greater than max');
+      return;
+    }
+    if (interest < 0 || interest > 100) {
+      _showError('Interest rate must be between 0 and 100');
+      return;
+    }
+    if (cutoff1 == cutoff2) {
+      _showError('Cutoff days must be different');
+      return;
+    }
+
+    final newSettings = AppSettings(
+      minPaymentPerHead: minPay,
+      maxPaymentPerHead: maxPay,
+      loanInterestPercent: interest,
+      currencySymbol: _selectedCurrencySymbol,
+      currencyCode: _selectedCurrencyCode,
+      cutoffDay1: cutoff1,
+      cutoffDay2: cutoff2,
+    );
+
+    try {
+      await ref.read(settingsRepositoryProvider).saveSettings(newSettings);
+      CurrencyFormatter.updateConfiguration(_selectedCurrencySymbol, _selectedCurrencyCode);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings saved successfully')),
+        );
       }
+    } catch (e) {
+      _showError('Failed to save settings: $e');
+    }
+  }
+
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      );
     }
   }
 

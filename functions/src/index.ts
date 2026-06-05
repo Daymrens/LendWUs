@@ -169,6 +169,30 @@ export const onHeadChangeRequestCreate = functions.firestore
 
 // ─── existing callable ────────────────────────────────────────
 
+function formatMemberId(n: number): string {
+  if (!Number.isInteger(n) || n < 1 || n > 999999) {
+    throw new Error(`MemberID number out of range (got ${n})`);
+  }
+  return `LWS${String(n).padStart(6, "0")}`;
+}
+
+async function generateNextMemberId(): Promise<string> {
+  const counterRef = db.doc("meta/member_counter");
+  return db.runTransaction(async (tx) => {
+    const counter = await tx.get(counterRef);
+    const existingMax = (counter.data()?.lastNumber as number | undefined) ?? 0;
+    const start = existingMax + 1;
+    if (start > 999999) {
+      throw new Error("MemberID limit reached (max 999999)");
+    }
+    tx.set(counterRef, {
+      lastNumber: start,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return formatMemberId(start);
+  });
+}
+
 export const joinWithGroupCode = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError("unauthenticated", "User must be signed in");
@@ -191,12 +215,15 @@ export const joinWithGroupCode = functions.https.onCall(async (data, context) =>
   }
 
   const displayName: string | undefined = data.name;
+  const memberId = await generateNextMemberId();
+
   const memberRef = await db.collection("members").add({
+    memberId,
     name: displayName || email.split("@")[0],
     linkedEmail: email,
     headsCount: 1,
-    amountPerHead: 150.0,
-    totalRequired: 150.0,
+    amountPerHead: 500.0,
+    totalRequired: 500.0,
     isActive: true,
     joinedAt: admin.firestore.FieldValue.serverTimestamp(),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -213,5 +240,6 @@ export const joinWithGroupCode = functions.https.onCall(async (data, context) =>
   return {
     success: true,
     memberId: memberRef.id,
+    publicId: memberId,
   };
 });

@@ -106,20 +106,32 @@ class LoanRepository {
   }
 
   Future<void> _updateLoanStatus(String loanId) async {
-    final loanDoc = await FirebaseService.firestore.collection('loans').doc(loanId).get();
+    final firestore = FirebaseService.firestore;
+    final loanRef = firestore.collection('loans').doc(loanId);
+
+    final loanDoc = await loanRef.get();
     if (!loanDoc.exists) return;
 
     final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
-    final repayments = await getRepaymentsByLoan(loanId);
+    if (loan.isFullyRepaid) return;
 
-    final totalRepaid = repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+    final repaymentsSnap = await firestore
+        .collection('repayments')
+        .where('loanId', isEqualTo: loanId)
+        .get();
+
+    final totalRepaid = repaymentsSnap.docs
+        .fold<double>(0.0, (sum, d) => sum + (d.data()['amountPaid'] as num).toDouble());
     final totalDue = loan.principal + (loan.principal * loan.interestRate);
 
     if (totalRepaid >= totalDue) {
-      await FirebaseService.firestore
-          .collection('loans')
-          .doc(loanId)
-          .update({'isFullyRepaid': true});
+      await firestore.runTransaction((txn) async {
+        final fresh = await txn.get(loanRef);
+        if (!fresh.exists) return;
+        final data = fresh.data()!;
+        if (data['isFullyRepaid'] == true) return;
+        txn.update(loanRef, {'isFullyRepaid': true});
+      });
     }
   }
 
@@ -182,17 +194,15 @@ class LoanRepository {
 
   Future<List<Map<String, dynamic>>> getMemberActiveLoans(String memberId) async {
     final loans = await getLoansByMember(memberId);
-    final activeLoans = loans.where((l) => !l.isFullyRepaid).toList();
+    final activeLoans = loans.where((l) => !l.isFullyRepaid && l.id != null).toList();
 
-    List<Map<String, dynamic>> result = [];
-    for (var loan in activeLoans) {
-      final remainingBalance = await getRemainingBalance(loan.id!);
-      result.add({
-        'loan': loan,
-        'remainingBalance': remainingBalance,
-      });
-    }
+    final balances = await Future.wait(
+      activeLoans.map((loan) => getRemainingBalance(loan.id!)),
+    );
 
-    return result;
+    return List.generate(activeLoans.length, (i) => {
+          'loan': activeLoans[i],
+          'remainingBalance': balances[i],
+        });
   }
 }

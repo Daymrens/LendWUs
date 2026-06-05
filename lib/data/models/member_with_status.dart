@@ -26,7 +26,9 @@ class MemberWithStatus {
     int month,
     int year,
   ) {
-    final requiredAmount = member.headsCount * member.amountPerHead;
+    final requiredAmount = member.totalRequired > 0
+        ? member.totalRequired
+        : member.headsCount * member.amountPerHead;
 
     final memberContribs = contributions.where((c) {
       return c.memberId == member.id &&

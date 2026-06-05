@@ -1,10 +1,11 @@
+import '../../core/utils/firestore_helpers.dart';
+
 enum UserRole { admin, member }
 
 class User {
   String? id;
   String username;
   String email;
-  String? password;
   UserRole role;
   String? memberId;
   String? photoUrl;
@@ -15,7 +16,6 @@ class User {
     this.id,
     required this.username,
     required this.email,
-    this.password,
     required this.role,
     this.memberId,
     this.photoUrl,
@@ -28,7 +28,6 @@ class User {
       if (id != null) 'id': id,
       'username': username,
       'email': email,
-      'password': password,
       'role': role.name,
       'memberId': memberId,
       'photoUrl': photoUrl,
@@ -40,9 +39,8 @@ class User {
   factory User.fromMap(Map<String, dynamic> map) {
     return User(
       id: map['id'],
-      username: map['username'],
+      username: map['username'] ?? '',
       email: map['email'] ?? '',
-      password: map['password'],
       role: UserRole.values.firstWhere(
         (e) => e.name.toLowerCase() == map['role'].toString().toLowerCase(),
         orElse: () => UserRole.member,
@@ -50,9 +48,7 @@ class User {
       memberId: map['memberId'],
       photoUrl: map['photoUrl'],
       fcmToken: map['fcmToken'],
-      createdAt: map['createdAt'] is DateTime
-          ? map['createdAt']
-          : DateTime.parse(map['createdAt']),
+      createdAt: parseFirestoreDate(map['createdAt']),
     );
   }
 }

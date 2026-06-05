@@ -1,6 +1,7 @@
 import '../models/member.dart';
 import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../core/utils/member_id_generator.dart';
 
 class MemberRepository {
   Future<List<Member>> getAllMembers() async {
@@ -17,8 +18,26 @@ class MemberRepository {
   }
 
   Future<String> addMember(Member member) async {
-    final docRef = await FirebaseService.firestore.collection('members').add(member.toMap());
+    final firestore = FirebaseService.firestore;
+    if (member.memberId == null || member.memberId!.isEmpty) {
+      member.memberId = await MemberIdGenerator.generateNextMemberId(firestore);
+    }
+    final docRef = await firestore.collection('members').add(member.toMap());
     return docRef.id;
+  }
+
+  Future<List<String>> addMembersSequential(List<Member> members) async {
+    final firestore = FirebaseService.firestore;
+    final ids = await MemberIdGenerator.generateNextMemberIds(firestore, members.length);
+    for (var i = 0; i < members.length; i++) {
+      members[i].memberId = ids[i];
+    }
+    final created = <String>[];
+    for (final m in members) {
+      final ref = await firestore.collection('members').add(m.toMap());
+      created.add(ref.id);
+    }
+    return created;
   }
 
   Future<void> updateMember(Member member) async {
@@ -40,7 +59,30 @@ class MemberRepository {
     if (await loanRepo.hasActiveLoan(id)) {
       throw Exception('Cannot remove member with outstanding loan');
     }
-    await FirebaseService.firestore.collection('members').doc(id).delete();
+
+    final firestore = FirebaseService.firestore;
+
+    final pendingPayments = await firestore
+        .collection('payment_requests')
+        .where('memberId', isEqualTo: id)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .get();
+    if (pendingPayments.docs.isNotEmpty) {
+      throw Exception('Cannot remove member with pending payment requests');
+    }
+
+    final pendingLoans = await firestore
+        .collection('loan_requests')
+        .where('memberId', isEqualTo: id)
+        .where('status', isEqualTo: 'pending')
+        .limit(1)
+        .get();
+    if (pendingLoans.docs.isNotEmpty) {
+      throw Exception('Cannot remove member with pending loan requests');
+    }
+
+    await firestore.collection('members').doc(id).delete();
   }
 
   Stream<List<Member>> watchAllMembers() {

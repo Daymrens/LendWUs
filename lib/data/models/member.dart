@@ -1,5 +1,8 @@
+import '../../core/utils/firestore_helpers.dart';
+
 class Member {
   String? id;
+  String? memberId;
   String name;
   int headsCount;
   double amountPerHead;
@@ -12,6 +15,7 @@ class Member {
 
   Member({
     this.id,
+    this.memberId,
     required this.name,
     required this.headsCount,
     required this.amountPerHead,
@@ -23,33 +27,35 @@ class Member {
     this.linkedEmail,
   });
 
+  String get displayId => memberId ?? id ?? '';
+
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
+      if (memberId != null) 'memberId': memberId,
       'name': name,
       'headsCount': headsCount,
       'amountPerHead': amountPerHead,
       'totalRequired': totalRequired,
       'balance': balance,
-      'avatarPath': avatarPath,
+      if (avatarPath != null) 'avatarPath': avatarPath,
       'joinedAt': joinedAt.toIso8601String(),
       'isActive': isActive,
-      'linkedEmail': linkedEmail,
+      if (linkedEmail != null) 'linkedEmail': linkedEmail,
     };
   }
 
   factory Member.fromMap(Map<String, dynamic> map) {
     return Member(
       id: map['id'],
-      name: map['name'],
-      headsCount: map['headsCount'],
-      amountPerHead: (map['amountPerHead'] as num).toDouble(),
-      totalRequired: (map['totalRequired'] as num).toDouble(),
-      balance: (map['balance'] ?? 0.0).toDouble(),
+      memberId: map['memberId'],
+      name: map['name'] ?? '',
+      headsCount: map['headsCount'] ?? 1,
+      amountPerHead: (map['amountPerHead'] as num?)?.toDouble() ?? 0.0,
+      totalRequired: (map['totalRequired'] as num?)?.toDouble() ?? 0.0,
+      balance: (map['balance'] as num?)?.toDouble() ?? 0.0,
       avatarPath: map['avatarPath'],
-      joinedAt: map['joinedAt'] is DateTime
-          ? map['joinedAt']
-          : DateTime.parse(map['joinedAt']),
+      joinedAt: parseFirestoreDate(map['joinedAt']),
       isActive: map['isActive'] == true || map['isActive'] == 1,
       linkedEmail: map['linkedEmail'],
     );

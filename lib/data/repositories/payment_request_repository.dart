@@ -2,13 +2,25 @@ import '../models/payment_request.dart';
 import '../models/contribution.dart';
 import '../models/repayment.dart';
 import 'loan_repository.dart';
+import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../core/utils/currency_formatter.dart';
 
 class PaymentRequestRepository {
   Future<String> createPaymentRequest(PaymentRequest request) async {
     final docRef = await FirebaseService.firestore
         .collection('payment_requests')
         .add(request.toMap());
+
+    final memberName = await _getMemberName(request.memberId);
+    final typeLabel = request.type == PaymentType.contribution ? 'Contribution' : 'Loan Repayment';
+    final amountLabel = CurrencyFormatter.format(request.amount);
+    NotificationRepository.notifyAdmins(
+      'New $typeLabel Request',
+      '$memberName submitted a $typeLabel of $amountLabel for approval',
+      type: 'payment_request_created',
+    );
+
     return docRef.id;
   }
 
@@ -80,18 +92,25 @@ class PaymentRequestRepository {
             .toList());
   }
 
-  Future<void> approvePaymentRequest(String requestId, {String? notes}) async {
-    final request = await getRequestById(requestId);
-    if (request == null) return;
+  Future<bool> approvePaymentRequest(String requestId, {String? notes}) async {
+    final firestore = FirebaseService.firestore;
+    final requestRef = firestore.collection('payment_requests').doc(requestId);
 
-    await FirebaseService.firestore
-        .collection('payment_requests')
-        .doc(requestId)
-        .update({
-      'status': 'approved',
-      'approvedDate': DateTime.now().toIso8601String(),
-      'notes': notes,
+    // Idempotent claim: only proceed if the request is still pending.
+    final request = await firestore.runTransaction((tx) async {
+      final snap = await tx.get(requestRef);
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['status'] != 'pending') return null;
+      tx.update(requestRef, {
+        'status': 'approved',
+        'approvedDate': DateTime.now().toIso8601String(),
+        'notes': notes,
+      });
+      return PaymentRequest.fromMap({...data, 'id': requestId});
     });
+
+    if (request == null) return false;
 
     if (request.type == PaymentType.contribution) {
       final contribution = Contribution(
@@ -121,7 +140,7 @@ class PaymentRequestRepository {
           .collection('members')
           .doc(request.memberId)
           .get();
-      
+
       if (memberDoc.exists) {
         final memberData = memberDoc.data()!;
         final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
@@ -137,7 +156,7 @@ class PaymentRequestRepository {
           // Apply balance if current month total is below required
           final needed = required - monthTotal;
           final toApply = currentBalance >= needed ? needed : currentBalance;
-          
+
           if (toApply > 0) {
             // Record the balance application as a contribution
             final balanceContribution = Contribution(
@@ -170,17 +189,47 @@ class PaymentRequestRepository {
       final loanRepo = LoanRepository();
       await loanRepo.addRepayment(repayment);
     }
+
+    final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
+    final amountLabel = CurrencyFormatter.format(request.amount);
+    NotificationRepository.notifyMember(
+      request.memberId,
+      '$typeLabel Approved',
+      'Your $typeLabel of $amountLabel has been approved',
+      type: 'payment_request_approved',
+    );
+    return true;
   }
 
-  Future<void> rejectPaymentRequest(String requestId, {String? notes}) async {
-    await FirebaseService.firestore
-        .collection('payment_requests')
-        .doc(requestId)
-        .update({
-      'status': 'rejected',
-      'approvedDate': DateTime.now().toIso8601String(),
-      'notes': notes,
+  Future<bool> rejectPaymentRequest(String requestId, {String? notes}) async {
+    final firestore = FirebaseService.firestore;
+    final requestRef = firestore.collection('payment_requests').doc(requestId);
+
+    final request = await firestore.runTransaction((tx) async {
+      final snap = await tx.get(requestRef);
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['status'] != 'pending') return null;
+      tx.update(requestRef, {
+        'status': 'rejected',
+        'approvedDate': DateTime.now().toIso8601String(),
+        'notes': notes,
+      });
+      return PaymentRequest.fromMap({...data, 'id': requestId});
     });
+
+    if (request == null) return false;
+
+    final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
+    final amountLabel = CurrencyFormatter.format(request.amount);
+    final reason = notes != null && notes.isNotEmpty ? ': $notes' : '';
+    NotificationRepository.notifyMember(
+      request.memberId,
+      '$typeLabel Rejected',
+      'Your $typeLabel of $amountLabel has been rejected$reason',
+      type: 'payment_request_rejected',
+    );
+    return true;
   }
 
   Future<void> deletePaymentRequest(String id) async {
@@ -197,5 +246,15 @@ class PaymentRequestRepository {
         .get();
     if (!doc.exists) return null;
     return PaymentRequest.fromMap({...doc.data()!, 'id': doc.id});
+  }
+
+  Future<String> _getMemberName(String memberId) async {
+    try {
+      final doc = await FirebaseService.firestore.collection('members').doc(memberId).get();
+      if (doc.exists) {
+        return doc.data()?['name'] ?? 'A member';
+      }
+    } catch (_) {}
+    return 'A member';
   }
 }

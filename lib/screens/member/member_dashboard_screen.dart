@@ -4,11 +4,15 @@ import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/returns_provider.dart';
-import '../../providers/members_provider.dart';
-import '../../providers/loans_provider.dart';
+import '../../data/models/contribution.dart';
+import '../../data/models/loan_request.dart' show LoanRequestStatus;
+import '../../data/models/payment_request.dart' show PaymentStatus, PaymentType;
 import '../../data/models/app_settings.dart' show AppSettings;
-import '../../data/models/payment_request.dart' show PaymentType;
+import '../../data/repositories/loan_repository.dart';
+import '../../data/repositories/payment_request_repository.dart';
+import '../../data/repositories/loan_request_repository.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/members_provider.dart';
 import '../modals/member_payment_modal.dart';
 import '../modals/member_loan_request_modal.dart';
 import '../modals/member_head_change_modal.dart';
@@ -16,21 +20,18 @@ import 'member_pay_screen.dart';
 import '../../providers/notification_provider.dart';
 import '../notifications/notifications_screen.dart';
 
+final memberContributionsStreamProvider = StreamProvider.family<List<Contribution>, String>((ref, memberId) {
+  return ref.watch(contributionRepositoryProvider).watchMemberContributions(memberId);
+});
+
 final memberContributionsTotalProvider = FutureProvider.family<double, String>((ref, memberId) async {
-  final contribs = [...?ref.watch(contributionsStreamProvider).asData?.value];
-  return contribs.where((c) => c.memberId == memberId).fold<double>(0.0, (s, c) => s + c.amount);
+  final contribs = [...?ref.watch(memberContributionsStreamProvider(memberId)).asData?.value];
+  return contribs.fold<double>(0.0, (s, c) => s + c.amount);
 });
 
 final memberActiveLoansProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, memberId) async {
-  final loans = [...?ref.watch(loansStreamProvider).asData?.value];
-  final repayments = [...?ref.watch(repaymentsStreamProvider).asData?.value];
-  final active = loans.where((l) => l.memberId == memberId && !l.isFullyRepaid).toList();
-  return active.map((l) {
-    final loanRepayments = repayments.where((r) => r.loanId == l.id);
-    final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
-    final totalDue = l.principal + (l.principal * l.interestRate);
-    return {'loan': l, 'remainingBalance': totalDue - repaid};
-  }).toList();
+  final repo = LoanRepository();
+  return await repo.getMemberActiveLoans(memberId);
 });
 
 class MemberDashboardScreen extends ConsumerWidget {
@@ -205,13 +206,17 @@ class MemberDashboardScreen extends ConsumerWidget {
 
   Widget _buildContributionCard(BuildContext context, WidgetRef ref, double total, String memberId, AppSettings? settings) {
     final colorScheme = Theme.of(context).colorScheme;
-    final contributionsAsync = ref.watch(contributionsStreamProvider);
-    final allContribs = contributionsAsync.asData?.value ?? [];
-    final memberContribs = allContribs.where((c) => c.memberId == memberId).toList();
+    final contributionsAsync = ref.watch(memberContributionsStreamProvider(memberId));
+    final memberAsync = ref.watch(memberByIdProvider(memberId));
+    final memberContribs = contributionsAsync.asData?.value ?? [];
     final now = DateTime.now();
     final thisMonth = memberContribs.where((c) => c.date.month == now.month && c.date.year == now.year).toList();
     final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
-    final requiredPerHead = settings?.minPaymentPerHead ?? 0;
+    final member = memberAsync.asData?.value;
+    final memberHeads = member?.headsCount ?? 1;
+    final memberTotalRequired = (member?.totalRequired ?? 0.0) > 0
+        ? member!.totalRequired
+        : memberHeads * (settings?.minPaymentPerHead ?? 0.0);
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -237,14 +242,14 @@ class MemberDashboardScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.primary, fontWeight: FontWeight.bold)),
             ),
-            if (requiredPerHead > 0) ...[
+            if (memberTotalRequired > 0) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Text('This month: ${CurrencyFormatter.format(monthlyTotal)}',
-                    style: TextStyle(color: monthlyTotal >= requiredPerHead ? AppColors.primary : AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: TextStyle(color: monthlyTotal >= memberTotalRequired ? AppColors.primary : AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  Text('Required: ${CurrencyFormatter.format(requiredPerHead)}',
+                  Text('Required: ${CurrencyFormatter.format(memberTotalRequired)}',
                     style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
@@ -252,9 +257,9 @@ class MemberDashboardScreen extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
-                  value: (monthlyTotal / requiredPerHead).clamp(0.0, 1.0),
-                  backgroundColor: colorScheme.surfaceVariant,
-                  color: monthlyTotal >= requiredPerHead ? AppColors.primary : AppColors.warning,
+                  value: (monthlyTotal / memberTotalRequired).clamp(0.0, 1.0),
+                  backgroundColor: colorScheme.surfaceContainerHighest,
+                  color: monthlyTotal >= memberTotalRequired ? AppColors.primary : AppColors.warning,
                   minHeight: 6,
                 ),
               ),
@@ -375,7 +380,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Loan #${loan.id.substring(0, 5)}',
+                        Text('Loan #${loan.id.length > 5 ? loan.id.substring(0, 5) : loan.id}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         Text('${(loan.interestRate * 100).toStringAsFixed(0)}% interest',
                           style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
@@ -398,7 +403,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: colorScheme.surfaceVariant,
+                        backgroundColor: colorScheme.surfaceContainerHighest,
                         color: isOverdue ? AppColors.error : AppColors.warning,
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(3),
@@ -445,10 +450,12 @@ class MemberDashboardScreen extends ConsumerWidget {
 }
 
 final _memberPendingRequestsProvider = FutureProvider.family<int, String>((ref, memberId) async {
-  final payments = [...?ref.watch(pendingPaymentRequestsStreamProvider).asData?.value];
-  final loans = [...?ref.watch(pendingLoanRequestsStreamProvider).asData?.value];
-  return payments.where((p) => p.memberId == memberId).length +
-         loans.where((l) => l.memberId == memberId).length;
+  final paymentsRepo = PaymentRequestRepository();
+  final loansRepo = LoanRequestRepository();
+  final payments = await paymentsRepo.getPaymentRequestsByMember(memberId);
+  final loans = await loansRepo.getLoanRequestsByMember(memberId);
+  return payments.where((p) => p.status == PaymentStatus.pending).length +
+         loans.where((l) => l.status == LoanRequestStatus.pending).length;
 });
 
 class _MemberReturnsSection extends ConsumerWidget {

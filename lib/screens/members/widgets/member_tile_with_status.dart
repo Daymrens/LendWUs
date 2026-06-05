@@ -77,11 +77,37 @@ class MemberTileWithStatus extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  member.name.toUpperCase(),
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        member.name.toUpperCase(),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    if (member.displayId.isNotEmpty) ...[
+                      const Gap(8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          member.displayId,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textMuted,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const Gap(4),
                 Text(

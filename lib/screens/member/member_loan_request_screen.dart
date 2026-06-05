@@ -21,6 +21,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
   final _purposeController = TextEditingController();
   DateTime? _dueDate;
   bool _isSubmitting = false;
+  bool _interestInitialized = false;
 
   @override
   void dispose() {
@@ -43,6 +44,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
   }
 
   Future<void> _submitRequest() async {
+    if (_isSubmitting) return;
     if (!_formKey.currentState!.validate()) return;
     if (_dueDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -57,35 +59,51 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
     setState(() => _isSubmitting = true);
 
     final currentUser = ref.read(currentUserProvider).state;
-    final memberRepo = MemberRepository();
-    final member = await memberRepo.getMemberById(currentUser!.memberId!);
-    
-    final loanRequest = LoanRequest(
-      memberId: currentUser.memberId!,
-      memberName: member?.name ?? 'Unknown',
-      amount: double.parse(_amountController.text),
-      interestRate: double.parse(_interestController.text),
-      notes: _purposeController.text,
-      dueDate: _dueDate!,
-      status: LoanRequestStatus.pending,
-      requestedAt: DateTime.now(),
-    );
+    if (currentUser?.memberId == null) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No linked member account'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
 
-    final repo = LoanRequestRepository();
-    await repo.createLoanRequest(loanRequest);
+    try {
+      final memberRepo = MemberRepository();
+      final member = await memberRepo.getMemberById(currentUser!.memberId!);
 
-    if (!mounted) return;
+      final loanRequest = LoanRequest(
+        memberId: currentUser.memberId!,
+        memberName: member?.name ?? currentUser.username,
+        amount: double.parse(_amountController.text),
+        interestRate: double.parse(_interestController.text),
+        notes: _purposeController.text,
+        dueDate: _dueDate!,
+        status: LoanRequestStatus.pending,
+        requestedAt: DateTime.now(),
+      );
 
-    setState(() => _isSubmitting = false);
+      final repo = LoanRequestRepository();
+      await repo.createLoanRequest(loanRequest);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Loan request submitted! Waiting for admin approval'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    Navigator.pop(context);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loan request submitted! Waiting for admin approval'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not submit request: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -93,8 +111,9 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
     final settingsAsync = ref.watch(settingsProvider);
     final defaultInterest = settingsAsync.valueOrNull?.loanInterestPercent ?? 10.0;
 
-    if (_interestController.text.isEmpty && defaultInterest > 0) {
+    if (!_interestInitialized && _interestController.text.isEmpty && defaultInterest > 0) {
       _interestController.text = defaultInterest.toStringAsFixed(1);
+      _interestInitialized = true;
     }
 
     return Scaffold(

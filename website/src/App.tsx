@@ -1,27 +1,117 @@
 import React, { useState } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
+import { useAuth } from './context/AuthContext';
+import Login from './pages/admin/Login';
+import Dashboard from './pages/admin/Dashboard';
+import Members from './pages/admin/Members';
+import MemberProfile from './pages/admin/MemberProfile';
+import Approvals from './pages/admin/Approvals';
+import Settings from './pages/admin/Settings';
+import Reports from './pages/admin/Reports';
+import DataManagement from './pages/admin/DataManagement';
+import Notifications from './pages/admin/Notifications';
+import Activity from './pages/admin/Activity';
+import GlobalSearch from './pages/admin/GlobalSearch';
 import { 
   ArrowRight, 
   Download, 
   ShieldCheck, 
-  Settings,
+  Settings as SettingsIcon,
   CheckCircle,
   TrendingUp,
   Smartphone,
   Zap,
   Menu,
-  X
+  X,
+  Search
 } from 'lucide-react';
 
-const App: React.FC = () => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
+  if (!user) return <Navigate to="/admin" replace />;
+  return <>{children}</>;
+};
+
+const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const navItems = [
+    { path: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
+    { path: '/admin/members', label: 'Members', icon: '👥' },
+    { path: '/admin/approvals', label: 'Approvals', icon: '✅' },
+    { path: '/admin/activity', label: 'Activity', icon: '📋' },
+    { path: '/admin/reports', label: 'Reports', icon: '📈' },
+    { path: '/admin/notifications', label: 'Notifications', icon: '🔔' },
+    { path: '/admin/data', label: 'Data Mgmt', icon: '🗄️' },
+    { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
+  ];
+
+  const handleNav = (path: string) => {
+    navigate(path);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className="admin-layout">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <span className="logo-text">Lend<span className="logo-accent">WUs</span></span>
+          <span className="sidebar-role">Admin</span>
+        </div>
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.path}
+              className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => handleNav(item.path)}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-email">{user?.email}</div>
+          </div>
+          <button className="sidebar-logout" onClick={() => { logout(); navigate('/admin'); }}>
+            Sign Out
+          </button>
+          <a href="/" className="back-home">← Back to Home</a>
+        </div>
+      </aside>
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <main className="admin-main">
+        <div className="admin-topbar">
+          <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu size={24} />
+          </button>
+          <span className="topbar-title">Admin Panel</span>
+          <button className="search-toggle" onClick={() => setSearchOpen(true)} title="Search">
+            <Search size={20} />
+          </button>
+        </div>
+        {children}
+      </main>
+      {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
+    </div>
+  );
+};
+
+const LandingPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <div className="app">
-      {/* Navbar */}
       <nav className="navbar">
         <div className="container">
-          <div className="logo">Lend<span>WUs</span></div>
+          <a href="/" className="logo" style={{ textDecoration: 'none' }}>Lend<span>WUs</span></a>
           <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
             <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#preview" onClick={() => setMenuOpen(false)}>App Preview</a>
@@ -40,7 +130,6 @@ const App: React.FC = () => {
         {menuOpen && <div className="nav-overlay" onClick={() => setMenuOpen(false)} />}
       </nav>
 
-      {/* Hero Section */}
       <header className="hero">
         <div className="container">
           <div className="hero-content">
@@ -114,7 +203,6 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Features Grid */}
       <section id="features" className="features">
         <div className="container">
           <div className="section-header">
@@ -128,14 +216,14 @@ const App: React.FC = () => {
               <p>Watch your fund grow with interest-bearing loans. Every repayment adds to the collective pot.</p>
             </div>
             <div className="feature-card">
-              <div className="feature-icon"><Settings color="#2ecc71" /></div>
+              <div className="feature-icon"><SettingsIcon color="#2ecc71" /></div>
               <h3>Admin Financial Controls</h3>
               <p>Granular settings for payment caps, interest rates, and global currency selection (PHP, USD, EUR).</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon"><Zap color="#2ecc71" /></div>
               <h3>Instant Onboarding</h3>
-              <p>No more manual entry. Members use group code <strong>LENDWUS</strong> to register themselves in seconds.</p>
+              <p>No more manual entry. Members use group code LENDWUS to register themselves in seconds.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon"><ShieldCheck color="#2ecc71" /></div>
@@ -146,10 +234,8 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* Detailed Previews */}
       <section id="preview" className="previews">
         <div className="container">
-          {/* Admin Preview */}
           <div className="preview-row">
             <div className="preview-text">
               <div className="preview-badge">Admin Tools</div>
@@ -170,7 +256,7 @@ const App: React.FC = () => {
                   <div className="preview-content">
                     <div className="preview-label">Payment per Head</div>
                     <div className="preview-range">
-                      <div className="range-box">Min: ₱150</div>
+                      <div className="range-box">Min: ₱500</div>
                       <div className="range-box">Max: ₱1,000</div>
                     </div>
                     <div className="preview-label">Selected Currency</div>
@@ -182,7 +268,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Member Preview */}
           <div className="preview-row reverse">
             <div className="preview-visual">
               <div className="phone-mockup sm-mockup">
@@ -216,7 +301,6 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* Statistics Section */}
       <section className="stats-section">
         <div className="container">
           <div className="stat-grid">
@@ -236,7 +320,6 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* How it Works */}
       <section id="how-it-works" className="how-it-works">
         <div className="container">
           <h2 className="section-title">How it <span className="highlight">Works</span></h2>
@@ -260,14 +343,13 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* Download Section */}
       <section className="download">
         <div className="container">
           <div className="download-box">
             <h2>Ready to grow your fund?</h2>
             <p>Download LendWUs today and start managing your group financials professionally.</p>
             <div className="download-btns">
-              <button className="btn btn-primary">
+              <button className="btn btn-primary" onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}>
                 <Download size={20} /> Android APK (v2.1)
               </button>
               <button className="btn btn-outline" disabled>
@@ -279,7 +361,6 @@ const App: React.FC = () => {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="footer">
         <div className="container">
           <div className="footer-top">
@@ -293,6 +374,25 @@ const App: React.FC = () => {
       </footer>
     </div>
   );
-}
+};
+
+const App: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/admin" element={<Login />} />
+      <Route path="/admin/dashboard" element={<ProtectedRoute><AdminLayout><Dashboard /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/members" element={<ProtectedRoute><AdminLayout><Members /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/members/:id" element={<ProtectedRoute><AdminLayout><MemberProfile /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/approvals" element={<ProtectedRoute><AdminLayout><Approvals /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/activity" element={<ProtectedRoute><AdminLayout><Activity /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/settings" element={<ProtectedRoute><AdminLayout><Settings /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/data" element={<ProtectedRoute><AdminLayout><DataManagement /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/notifications" element={<ProtectedRoute><AdminLayout><Notifications /></AdminLayout></ProtectedRoute>} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
 
 export default App;

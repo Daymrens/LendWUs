@@ -4,9 +4,6 @@ import 'dart:io';
 import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
 import '../../data/models/head_change_request.dart';
-import '../../data/repositories/payment_request_repository.dart';
-import '../../data/repositories/loan_request_repository.dart';
-import '../../data/repositories/head_change_request_repository.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../providers/members_provider.dart';
@@ -108,13 +105,22 @@ class _PendingPaymentsTab extends ConsumerWidget {
   }
 }
 
-class _PaymentApprovalCard extends ConsumerWidget {
+class _PaymentApprovalCard extends ConsumerStatefulWidget {
   final PaymentRequest payment;
 
   const _PaymentApprovalCard({required this.payment});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PaymentApprovalCard> createState() => _PaymentApprovalCardState();
+}
+
+class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
+  bool _busy = false;
+
+  PaymentRequest get payment => widget.payment;
+
+  @override
+  Widget build(BuildContext context) {
     final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
     final memberName = memberNames[payment.memberId] ?? 'Member ${payment.memberId}';
 
@@ -140,8 +146,8 @@ class _PaymentApprovalCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: payment.type == PaymentType.loan 
-                            ? Colors.orange.withValues(alpha: 0.2) 
+                        color: payment.type == PaymentType.loan
+                            ? Colors.orange.withValues(alpha: 0.2)
                             : Colors.blue.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(4),
                       ),
@@ -197,7 +203,7 @@ class _PaymentApprovalCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleReject(context, ref),
+                    onPressed: _busy ? null : () => _handleReject(context),
                     icon: const Icon(Icons.close),
                     label: const Text('Reject'),
                     style: OutlinedButton.styleFrom(
@@ -208,8 +214,13 @@ class _PaymentApprovalCard extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _handleApprove(context, ref),
-                    icon: const Icon(Icons.check),
+                    onPressed: _busy ? null : () => _handleApprove(context),
+                    icon: _busy
+                        ? const SizedBox(
+                            height: 14, width: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check),
                     label: const Text('Approve'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -261,25 +272,30 @@ class _PaymentApprovalCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
-    final repo = PaymentRequestRepository();
-    await repo.approvePaymentRequest(payment.id!);
-    
+  Future<void> _handleApprove(BuildContext context) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final repo = ref.read(paymentRequestRepositoryProvider);
+    final approved = await repo.approvePaymentRequest(payment.id!);
+
     ref.invalidate(pendingPaymentsProvider);
-    
+
+    if (!mounted) return;
+    setState(() => _busy = false);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment approved'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(approved ? 'Payment approved' : 'Payment already processed'),
+          backgroundColor: approved ? Colors.green : Colors.orange,
         ),
       );
     }
   }
 
-  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
+  Future<void> _handleReject(BuildContext context) async {
+    if (_busy) return;
     final notesController = TextEditingController();
-    
+
     final shouldReject = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -306,20 +322,31 @@ class _PaymentApprovalCard extends ConsumerWidget {
       ),
     );
 
-    if (shouldReject == true && context.mounted) {
-      final repo = PaymentRequestRepository();
-      await repo.rejectPaymentRequest(payment.id!, notes: notesController.text);
-      
-      ref.invalidate(pendingPaymentsProvider);
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment rejected'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (shouldReject != true) {
+      notesController.dispose();
+      return;
+    }
+    if (!mounted) {
+      notesController.dispose();
+      return;
+    }
+
+    setState(() => _busy = true);
+    final repo = ref.read(paymentRequestRepositoryProvider);
+    final rejected = await repo.rejectPaymentRequest(payment.id!, notes: notesController.text);
+    notesController.dispose();
+
+    ref.invalidate(pendingPaymentsProvider);
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(rejected ? 'Payment rejected' : 'Payment already processed'),
+          backgroundColor: rejected ? Colors.red : Colors.orange,
+        ),
+      );
     }
   }
 }
@@ -372,13 +399,22 @@ class _PendingLoansTab extends ConsumerWidget {
   }
 }
 
-class _LoanApprovalCard extends ConsumerWidget {
+class _LoanApprovalCard extends ConsumerStatefulWidget {
   final LoanRequest loan;
 
   const _LoanApprovalCard({required this.loan});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LoanApprovalCard> createState() => _LoanApprovalCardState();
+}
+
+class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
+  bool _busy = false;
+
+  LoanRequest get loan => widget.loan;
+
+  @override
+  Widget build(BuildContext context) {
     final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
     final memberName = memberNames[loan.memberId] ?? 'Member ${loan.memberId}';
     return Card(
@@ -429,7 +465,7 @@ class _LoanApprovalCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleReject(context, ref),
+                    onPressed: _busy ? null : () => _handleReject(context),
                     icon: const Icon(Icons.close),
                     label: const Text('Reject'),
                     style: OutlinedButton.styleFrom(
@@ -440,8 +476,13 @@ class _LoanApprovalCard extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _handleApprove(context, ref),
-                    icon: const Icon(Icons.check),
+                    onPressed: _busy ? null : () => _handleApprove(context),
+                    icon: _busy
+                        ? const SizedBox(
+                            height: 14, width: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check),
                     label: const Text('Approve'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -456,25 +497,30 @@ class _LoanApprovalCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
-    final repo = LoanRequestRepository();
-    await repo.approveLoanRequest(loan.id!);
-    
+  Future<void> _handleApprove(BuildContext context) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final repo = ref.read(loanRequestRepositoryProvider);
+    final approved = await repo.approveLoanRequest(loan.id!);
+
     ref.invalidate(pendingLoansProvider);
-    
+
+    if (!mounted) return;
+    setState(() => _busy = false);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Loan request approved'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(approved ? 'Loan request approved' : 'Loan request already processed'),
+          backgroundColor: approved ? Colors.green : Colors.orange,
         ),
       );
     }
   }
 
-  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
+  Future<void> _handleReject(BuildContext context) async {
+    if (_busy) return;
     final notesController = TextEditingController();
-    
+
     final shouldReject = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -501,20 +547,31 @@ class _LoanApprovalCard extends ConsumerWidget {
       ),
     );
 
-    if (shouldReject == true && context.mounted) {
-      final repo = LoanRequestRepository();
-      await repo.rejectLoanRequest(loan.id!, notes: notesController.text);
-      
-      ref.invalidate(pendingLoansProvider);
-      
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loan request rejected'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (shouldReject != true) {
+      notesController.dispose();
+      return;
+    }
+    if (!mounted) {
+      notesController.dispose();
+      return;
+    }
+
+    setState(() => _busy = true);
+    final repo = ref.read(loanRequestRepositoryProvider);
+    final rejected = await repo.rejectLoanRequest(loan.id!, notes: notesController.text);
+    notesController.dispose();
+
+    ref.invalidate(pendingLoansProvider);
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(rejected ? 'Loan request rejected' : 'Loan request already processed'),
+          backgroundColor: rejected ? Colors.red : Colors.orange,
+        ),
+      );
     }
   }
 }
@@ -567,13 +624,22 @@ class _PendingHeadChangesTab extends ConsumerWidget {
   }
 }
 
-class _HeadChangeApprovalCard extends ConsumerWidget {
+class _HeadChangeApprovalCard extends ConsumerStatefulWidget {
   final HeadChangeRequest request;
 
   const _HeadChangeApprovalCard({required this.request});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_HeadChangeApprovalCard> createState() => _HeadChangeApprovalCardState();
+}
+
+class _HeadChangeApprovalCardState extends ConsumerState<_HeadChangeApprovalCard> {
+  bool _busy = false;
+
+  HeadChangeRequest get request => widget.request;
+
+  @override
+  Widget build(BuildContext context) {
     final memberNames = ref.watch(memberNamesProvider).valueOrNull ?? {};
     final memberName = memberNames[request.memberId] ?? 'Member ${request.memberId}';
 
@@ -657,7 +723,7 @@ class _HeadChangeApprovalCard extends ConsumerWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _handleReject(context, ref),
+                    onPressed: _busy ? null : () => _handleReject(context),
                     icon: const Icon(Icons.close),
                     label: const Text('Reject'),
                     style: OutlinedButton.styleFrom(
@@ -668,8 +734,13 @@ class _HeadChangeApprovalCard extends ConsumerWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _handleApprove(context, ref),
-                    icon: const Icon(Icons.check),
+                    onPressed: _busy ? null : () => _handleApprove(context),
+                    icon: _busy
+                        ? const SizedBox(
+                            height: 14, width: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check),
                     label: const Text('Approve'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -684,26 +755,32 @@ class _HeadChangeApprovalCard extends ConsumerWidget {
     );
   }
 
-  Future<void> _handleApprove(BuildContext context, WidgetRef ref) async {
-    final repo = HeadChangeRequestRepository();
+  Future<void> _handleApprove(BuildContext context) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final repo = ref.read(headChangeRequestRepositoryProvider);
     final user = ref.read(currentUserProvider).state;
-    await repo.approveHeadChangeRequest(request.id!,
+    final approved = await repo.approveHeadChangeRequest(
+      request.id!,
       processedBy: user?.username ?? 'Admin',
     );
 
     ref.invalidate(pendingHeadChangesProvider);
 
+    if (!mounted) return;
+    setState(() => _busy = false);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Head change approved'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Text(approved ? 'Head change approved' : 'Head change already processed'),
+          backgroundColor: approved ? Colors.green : Colors.orange,
         ),
       );
     }
   }
 
-  Future<void> _handleReject(BuildContext context, WidgetRef ref) async {
+  Future<void> _handleReject(BuildContext context) async {
+    if (_busy) return;
     final notesController = TextEditingController();
 
     final shouldReject = await showDialog<bool>(
@@ -732,24 +809,36 @@ class _HeadChangeApprovalCard extends ConsumerWidget {
       ),
     );
 
-    if (shouldReject == true && context.mounted) {
-      final repo = HeadChangeRequestRepository();
-      final user = ref.read(currentUserProvider).state;
-      await repo.rejectHeadChangeRequest(request.id!,
-        processedBy: user?.username ?? 'Admin',
-        notes: notesController.text,
+    if (shouldReject != true) {
+      notesController.dispose();
+      return;
+    }
+    if (!mounted) {
+      notesController.dispose();
+      return;
+    }
+
+    setState(() => _busy = true);
+    final repo = ref.read(headChangeRequestRepositoryProvider);
+    final user = ref.read(currentUserProvider).state;
+    final rejected = await repo.rejectHeadChangeRequest(
+      request.id!,
+      processedBy: user?.username ?? 'Admin',
+      notes: notesController.text,
+    );
+    notesController.dispose();
+
+    ref.invalidate(pendingHeadChangesProvider);
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(rejected ? 'Head change rejected' : 'Head change already processed'),
+          backgroundColor: rejected ? Colors.red : Colors.orange,
+        ),
       );
-
-      ref.invalidate(pendingHeadChangesProvider);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Head change rejected'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 }

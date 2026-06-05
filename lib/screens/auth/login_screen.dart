@@ -35,7 +35,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final surfaceAlt = Theme.of(context).brightness == Brightness.dark
         ? AppColors.surfaceAlt
         : AppColors.lightSurfaceAlt;

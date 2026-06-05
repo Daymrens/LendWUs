@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
-import '../theme/app_colors.dart';
 
 class EmptyState extends StatelessWidget {
   final IconData icon;

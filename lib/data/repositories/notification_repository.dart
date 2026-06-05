@@ -2,6 +2,67 @@ import '../models/notification_item.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class NotificationRepository {
+  static Future<void> _notifyUsers(
+    List<String> userIds,
+    String title,
+    String body,
+    String type,
+    Map<String, dynamic>? data,
+  ) async {
+    final now = DateTime.now().toIso8601String();
+    final batch = FirebaseService.firestore.batch();
+    for (final uid in userIds) {
+      final docRef = FirebaseService.firestore.collection('notifications').doc();
+      batch.set(docRef, {
+        'userId': uid,
+        'title': title,
+        'body': body,
+        'type': type,
+        'data': data,
+        'read': false,
+        'createdAt': now,
+      });
+    }
+    await batch.commit();
+  }
+
+  static Future<void> notifyAdmins(
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    final adminSnapshot = await FirebaseService.firestore
+        .collection('users')
+        .where('role', isEqualTo: 'admin')
+        .get();
+    if (adminSnapshot.docs.isEmpty) return;
+    final adminIds = adminSnapshot.docs.map((d) => d.id).toList();
+    await _notifyUsers(adminIds, title, body, type ?? '', data);
+  }
+
+  static Future<void> notifyMember(
+    String memberId,
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    final userSnapshot = await FirebaseService.firestore
+        .collection('users')
+        .where('memberId', isEqualTo: memberId)
+        .limit(1)
+        .get();
+    if (userSnapshot.docs.isEmpty) return;
+    await _notifyUsers(
+      [userSnapshot.docs.first.id],
+      title,
+      body,
+      type ?? '',
+      data,
+    );
+  }
+
   Future<void> addNotification(NotificationItem notification) async {
     await FirebaseService.firestore.collection('notifications').add(notification.toMap());
   }

@@ -35,6 +35,15 @@ final membersStreamProvider = StreamProvider<List<Member>>((ref) {
   return ref.watch(memberRepositoryProvider).watchAllMembers();
 });
 
+final memberByIdProvider = StreamProvider.family<Member?, String>((ref, memberId) {
+  return ref.watch(memberRepositoryProvider).watchAllMembers().map(
+        (list) => list.cast<Member?>().firstWhere(
+              (m) => m?.id == memberId,
+              orElse: () => null,
+            ),
+      );
+});
+
 final contributionsStreamProvider = StreamProvider<List<Contribution>>((ref) {
   return ref.watch(contributionRepositoryProvider).watchAllContributions();
 });
