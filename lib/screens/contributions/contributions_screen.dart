@@ -22,6 +22,11 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final surfaceAlt = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.surfaceAlt
+        : AppColors.lightSurfaceAlt;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Contributions'),
@@ -29,7 +34,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
           PopupMenuButton<int>(
             icon: const Icon(Icons.timeline),
             tooltip: 'Chart period',
-            color: AppColors.surfaceAlt,
+            color: surfaceAlt,
             onSelected: (v) => setState(() => _chartMonths = v),
             itemBuilder: (_) => [
               PopupMenuItem(value: 3, child: Text('3 months', style: TextStyle(color: _chartMonths == 3 ? AppColors.primary : null))),
@@ -63,7 +68,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                       : null,
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   filled: true,
-                  fillColor: AppColors.surface,
+                  fillColor: colorScheme.surface,
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 ),
               ),
@@ -112,6 +117,8 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
 
   Widget _buildStatCards(WidgetRef ref) {
     final contributionsAsync = ref.watch(contributionsStreamProvider);
+    final colorScheme = Theme.of(context).colorScheme;
+
     return contributionsAsync.when(
       data: (contributions) {
         final now = DateTime.now();
@@ -156,14 +163,14 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
               'Last Month',
               CurrencyFormatter.format(totalLastMonth),
               '${lastMonth.length} entries',
-              AppColors.textMuted,
+              colorScheme.onSurfaceVariant,
               Icons.history,
             ),
             _statCard(
               'Average',
               CurrencyFormatter.format(avg),
               'per transaction',
-              AppColors.textMuted,
+              colorScheme.onSurfaceVariant,
               Icons.calculate,
             ),
           ],
@@ -175,12 +182,15 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
   }
 
   Widget _statCard(String title, String value, String subtitle, Color color, IconData icon) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isMuted = color == colorScheme.onSurfaceVariant;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color == AppColors.textMuted ? AppColors.surface : color.withValues(alpha: 0.1),
+        color: isMuted ? colorScheme.surface : color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: color != AppColors.textMuted ? Border.all(color: color.withAlpha(77)) : null,
+        border: !isMuted ? Border.all(color: color.withAlpha(77)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -189,11 +199,11 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              Text(title, style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11)),
               Icon(icon, color: color, size: 16),
             ],
           ),
-          Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(color: colorScheme.onSurface, fontSize: 20, fontWeight: FontWeight.bold)),
           Text(subtitle, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
         ],
       ),

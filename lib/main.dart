@@ -7,68 +7,65 @@ import 'core/firebase/firebase_service.dart';
 import 'core/services/notification_service.dart';
 
 Future<void> main() async {
+  // 1. Ensure Flutter is ready
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Longer delay to allow native channels to settle (Xiaomi devices often need more time)
-  await Future.delayed(const Duration(milliseconds: 500));
-  
-  debugPrint('--- APP STARTING (v1.0.1) ---');
+  debugPrint('--- APP STARTING (v1.0.3) ---');
+
+  // 2. Longer delay for native bridge stabilization (Xiaomi/MIUI specific fix)
+  await Future.delayed(const Duration(milliseconds: 1000));
 
   bool initialized = false;
-  int retryCount = 0;
   
-  while (!initialized && retryCount < 3) {
-    try {
-      debugPrint('Step 1: Firebase.initializeApp (Attempt ${retryCount + 1})...');
+  // 3. Robust Firebase Initialization
+  try {
+    debugPrint('Step 1: Firebase.initializeApp...');
+    if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       ).timeout(const Duration(seconds: 15));
+    }
+    initialized = true;
+    debugPrint('Step 1: Success');
+  } catch (e) {
+    debugPrint('Step 1: Failed - $e');
+    
+    // Attempt fallback if first one fails
+    try {
+      debugPrint('Step 1: Fallback Attempt...');
+      await Firebase.initializeApp().timeout(const Duration(seconds: 10));
       initialized = true;
-      debugPrint('Step 1: Success');
-    } catch (e) {
-      retryCount++;
-      debugPrint('Step 1: Failed attempt $retryCount - $e');
-      
-      if (retryCount >= 3) {
-        // Final fallback: try without options
-        try {
-          debugPrint('Step 1: Trying default fallback (no options)...');
-          await Firebase.initializeApp().timeout(const Duration(seconds: 15));
-          initialized = true;
-          debugPrint('Step 1: Fallback Success');
-        } catch (finalError) {
-          debugPrint('Step 1: ALL ATTEMPTS FAILED');
-          _showErrorApp('Firebase Initialization Failed', 
-            'This usually happens if the native bridge is blocked. \n\nError: $finalError\n\nTry clearing app data or restarting the device.');
-          return;
-        }
-      } else {
-        await Future.delayed(Duration(milliseconds: 500 * retryCount));
-      }
+      debugPrint('Step 1: Fallback Success');
+    } catch (finalError) {
+      debugPrint('Step 1: FATAL ERROR - $finalError');
+      _showErrorApp('Firebase Initialization Failed', 
+        'Could not connect to Firebase native bridge.\n\n'
+        'Details: $finalError\n\n'
+        'Try restarting your phone or clearing the app cache.');
+      return;
     }
   }
 
-  // Run subsequent initializations in parallel or sequentially but with isolated catches
-  try {
-    debugPrint('Step 2: NotificationService.init...');
-    await NotificationService.init().timeout(const Duration(seconds: 5));
-    debugPrint('Step 2: Success');
-  } catch (e) {
-    debugPrint('Step 2: WARNING - $e');
-    // Don't kill the app for notifications
-  }
+  if (initialized) {
+    try {
+      debugPrint('Step 2: NotificationService.init...');
+      await NotificationService.init().timeout(const Duration(seconds: 5));
+      debugPrint('Step 2: Success');
+    } catch (e) {
+      debugPrint('Step 2: WARNING - $e');
+    }
 
-  try {
-    debugPrint('Step 3: FirebaseService.seedDefaults...');
-    await FirebaseService.seedDefaults().timeout(const Duration(seconds: 5));
-    debugPrint('Step 3: Success');
-  } catch (e) {
-    debugPrint('Step 3: WARNING - $e');
-    // Don't kill the app for seeding
-  }
+    try {
+      debugPrint('Step 3: FirebaseService.seedDefaults...');
+      await FirebaseService.seedDefaults().timeout(const Duration(seconds: 5));
+      debugPrint('Step 3: Success');
+    } catch (e) {
+      debugPrint('Step 3: WARNING - $e');
+    }
 
-  debugPrint('--- APP INITIALIZED ---');
-  runApp(const ProviderScope(child: SinkingFundApp()));
+    debugPrint('--- APP INITIALIZED ---');
+    runApp(const ProviderScope(child: SinkingFundApp()));
+  }
 }
 
 void _showErrorApp(String title, String details) {

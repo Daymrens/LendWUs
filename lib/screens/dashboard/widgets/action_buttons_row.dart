@@ -73,14 +73,19 @@ class ActionButtonsRow extends StatelessWidget {
                 children: [
                   Icon(action.icon, color: action.color, size: 28),
                   const Gap(8),
-                  Text(
-                    action.label,
-                    style: TextStyle(
-                      color: action.color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        action.label,
+                        style: TextStyle(
+                          color: action.color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ],
               ),

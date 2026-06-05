@@ -146,7 +146,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
             members.when(
               data: (list) => DropdownButtonFormField<String>(
                 decoration: const InputDecoration(labelText: 'Member'),
-                initialValue: _selectedMemberId,
+                value: _selectedMemberId,
                 items: list.map((member) {
                   return DropdownMenuItem(
                     value: member.id,

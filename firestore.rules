@@ -130,5 +130,15 @@ service cloud.firestore {
       // Only admins can write returns info
       allow create, update, delete: if isAdmin();
     }
+
+    // ─── notifications ───────────────────────────────────────
+    match /notifications/{notificationId} {
+      // Allow users to read and update their own notifications
+      // For create, we allow it if authenticated so system can push them
+      allow create: if isAuth();
+      // For read/update/delete, check if owner or admin
+      // Since it's a list query usually, the query must filter by userId
+      allow read, update, delete: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
   }
 }

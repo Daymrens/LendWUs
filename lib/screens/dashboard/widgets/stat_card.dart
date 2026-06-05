@@ -21,7 +21,7 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         gradient: isGradient
             ? const LinearGradient(
@@ -35,19 +35,31 @@ class StatCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, color: iconColor ?? AppColors.primary, size: 22),
-            const Gap(8),
+            Icon(icon, color: iconColor ?? AppColors.primary, size: 20),
+            const Gap(4),
           ],
-          Text(
-            value,
-            style: Theme.of(context).textTheme.displayMedium,
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontSize: 20,
+                ),
+              ),
+            ),
           ),
-          const Gap(4),
+          const Gap(2),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontSize: 12,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

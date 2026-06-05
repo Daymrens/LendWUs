@@ -18,17 +18,20 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textMuted = colorScheme.onSurfaceVariant;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(48),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: AppColors.textMuted.withAlpha(80)),
+            Icon(icon, size: 64, color: textMuted.withValues(alpha: 0.3)),
             const Gap(16),
             Text(title,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: AppColors.textMuted,
+                color: textMuted,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -36,7 +39,7 @@ class EmptyState extends StatelessWidget {
             if (subtitle != null) ...[
               const Gap(8),
               Text(subtitle!,
-                style: TextStyle(color: AppColors.textMuted.withAlpha(150), fontSize: 13),
+                style: TextStyle(color: textMuted.withValues(alpha: 0.6), fontSize: 13),
                 textAlign: TextAlign.center,
               ),
             ],

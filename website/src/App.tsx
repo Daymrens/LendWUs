@@ -26,7 +26,12 @@ const App: React.FC = () => {
             <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#preview" onClick={() => setMenuOpen(false)}>App Preview</a>
             <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a>
-            <button className="btn btn-primary btn-sm" onClick={() => setMenuOpen(false)}>Download</button>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}
+            >
+              Download
+            </button>
           </div>
           <button className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -40,10 +45,13 @@ const App: React.FC = () => {
         <div className="container">
           <div className="hero-content">
             <div className="badge">New: Self-Onboarding v2.0</div>
-            <h1>Manage Your Family Circle <span className="highlight">Sinking Fund</span> with Ease</h1>
-            <p>Smart lending, automated tracking, and transparent member contributions. All in one place. Built for families, by families.</p>
+            <h1>Manage Your Group <span className="highlight">Sinking Fund</span> with Ease</h1>
+            <p>Smart lending, automated tracking, and transparent member contributions. All in one place. Built for groups, by groups.</p>
             <div className="hero-btns">
-              <button className="btn btn-primary">
+              <button 
+                className="btn btn-primary"
+                onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}
+              >
                 Get Started <ArrowRight size={20} />
               </button>
               <button className="btn btn-outline">
@@ -236,7 +244,7 @@ const App: React.FC = () => {
             <div className="step">
               <div className="step-num">1</div>
               <h4>Join with Code</h4>
-              <p>Enter <strong>LENDWUS</strong> to automatically join the family circle.</p>
+              <p>Enter <strong>LENDWUS</strong> to automatically join the group.</p>
             </div>
             <div className="step">
               <div className="step-num">2</div>
@@ -257,7 +265,7 @@ const App: React.FC = () => {
         <div className="container">
           <div className="download-box">
             <h2>Ready to grow your fund?</h2>
-            <p>Download LendWUs today and start managing your family circle financials professionally.</p>
+            <p>Download LendWUs today and start managing your group financials professionally.</p>
             <div className="download-btns">
               <button className="btn btn-primary">
                 <Download size={20} /> Android APK (v2.1)
@@ -276,7 +284,7 @@ const App: React.FC = () => {
         <div className="container">
           <div className="footer-top">
             <div className="logo">Lend<span>WUs</span></div>
-            <p>Empowering Family Circle Financials.</p>
+            <p>Empowering Group Financials.</p>
           </div>
           <div className="footer-bottom">
             <p>&copy; 2024 LendWUs App. All rights reserved.</p>

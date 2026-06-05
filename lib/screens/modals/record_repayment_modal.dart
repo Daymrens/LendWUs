@@ -153,7 +153,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
 
                 return DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Select Loan'),
-                  initialValue: _selectedLoanId,
+                  value: _selectedLoanId,
                   items: activeLoans.map((loan) {
                     return DropdownMenuItem(
                       value: loan.id,

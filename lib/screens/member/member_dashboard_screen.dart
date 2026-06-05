@@ -128,21 +128,21 @@ class MemberDashboardScreen extends ConsumerWidget {
             Row(
               children: [
                 memberContributionsAsync.when(
-                  data: (total) => _statChip('My Contributions', total, AppColors.primary, isCurrency: true),
-                  loading: () => _loadingChip(),
-                  error: (_, __) => _statChip('My Contributions', 0, AppColors.primary, isCurrency: true),
+                  data: (total) => _statChip(context, 'My Contributions', total, AppColors.primary, isCurrency: true),
+                  loading: () => _loadingChip(context),
+                  error: (_, __) => _statChip(context, 'My Contributions', 0, AppColors.primary, isCurrency: true),
                 ),
                 const SizedBox(width: 8),
                 memberLoansAsync.when(
-                  data: (loans) => _statChip('Active Loans', loans.length, AppColors.warning),
-                  loading: () => _loadingChip(),
-                  error: (_, __) => _statChip('Active Loans', 0, AppColors.warning),
+                  data: (loans) => _statChip(context, 'Active Loans', loans.length, AppColors.warning),
+                  loading: () => _loadingChip(context),
+                  error: (_, __) => _statChip(context, 'Active Loans', 0, AppColors.warning),
                 ),
                 const SizedBox(width: 8),
                 pendingCount.when(
-                  data: (count) => _statChip('Pending', count, AppColors.secondary),
-                  loading: () => _loadingChip(),
-                  error: (_, __) => _statChip('Pending', 0, AppColors.secondary),
+                  data: (count) => _statChip(context, 'Pending', count, AppColors.secondary),
+                  loading: () => _loadingChip(context),
+                  error: (_, __) => _statChip(context, 'Pending', 0, AppColors.secondary),
                 ),
               ],
             ),
@@ -152,7 +152,7 @@ class MemberDashboardScreen extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: _quickAction(Icons.add_circle, 'Pay Contribution', AppColors.primary, () {
+                  child: _quickAction(context, Icons.add_circle, 'Pay Contribution', AppColors.primary, () {
                     showModalBottomSheet(
                       context: context, isScrollControlled: true,
                       backgroundColor: Colors.transparent,
@@ -162,7 +162,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _quickAction(Icons.request_page, 'Request Loan', AppColors.warning, () {
+                  child: _quickAction(context, Icons.request_page, 'Request Loan', AppColors.warning, () {
                     showModalBottomSheet(
                       context: context, isScrollControlled: true,
                       backgroundColor: Colors.transparent,
@@ -172,7 +172,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _quickAction(Icons.people_alt, 'Change Heads', AppColors.secondary, () {
+                  child: _quickAction(context, Icons.people_alt, 'Change Heads', AppColors.secondary, () {
                     showModalBottomSheet(
                       context: context, isScrollControlled: true,
                       backgroundColor: Colors.transparent,
@@ -204,6 +204,7 @@ class MemberDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildContributionCard(BuildContext context, WidgetRef ref, double total, String memberId, AppSettings? settings) {
+    final colorScheme = Theme.of(context).colorScheme;
     final contributionsAsync = ref.watch(contributionsStreamProvider);
     final allContribs = contributionsAsync.asData?.value ?? [];
     final memberContribs = allContribs.where((c) => c.memberId == memberId).toList();
@@ -224,7 +225,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.primary.withAlpha(30), borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
                   child: Text('${memberContribs.length} payments',
                     style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
@@ -244,7 +245,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     style: TextStyle(color: monthlyTotal >= requiredPerHead ? AppColors.primary : AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
                   const Spacer(),
                   Text('Required: ${CurrencyFormatter.format(requiredPerHead)}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 6),
@@ -252,7 +253,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
                   value: (monthlyTotal / requiredPerHead).clamp(0.0, 1.0),
-                  backgroundColor: AppColors.surfaceAlt,
+                  backgroundColor: colorScheme.surfaceVariant,
                   color: monthlyTotal >= requiredPerHead ? AppColors.primary : AppColors.warning,
                   minHeight: 6,
                 ),
@@ -273,41 +274,52 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _statChip(String label, dynamic value, Color color, {bool isCurrency = false}) {
+  Widget _statChip(BuildContext context, String label, dynamic value, Color color, {bool isCurrency = false}) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.1)),
+        ),
         child: Column(
           children: [
             Text(isCurrency ? CurrencyFormatter.format((value as num).toDouble()) : '$value',
               style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
-            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 10), textAlign: TextAlign.center),
+            Text(label, style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 10), textAlign: TextAlign.center),
           ],
         ),
       ),
     );
   }
 
-  Widget _loadingChip() {
+  Widget _loadingChip(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(12)),
+        decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(12)),
         child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
       ),
     );
   }
 
-  Widget _quickAction(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _quickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Material(
-      color: AppColors.surface,
+      color: colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.1)),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 16),
           child: Column(
             children: [
@@ -322,16 +334,17 @@ class MemberDashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildLoansList(BuildContext context, List<Map<String, dynamic>> loans) {
+    final colorScheme = Theme.of(context).colorScheme;
     if (loans.isEmpty) {
-      return const Card(
+      return Card(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Center(
             child: Column(
               children: [
-                Icon(Icons.check_circle_outline, size: 40, color: AppColors.textMuted),
-                SizedBox(height: 8),
-                Text('No active loans', style: TextStyle(color: AppColors.textMuted)),
+                Icon(Icons.check_circle_outline, size: 40, color: colorScheme.onSurfaceVariant),
+                const SizedBox(height: 8),
+                Text('No active loans', style: TextStyle(color: colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -365,7 +378,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                         Text('Loan #${loan.id.substring(0, 5)}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         Text('${(loan.interestRate * 100).toStringAsFixed(0)}% interest',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                       ],
                     ),
                     Column(
@@ -374,7 +387,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                         Text(CurrencyFormatter.format(remainingBalance),
                           style: TextStyle(color: isOverdue ? AppColors.error : AppColors.warning, fontWeight: FontWeight.bold, fontSize: 16)),
                         Text(isOverdue ? '$daysDiff days overdue' : 'Balance due',
-                          style: TextStyle(color: isOverdue ? AppColors.error : AppColors.textMuted, fontSize: 10)),
+                          style: TextStyle(color: isOverdue ? AppColors.error : colorScheme.onSurfaceVariant, fontSize: 10)),
                       ],
                     ),
                   ],
@@ -385,7 +398,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     Expanded(
                       child: LinearProgressIndicator(
                         value: progress,
-                        backgroundColor: AppColors.surfaceAlt,
+                        backgroundColor: colorScheme.surfaceVariant,
                         color: isOverdue ? AppColors.error : AppColors.warning,
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(3),
@@ -393,7 +406,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     Text('${(progress * 100).toStringAsFixed(0)}%',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11)),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -401,10 +414,10 @@ class MemberDashboardScreen extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Text('Principal: ${CurrencyFormatter.format(loan.principal)}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                     ),
                     Text('Due: ${loan.dueDate.day}/${loan.dueDate.month}/${loan.dueDate.year}',
-                      style: TextStyle(color: isOverdue ? AppColors.error : AppColors.textMuted, fontSize: 12)),
+                      style: TextStyle(color: isOverdue ? AppColors.error : colorScheme.onSurfaceVariant, fontSize: 12)),
                   ],
                 ),
                 const Divider(height: 20),
@@ -418,7 +431,6 @@ class MemberDashboardScreen extends ConsumerWidget {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.warning, foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text('Repay Loan'),
                   ),

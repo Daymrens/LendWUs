@@ -170,7 +170,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const Gap(16),
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedCurrencyCode,
+                          value: _selectedCurrencyCode,
                           decoration: const InputDecoration(
                             labelText: 'Select Currency',
                             border: OutlineInputBorder(),
@@ -293,13 +293,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                 const Gap(32),
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
                   child: ElevatedButton(
                     onPressed: _saveSettings,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                    ),
                     child: const Text('Save Settings'),
                   ),
                 ),
@@ -382,3 +377,4 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     );
   }
 }
+

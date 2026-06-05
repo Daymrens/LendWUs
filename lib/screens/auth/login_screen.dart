@@ -35,6 +35,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final surfaceAlt = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.surfaceAlt
+        : AppColors.lightSurfaceAlt;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -42,8 +47,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             center: const Alignment(0, -0.5),
             radius: 1.5,
             colors: [
-              AppColors.surfaceAlt.withValues(alpha: 0.5),
-              AppColors.background,
+              surfaceAlt.withValues(alpha: 0.5),
+              Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
         ),
@@ -152,7 +157,7 @@ class _LoginHeader extends StatelessWidget {
         Text(
           'Financial management simplified',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.textMuted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
         ),
       ],
@@ -176,6 +181,7 @@ class _LoginForm extends ConsumerWidget {
           TextFormField(
             controller: notifier.emailController,
             decoration: _getInputDecoration(
+              context,
               label: 'Email Address',
               icon: Icons.alternate_email_rounded,
             ),
@@ -192,6 +198,7 @@ class _LoginForm extends ConsumerWidget {
             controller: notifier.passwordController,
             obscureText: state.obscurePassword,
             decoration: _getInputDecoration(
+              context,
               label: 'Password',
               icon: Icons.lock_outline_rounded,
               suffixIcon: IconButton(
@@ -200,7 +207,7 @@ class _LoginForm extends ConsumerWidget {
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
                   size: 20,
-                  color: AppColors.textMuted,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 onPressed: notifier.togglePasswordVisibility,
               ),
@@ -260,24 +267,27 @@ class _SocialLogin extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(_loginStateProvider);
     final notifier = ref.read(_loginStateProvider.notifier);
+    final surfaceAlt = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.surfaceAlt
+        : AppColors.lightSurfaceAlt;
 
     return Column(
       children: [
         Row(
           children: [
-            const Expanded(child: Divider(color: AppColors.surfaceAlt)),
+            Expanded(child: Divider(color: surfaceAlt)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'OR CONTINUE WITH',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textMuted,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       letterSpacing: 1.2,
                       fontWeight: FontWeight.bold,
                     ),
               ),
             ),
-            const Expanded(child: Divider(color: AppColors.surfaceAlt)),
+            Expanded(child: Divider(color: surfaceAlt)),
           ],
         ),
         const SizedBox(height: 24),
@@ -287,7 +297,7 @@ class _SocialLogin extends ConsumerWidget {
           child: OutlinedButton(
             onPressed: state.isLoading ? null : () => notifier.signInWithGoogle(context, ref),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.surfaceAlt),
+              side: BorderSide(color: surfaceAlt),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -312,20 +322,26 @@ class _SocialLogin extends ConsumerWidget {
   }
 }
 
-InputDecoration _getInputDecoration({
+InputDecoration _getInputDecoration(
+  BuildContext context, {
   required String label,
   required IconData icon,
   Widget? suffixIcon,
 }) {
+  final colorScheme = Theme.of(context).colorScheme;
+  final surfaceAlt = Theme.of(context).brightness == Brightness.dark
+      ? AppColors.surfaceAlt
+      : AppColors.lightSurfaceAlt;
+
   return InputDecoration(
     labelText: label,
-    prefixIcon: Icon(icon, size: 20, color: AppColors.textMuted),
+    prefixIcon: Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
     suffixIcon: suffixIcon,
-    labelStyle: const TextStyle(color: AppColors.textMuted),
+    labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
     floatingLabelStyle: const TextStyle(color: AppColors.primary),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
-      borderSide: const BorderSide(color: AppColors.surfaceAlt),
+      borderSide: BorderSide(color: surfaceAlt),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(16),
@@ -340,7 +356,7 @@ InputDecoration _getInputDecoration({
       borderSide: const BorderSide(color: Colors.redAccent, width: 2),
     ),
     filled: true,
-    fillColor: AppColors.surfaceAlt.withValues(alpha: 0.2),
+    fillColor: surfaceAlt.withValues(alpha: 0.2),
   );
 }
 

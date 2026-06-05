@@ -460,18 +460,23 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
                         color: _statusColor(request.status), size: 18),
                     ),
                     const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          CurrencyFormatter.format(request.amount),
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          '${request.interestRate}% interest',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                      ],
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              CurrencyFormatter.format(request.amount),
+                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          Text(
+                            '${request.interestRate}% interest',
+                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -872,3 +877,4 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
     return '${d.day}/${d.month}/${d.year}';
   }
 }
+

@@ -44,8 +44,9 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(32),
@@ -55,13 +56,13 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
               Icon(
                 Icons.person_off_rounded,
                 size: 80,
-                color: AppColors.warning.withAlpha(204),
+                color: AppColors.warning.withValues(alpha: 0.8),
               ),
               const SizedBox(height: 24),
               Text(
                 'Member Not Recognized',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: AppColors.textPrimary,
+                  color: colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -70,7 +71,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                 'Your account is not yet registered. You can contact an admin or join using a group code if you have one.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: AppColors.textMuted,
+                  color: colorScheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
@@ -80,7 +81,6 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                 decoration: InputDecoration(
                   labelText: 'Enter Group Code',
                   errorText: _error,
-                  border: const OutlineInputBorder(),
                   prefixIcon: const Icon(Icons.group_add),
                 ),
                 textCapitalization: TextCapitalization.characters,
@@ -90,10 +90,6 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submitCode,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    backgroundColor: AppColors.primary,
-                  ),
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
@@ -118,8 +114,8 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                   icon: const Icon(Icons.logout),
                   label: const Text('Log Out'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textPrimary,
-                    side: const BorderSide(color: AppColors.textMuted),
+                    foregroundColor: colorScheme.onSurface,
+                    side: BorderSide(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),

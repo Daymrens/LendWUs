@@ -368,12 +368,15 @@ class _DataTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.1)),
       ),
       child: Row(
         children: [
@@ -383,16 +386,16 @@ class _DataTile extends StatelessWidget {
               children: [
                 Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const Gap(2),
-                Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                Text(subtitle, style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
               ],
             ),
           ),
-          Text(trailing, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          Text(trailing, style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant)),
           if (onEdit != null) ...[
             const Gap(8),
             IconButton(
               icon: const Icon(Icons.edit, size: 18),
-              color: AppColors.secondary,
+              color: colorScheme.secondary,
               onPressed: onEdit,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -402,7 +405,7 @@ class _DataTile extends StatelessWidget {
             const Gap(8),
             IconButton(
               icon: const Icon(Icons.delete, size: 18),
-              color: AppColors.error,
+              color: colorScheme.error,
               onPressed: onDelete,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

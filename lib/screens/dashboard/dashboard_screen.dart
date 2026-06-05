@@ -36,6 +36,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final pendingApprovals = ref.watch(pendingApprovalsCountProvider);
     final activeLoansCount = ref.watch(activeLoansCountProvider);
     final overdueLoansCount = ref.watch(overdueLoansCountProvider);
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -152,7 +153,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.5,
+                    childAspectRatio: 0.9,
                     children: [
                       StatCard(
                         title: 'Total Fund',
@@ -192,22 +193,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 12,
                     crossAxisSpacing: 12,
-                    childAspectRatio: 1.2,
+                    childAspectRatio: 1.0,
                     children: [
                       _miniStat(
                         'Total Loans',
                         CurrencyFormatter.format(summary.totalLoansIssued),
-                        AppColors.textMuted,
+                        colorScheme.onSurfaceVariant,
                       ),
                       _miniStat(
                         'Overdue',
                         overdueLoansCount.toString(),
-                        overdueLoansCount > 0 ? AppColors.warning : AppColors.textMuted,
+                        overdueLoansCount > 0 ? AppColors.warning : colorScheme.onSurfaceVariant,
                       ),
                       _miniStat(
                         'Pending',
                         pendingApprovals.toString(),
-                        pendingApprovals > 0 ? AppColors.warning : AppColors.textMuted,
+                        pendingApprovals > 0 ? AppColors.warning : colorScheme.onSurfaceVariant,
                       ),
                       _miniStat(
                         'Balance',
@@ -269,10 +270,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _miniStat(String label, String value, Color color) {
+    final surfaceAlt = Theme.of(context).brightness == Brightness.dark
+        ? AppColors.surfaceAlt
+        : AppColors.lightSurfaceAlt;
+    final textMuted = Theme.of(context).colorScheme.onSurfaceVariant;
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceAlt,
+        color: surfaceAlt,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -289,8 +295,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textMuted,
+            style: TextStyle(
+              color: textMuted,
               fontSize: 9,
             ),
             textAlign: TextAlign.center,
