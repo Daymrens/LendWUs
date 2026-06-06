@@ -192,6 +192,30 @@ h1, h2, h3, h4 {
 .highlight {
   color: var(--highlight);
 }
+.hero-group-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding: 10px 16px;
+  background: rgba(46, 204, 113, 0.06);
+  border: 1px solid rgba(46, 204, 113, 0.15);
+  border-radius: 10px;
+}
+.group-code-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.group-code-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--highlight);
+  letter-spacing: 2px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
 
 /* App Mockups */
 .phone-mockup {
@@ -912,6 +936,87 @@ h1, h2, h3, h4 {
   text-decoration: none;
 }
 .back-link:hover { color: #22c55e; }
+
+/* Enhanced Login */
+.login-card {
+  overflow: hidden;
+  padding: 0;
+}
+.login-header-bar {
+  background: linear-gradient(135deg, #1a4d2e 0%, #0d2818 100%);
+  padding: 28px 40px 20px;
+  text-align: center;
+  border-bottom: 1px solid #22c55e33;
+}
+.login-header-icon {
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  color: #22c55e;
+}
+.login-header-title {
+  display: block;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.login-header-sub {
+  display: block;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.login-body {
+  padding: 24px 40px;
+}
+.login-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #21262d;
+}
+.login-feature-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #8b949e;
+  padding: 6px 10px;
+  background: #0d1117;
+  border-radius: 8px;
+}
+.login-feature-chip svg {
+  color: #22c55e;
+  flex-shrink: 0;
+}
+.login-footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 40px;
+  border-top: 1px solid #21262d;
+  background: #0d1117;
+}
+.login-footer-bar .back-link {
+  margin: 0;
+  font-size: 12px;
+}
+.login-version {
+  font-size: 11px;
+  color: #30363d;
+  font-weight: 600;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
 
 /* Admin Layout */
 .admin-layout {

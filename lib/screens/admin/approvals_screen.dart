@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
@@ -179,7 +180,7 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
                   ),
             ),
             const SizedBox(height: 12),
-            if (payment.receiptPath != null)
+            if (payment.receiptUrl != null || payment.receiptPath != null)
               InkWell(
                 onTap: () => _showReceiptImage(context),
                 child: Container(
@@ -190,11 +191,19 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      File(payment.receiptPath!),
-                      fit: BoxFit.cover,
-                      width: double.infinity,
-                    ),
+                    child: payment.receiptUrl != null
+                        ? CachedNetworkImage(
+                            imageUrl: payment.receiptUrl!,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey)),
+                          )
+                        : Image.file(
+                            File(payment.receiptPath!),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          ),
                   ),
                 ),
               ),
@@ -261,10 +270,29 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
                 ],
               ),
             ),
-            Image.file(
-              File(payment.receiptPath!),
-              fit: BoxFit.contain,
-            ),
+            if (payment.receiptUrl != null)
+              CachedNetworkImage(
+                imageUrl: payment.receiptUrl!,
+                fit: BoxFit.contain,
+                placeholder: (_, __) => const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+                errorWidget: (_, __, ___) => const Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text('Failed to load receipt', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            else if (payment.receiptPath != null)
+              Image.file(
+                File(payment.receiptPath!),
+                fit: BoxFit.contain,
+              ),
             const SizedBox(height: 16),
           ],
         ),
@@ -276,19 +304,36 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
     if (_busy) return;
     setState(() => _busy = true);
     final repo = ref.read(paymentRequestRepositoryProvider);
-    final approved = await repo.approvePaymentRequest(payment.id!);
+    final user = ref.read(currentUserProvider).state;
 
-    ref.invalidate(pendingPaymentsProvider);
-
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(approved ? 'Payment approved' : 'Payment already processed'),
-          backgroundColor: approved ? Colors.green : Colors.orange,
-        ),
+    try {
+      final approved = await repo.approvePaymentRequest(
+        payment.id!,
+        approvedBy: user?.username ?? 'Admin',
       );
+
+      ref.invalidate(pendingPaymentsProvider);
+
+      if (!mounted) return;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approved ? 'Payment approved' : 'Payment already processed'),
+            backgroundColor: approved ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error approving payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -333,20 +378,31 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
 
     setState(() => _busy = true);
     final repo = ref.read(paymentRequestRepositoryProvider);
-    final rejected = await repo.rejectPaymentRequest(payment.id!, notes: notesController.text);
-    notesController.dispose();
+    try {
+      final rejected = await repo.rejectPaymentRequest(payment.id!, notes: notesController.text);
+      ref.invalidate(pendingPaymentsProvider);
 
-    ref.invalidate(pendingPaymentsProvider);
-
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(rejected ? 'Payment rejected' : 'Payment already processed'),
-          backgroundColor: rejected ? Colors.red : Colors.orange,
-        ),
-      );
+      if (!mounted) return;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(rejected ? 'Payment rejected' : 'Payment already processed'),
+            backgroundColor: rejected ? Colors.red : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error rejecting payment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      notesController.dispose();
+      if (mounted) setState(() => _busy = false);
     }
   }
 }

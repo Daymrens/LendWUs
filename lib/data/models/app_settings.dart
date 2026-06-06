@@ -6,6 +6,7 @@ class AppSettings {
   final String currencyCode;
   final int cutoffDay1;
   final int cutoffDay2;
+  final int paymentTatHours;
 
   AppSettings({
     required this.minPaymentPerHead,
@@ -15,6 +16,7 @@ class AppSettings {
     required this.currencyCode,
     this.cutoffDay1 = 13,
     this.cutoffDay2 = 28,
+    this.paymentTatHours = 24,
   });
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
@@ -26,6 +28,7 @@ class AppSettings {
       currencyCode: map['currencyCode'] ?? 'PHP',
       cutoffDay1: map['cutoffDay1'] ?? 13,
       cutoffDay2: map['cutoffDay2'] ?? 28,
+      paymentTatHours: map['paymentTatHours'] ?? 24,
     );
   }
 
@@ -38,6 +41,7 @@ class AppSettings {
       'currencyCode': currencyCode,
       'cutoffDay1': cutoffDay1,
       'cutoffDay2': cutoffDay2,
+      'paymentTatHours': paymentTatHours,
     };
   }
 
@@ -49,6 +53,7 @@ class AppSettings {
     String? currencyCode,
     int? cutoffDay1,
     int? cutoffDay2,
+    int? paymentTatHours,
   }) {
     return AppSettings(
       minPaymentPerHead: minPaymentPerHead ?? this.minPaymentPerHead,
@@ -58,6 +63,7 @@ class AppSettings {
       currencyCode: currencyCode ?? this.currencyCode,
       cutoffDay1: cutoffDay1 ?? this.cutoffDay1,
       cutoffDay2: cutoffDay2 ?? this.cutoffDay2,
+      paymentTatHours: paymentTatHours ?? this.paymentTatHours,
     );
   }
 }

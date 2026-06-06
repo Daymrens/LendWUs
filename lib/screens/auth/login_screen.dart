@@ -35,6 +35,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final surfaceAlt = Theme.of(context).brightness == Brightness.dark
         ? AppColors.surfaceAlt
         : AppColors.lightSurfaceAlt;
@@ -42,11 +43,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(0, -0.5),
-            radius: 1.5,
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              surfaceAlt.withValues(alpha: 0.5),
+              AppColors.primary.withValues(alpha: 0.08),
               Theme.of(context).scaffoldBackgroundColor,
             ],
           ),
@@ -54,21 +55,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
                 child: AnimatedOpacity(
                   duration: const Duration(milliseconds: 600),
                   opacity: _showContent ? 1 : 0,
-                  child: const Column(
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _DelayedWidget(delay: 0, child: _LoginHeader()),
-                      SizedBox(height: 48),
-                      _DelayedWidget(delay: 150, child: _LoginForm()),
-                      SizedBox(height: 32),
-                      _DelayedWidget(delay: 300, child: _SocialLogin()),
+                      const _DelayedWidget(delay: 0, child: _LoginHeader()),
+                      const SizedBox(height: 40),
+                      const _DelayedWidget(delay: 150, child: _FeatureCards()),
+                      const SizedBox(height: 40),
+                      const _DelayedWidget(delay: 200, child: _LoginForm()),
+                      const SizedBox(height: 28),
+                      const _DelayedWidget(delay: 300, child: _SocialLogin()),
+                      const SizedBox(height: 24),
+                      _DelayedWidget(
+                        delay: 400,
+                        child: Center(
+                          child: Text(
+                            'v1.0.0',
+                            style: TextStyle(
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -131,35 +147,110 @@ class _LoginHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
+          width: 88,
+          height: 88,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
-            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withValues(alpha: 0.8),
+                AppColors.primary,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: const Icon(
             Icons.account_balance_wallet_rounded,
-            size: 64,
-            color: AppColors.primary,
+            size: 44,
+            color: Colors.white,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         Text(
           'LendWUs',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
                 letterSpacing: -1,
+                fontWeight: FontWeight.bold,
               ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
-          'Financial management simplified',
+          'Group savings made simple',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
+                fontSize: 15,
               ),
         ),
       ],
+    );
+  }
+}
+
+class _FeatureCards extends StatelessWidget {
+  const _FeatureCards();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final features = [
+      ('Group Savings', Icons.account_balance_wallet_rounded, 'Pool funds together and track contributions in real-time'),
+      ('Member Loans', Icons.trending_up_rounded, 'Issue loans with auto-calculated interest and repayment tracking'),
+      ('Reports', Icons.assessment_rounded, 'Visual dashboards, charts, and exportable financial reports'),
+    ];
+
+    return Column(
+      children: features.map((f) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(f.$2, size: 20, color: AppColors.primary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(f.$1,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                      const SizedBox(height: 2),
+                      Text(f.$3,
+                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
+                        maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

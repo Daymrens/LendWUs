@@ -1,8 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/date_formatter.dart';
 import '../../data/models/contribution.dart';
 import '../../data/models/loan.dart';
 import '../../data/models/repayment.dart';
@@ -305,16 +308,178 @@ class _PaymentRequestsTab extends ConsumerWidget {
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
-            return _DataTile(
-              title: '${CurrencyFormatter.format(item.amount)} • ${item.type.name}',
-              subtitle: 'Status: ${item.status.name}',
-              trailing: item.memberId,
-              onEdit: null,
-              onDelete: () => _deletePaymentRequest(context, ref, item),
-            );
+            return _PaymentRequestDataTile(payment: item, ref: ref);
           },
         );
       },
+    );
+  }
+}
+
+class _PaymentRequestDataTile extends ConsumerWidget {
+  final PaymentRequest payment;
+  final WidgetRef ref;
+
+  const _PaymentRequestDataTile({required this.payment, required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef _) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final hasReceipt = payment.receiptUrl != null || payment.receiptPath != null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.1)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: hasReceipt ? () => _showReceipt(context) : null,
+        child: Row(
+          children: [
+            if (hasReceipt)
+              Container(
+                width: 56,
+                height: 56,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: colorScheme.outlineVariant),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: payment.receiptUrl != null
+                      ? CachedNetworkImage(
+                          imageUrl: payment.receiptUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          errorWidget: (_, __, ___) => const Icon(Icons.receipt_long, size: 28, color: Colors.grey),
+                        )
+                      : Image.file(File(payment.receiptPath!), fit: BoxFit.cover),
+                ),
+              )
+            else
+              Container(
+                width: 56,
+                height: 56,
+                margin: const EdgeInsets.only(right: 12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.receipt_long_outlined, size: 28, color: Colors.grey),
+              ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${CurrencyFormatter.format(payment.amount)}  •  ${payment.type.name}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const Gap(2),
+                  Text('${payment.memberId}  •  ${DateFormatter.format(payment.requestDate)}',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11)),
+                  const Gap(4),
+                  Row(
+                    children: [
+                      _statusChip(payment.status.name, payment.status),
+                      const Gap(8),
+                      if (hasReceipt)
+                        Text('Tap to view receipt',
+                          style: TextStyle(color: AppColors.info, fontSize: 10, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, size: 18),
+              color: colorScheme.error,
+              onPressed: () => _deletePaymentRequest(context, ref, payment),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusChip(String label, PaymentStatus status) {
+    Color color;
+    switch (status) {
+      case PaymentStatus.approved:
+        color = AppColors.success;
+      case PaymentStatus.rejected:
+        color = AppColors.error;
+      case PaymentStatus.pending:
+        color = AppColors.warning;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withAlpha(25),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  void _showReceipt(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Receipt  •  ${CurrencyFormatter.format(payment.amount)}',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            if (payment.receiptUrl != null)
+              CachedNetworkImage(
+                imageUrl: payment.receiptUrl!,
+                fit: BoxFit.contain,
+                placeholder: (_, __) => const Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ),
+                errorWidget: (_, __, ___) => const Center(
+                  child: Column(
+                    children: [
+                      Icon(Icons.broken_image, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text('Failed to load receipt', style: TextStyle(color: Colors.grey)),
+                    ],
+                  ),
+                ),
+              )
+            else if (payment.receiptPath != null)
+              Image.file(File(payment.receiptPath!), fit: BoxFit.contain),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                '${DateFormatter.format(payment.requestDate)}  •  ${payment.status.name}',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

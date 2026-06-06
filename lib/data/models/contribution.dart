@@ -8,6 +8,7 @@ class Contribution {
   int month;
   int year;
   String? notes;
+  String? createdBy;
 
   Contribution({
     this.id,
@@ -17,6 +18,7 @@ class Contribution {
     required this.month,
     required this.year,
     this.notes,
+    this.createdBy,
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +30,7 @@ class Contribution {
       'month': month,
       'year': year,
       'notes': notes,
+      if (createdBy != null) 'createdBy': createdBy,
     };
   }
 
@@ -40,6 +43,7 @@ class Contribution {
       month: map['month'] ?? DateTime.now().month,
       year: map['year'] ?? DateTime.now().year,
       notes: map['notes'],
+      createdBy: map['createdBy'],
     );
   }
 }

@@ -4,7 +4,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gap/gap.dart';
 import 'dart:io';
+import 'dart:io';
 import '../../core/theme/app_colors.dart';
+import '../../core/firebase/firebase_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -14,6 +16,7 @@ import '../../data/repositories/payment_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/cutoff_calculator.dart';
+import 'pending_approval_dialog.dart';
 
 class MemberPaymentModal extends ConsumerStatefulWidget {
   const MemberPaymentModal({super.key});
@@ -99,12 +102,20 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     setState(() => _isSubmitting = true);
 
     try {
+      String? receiptUrl;
+      if (_receiptImage != null) {
+        receiptUrl = await FirebaseService.uploadReceiptImage(
+          File(_receiptImage!.path), user!.memberId!,
+        );
+      }
+
       final repo = PaymentRequestRepository();
 
       final request = PaymentRequest(
         memberId: user!.memberId!,
         amount: double.parse(_amountController.text),
-        receiptPath: _receiptImage!.path,
+        receiptPath: receiptUrl ?? _receiptImage?.path,
+        receiptUrl: receiptUrl,
         status: PaymentStatus.pending,
         requestDate: DateTime.now(),
         type: PaymentType.contribution,
@@ -114,10 +125,12 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Payment submitted! Waiting for admin approval'),
-            backgroundColor: Colors.green,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const PendingApprovalDialog(
+            title: 'Payment Submitted',
+            message: 'Your contribution payment request has been received. Please wait for admin confirmation.',
           ),
         );
       }

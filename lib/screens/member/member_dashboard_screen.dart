@@ -5,6 +5,7 @@ import '../../core/utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/returns_provider.dart';
 import '../../data/models/contribution.dart';
+import '../../data/models/member.dart';
 import '../../data/models/loan_request.dart' show LoanRequestStatus;
 import '../../data/models/payment_request.dart' show PaymentStatus, PaymentType;
 import '../../data/models/app_settings.dart' show AppSettings;
@@ -51,6 +52,8 @@ class MemberDashboardScreen extends ConsumerWidget {
     final memberLoansAsync = ref.watch(memberActiveLoansProvider(memberId));
     final pendingCount = ref.watch(_memberPendingRequestsProvider(memberId));
     final settingsAsync = ref.watch(settingsProvider);
+    final memberAsync = ref.watch(memberByIdProvider(memberId));
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
@@ -112,7 +115,14 @@ class MemberDashboardScreen extends ConsumerWidget {
           children: [
             Text('Welcome, ${user?.username}',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            memberAsync.when(
+              data: (member) => member != null ? _memberInfoCard(context, member, settingsAsync.valueOrNull) : const SizedBox(),
+              loading: () => _shimmerCard(height: 80),
+              error: (_, __) => const SizedBox(),
+            ),
+            const SizedBox(height: 16),
 
             memberContributionsAsync.when(
               data: (total) => settingsAsync.when(
@@ -270,11 +280,105 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _shimmerCard() {
-    return const Card(
+  Widget _memberInfoCard(BuildContext context, Member member, AppSettings? settings) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final heads = member.headsCount;
+    final perHead = settings?.minPaymentPerHead ?? 500.0;
+    final totalRequired = member.totalRequired > 0 ? member.totalRequired : heads * perHead;
+    final balance = member.balance ?? 0.0;
+    final isActive = member.isActive;
+    final displayName = member.name ?? 'Member';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 22,
+            backgroundColor: AppColors.primary.withAlpha(25),
+            child: Text(
+              displayName[0].toUpperCase(),
+              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(displayName,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15), overflow: TextOverflow.ellipsis),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isActive ? AppColors.success.withAlpha(25) : AppColors.warning.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        isActive ? 'Active' : 'Inactive',
+                        style: TextStyle(
+                          color: isActive ? AppColors.success : AppColors.warning,
+                          fontSize: 10, fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    _infoChip(Icons.people_outline, '$heads head${heads > 1 ? 's' : ''}', AppColors.primary, colorScheme),
+                    const SizedBox(width: 10),
+                    _infoChip(Icons.monetization_on_outlined, '${CurrencyFormatter.currencySymbol}${CurrencyFormatter.format(perHead)}/head', AppColors.warning, colorScheme),
+                    const SizedBox(width: 10),
+                    _infoChip(Icons.assignment, 'Req: ${CurrencyFormatter.format(totalRequired)}', AppColors.secondary, colorScheme),
+                  ],
+                ),
+                if (balance > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.account_balance_wallet, size: 12, color: AppColors.success),
+                      const SizedBox(width: 4),
+                      Text('Credit: ${CurrencyFormatter.format(balance)}',
+                        style: const TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String label, Color color, ColorScheme colorScheme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 3),
+        Text(label, style: TextStyle(color: color.withValues(alpha: 0.85), fontSize: 10, fontWeight: FontWeight.w500)),
+      ],
+    );
+  }
+
+  Widget _shimmerCard({double height = 120}) {
+    return Card(
       child: Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
+        padding: EdgeInsets.all(height > 80 ? 24 : 16),
+        child: const Center(child: CircularProgressIndicator()),
       ),
     );
   }

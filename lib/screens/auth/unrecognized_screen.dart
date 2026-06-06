@@ -110,19 +110,29 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
       return Scaffold(
         body: SafeArea(
           child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  const Spacer(),
                   Container(
-                    width: 80,
-                    height: 80,
+                    width: 88,
+                    height: 88,
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(20),
+                      gradient: LinearGradient(
+                        colors: [AppColors.primary.withValues(alpha: 0.8), AppColors.primary],
+                        begin: Alignment.topLeft, end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withValues(alpha: 0.3),
+                          blurRadius: 20, offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.handshake_rounded, size: 44, color: AppColors.primary),
+                    child: const Icon(Icons.handshake_rounded, size: 44, color: Colors.white),
                   ),
                   const SizedBox(height: 24),
                   Text(
@@ -133,7 +143,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     'Hi, $_displayName!',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -142,16 +152,16 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "You've successfully joined the group. Start contributing or request a loan from the app.",
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+                  _welcomeStep(Icons.payments_outlined, 'Pay Contribution',
+                    'Start building your savings by making your first contribution payment.'),
+                  const SizedBox(height: 10),
+                  _welcomeStep(Icons.request_page_outlined, 'Request a Loan',
+                    'Apply for a loan from the fund pool once you have contributions recorded.'),
+                  const SizedBox(height: 10),
+                  _welcomeStep(Icons.people_alt_outlined, 'Manage Your Account',
+                    'Update your profile, view your contribution history, and track loan repayments.'),
+                  const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
                     height: 56,
@@ -161,11 +171,13 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
                       ),
                       child: const Text("Let's Get Started",
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                     ),
                   ),
+                  const Spacer(),
                 ],
               ),
             ),
@@ -251,6 +263,44 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _welcomeStep(IconData icon, String title, String description) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, size: 22, color: AppColors.primary),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                const SizedBox(height: 2),
+                Text(description,
+                  style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

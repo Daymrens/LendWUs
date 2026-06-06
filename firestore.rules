@@ -67,8 +67,8 @@ service cloud.firestore {
 
     // ─── payment_requests ───────────────────────────────────
     match /payment_requests/{requestId} {
-      // Members can create their own payment requests
-      allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
+      // Members can create their own payment requests; admins can create approved ones
+      allow create: if isAuth() && (isMemberOf(request.resource.data.memberId) || isAdmin());
       // Members can read their own; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
       // Only admins can update (approve/reject) or delete

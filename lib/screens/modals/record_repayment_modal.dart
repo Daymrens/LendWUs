@@ -23,6 +23,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
 
   List<Loan> _activeLoans = const [];
   Map<String, double> _balances = const {};
+  Map<String, String> _memberNames = const {};
   bool _loading = true;
 
   @override
@@ -51,6 +52,13 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
       _balances = balances;
       _loading = false;
     });
+  }
+
+  Loan? get _selectedLoan {
+    return _activeLoans.cast<Loan?>().firstWhere(
+      (l) => l?.id == _selectedLoanId,
+      orElse: () => null,
+    );
   }
 
   double get _selectedBalance =>
@@ -128,53 +136,99 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Record Repayment',
-              style: Theme.of(context).textTheme.displayMedium,
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withAlpha(77),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
-            const Gap(16),
+            const Gap(20),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.replay, color: AppColors.warning, size: 22),
+                ),
+                const Gap(14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Record Repayment',
+                      style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const Text('Record a loan repayment',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
+            const Gap(24),
             if (_errorMessage != null)
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: AppColors.warning.withAlpha(51),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.warning),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.warning.withAlpha(128)),
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.warning, color: AppColors.warning, size: 20),
                     const Gap(8),
                     Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(color: AppColors.warning),
-                      ),
+                      child: Text(_errorMessage!,
+                        style: const TextStyle(color: AppColors.warning, fontSize: 13)),
                     ),
                   ],
                 ),
               ),
             if (_loading)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+                padding: EdgeInsets.symmetric(vertical: 32),
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_activeLoans.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(16.0),
-                child: Text('No active loans to repay'),
+              Container(
+                padding: const EdgeInsets.all(24),
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.info, color: AppColors.textMuted, size: 32),
+                    const Gap(12),
+                    const Text('No Active Loans',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
+                    const Text('There are no active loans to record repayment for.',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
               )
             else
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Select Loan'),
-                initialValue: _selectedLoanId,
+                decoration: InputDecoration(
+                  labelText: 'Select Loan',
+                  prefixIcon: const Icon(Icons.credit_card, size: 20),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: AppColors.surfaceAlt,
+                ),
                 items: _activeLoans.map((loan) {
                   final balance = _balances[loan.id!] ?? 0.0;
                   return DropdownMenuItem(
                     value: loan.id,
                     child: Text(
-                      'Loan - ${CurrencyFormatter.format(balance)} remaining',
+                      '${CurrencyFormatter.format(balance)} remaining',
+                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                     ),
                   );
                 }).toList(),
@@ -182,10 +236,26 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                 validator: (value) => value == null ? 'Select a loan' : null,
               ),
             if (_selectedLoanId != null && _selectedBalance > 0) ...[
-              const Gap(8),
-              Text(
-                'Remaining balance: ${CurrencyFormatter.format(_selectedBalance)}',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+              const Gap(12),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.textMuted.withAlpha(51)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.account_balance_wallet, size: 18, color: AppColors.warning),
+                    const Gap(10),
+                    const Text('Remaining Balance',
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                    const Spacer(),
+                    Text(CurrencyFormatter.format(_selectedBalance),
+                      style: const TextStyle(
+                        color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
               ),
             ],
             const Gap(16),
@@ -193,7 +263,11 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
               controller: _amountController,
               decoration: InputDecoration(
                 labelText: 'Amount Paid',
-                prefixText: '${CurrencyFormatter.currencySymbol} ',
+                prefixText: '₱ ',
+                prefixIcon: const Icon(Icons.attach_money, size: 20),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: AppColors.surfaceAlt,
               ),
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               validator: (value) {
@@ -205,19 +279,16 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
             const Gap(24),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.warning,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                  elevation: 0,
                 ),
-                child: const Text(
-                  'Record Repayment',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: const Text('Record Repayment',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
             const Gap(24),

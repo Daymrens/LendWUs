@@ -92,12 +92,12 @@ class PaymentRequestRepository {
             .toList());
   }
 
-  Future<bool> approvePaymentRequest(String requestId, {String? notes}) async {
+  Future<bool> approvePaymentRequest(String requestId, {String? notes, String? approvedBy}) async {
     final firestore = FirebaseService.firestore;
     final requestRef = firestore.collection('payment_requests').doc(requestId);
 
     // Idempotent claim: only proceed if the request is still pending.
-    final request = await firestore.runTransaction((tx) async {
+    final existingData = await firestore.runTransaction((tx) async {
       final snap = await tx.get(requestRef);
       if (!snap.exists) return null;
       final data = snap.data()!;
@@ -105,99 +105,115 @@ class PaymentRequestRepository {
       tx.update(requestRef, {
         'status': 'approved',
         'approvedDate': DateTime.now().toIso8601String(),
-        'notes': notes,
+        'approvedBy': approvedBy,
+        if (notes != null) 'notes': notes,
       });
-      return PaymentRequest.fromMap({...data, 'id': requestId});
+      return {...data, 'id': requestId};
     });
 
-    if (request == null) return false;
+    if (existingData == null) return false;
 
-    if (request.type == PaymentType.contribution) {
-      final contribution = Contribution(
-        memberId: request.memberId,
-        amount: request.amount,
-        date: request.requestDate,
-        month: request.requestDate.month,
-        year: request.requestDate.year,
-      );
+    final request = PaymentRequest.fromMap(existingData);
 
-      await FirebaseService.firestore
-          .collection('contributions')
-          .add(contribution.toMap());
+    try {
+      if (request.type == PaymentType.contribution) {
+        final contribution = Contribution(
+          memberId: request.memberId,
+          amount: request.amount,
+          date: request.requestDate,
+          month: request.requestDate.month,
+          year: request.requestDate.year,
+          createdBy: 'member',
+        );
 
-      // Track overpayment as balance
-      final contribsSnap = await FirebaseService.firestore
-          .collection('contributions')
-          .where('memberId', isEqualTo: request.memberId)
-          .where('month', isEqualTo: request.requestDate.month)
-          .where('year', isEqualTo: request.requestDate.year)
-          .get();
-      double monthTotal = contribsSnap.docs.fold<double>(
-        0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
-      );
+        await FirebaseService.firestore
+            .collection('contributions')
+            .add(contribution.toMap());
 
-      final memberDoc = await FirebaseService.firestore
-          .collection('members')
-          .doc(request.memberId)
-          .get();
+        // Track overpayment as balance
+        final contribsSnap = await FirebaseService.firestore
+            .collection('contributions')
+            .where('memberId', isEqualTo: request.memberId)
+            .where('month', isEqualTo: request.requestDate.month)
+            .where('year', isEqualTo: request.requestDate.year)
+            .get();
+        double monthTotal = contribsSnap.docs.fold<double>(
+          0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
+        );
 
-      if (memberDoc.exists) {
-        final memberData = memberDoc.data()!;
-        final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
-        double currentBalance = (memberData['balance'] as num?)?.toDouble() ?? 0.0;
+        final memberDoc = await FirebaseService.firestore
+            .collection('members')
+            .doc(request.memberId)
+            .get();
 
-        if (monthTotal > required) {
-          final excess = monthTotal - required;
-          await FirebaseService.firestore
-              .collection('members')
-              .doc(request.memberId)
-              .update({'balance': currentBalance + excess});
-        } else if (monthTotal < required && currentBalance > 0) {
-          // Apply balance if current month total is below required
-          final needed = required - monthTotal;
-          final toApply = currentBalance >= needed ? needed : currentBalance;
+        if (memberDoc.exists) {
+          final memberData = memberDoc.data()!;
+          final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
+          double currentBalance = (memberData['balance'] as num?)?.toDouble() ?? 0.0;
 
-          if (toApply > 0) {
-            // Record the balance application as a contribution
-            final balanceContribution = Contribution(
-              memberId: request.memberId,
-              amount: toApply,
-              date: DateTime.now(),
-              month: request.requestDate.month,
-              year: request.requestDate.year,
-              notes: 'Applied from balance',
-            );
-
-            await FirebaseService.firestore
-                .collection('contributions')
-                .add(balanceContribution.toMap());
-
+          if (monthTotal > required) {
+            final excess = monthTotal - required;
             await FirebaseService.firestore
                 .collection('members')
                 .doc(request.memberId)
-                .update({'balance': currentBalance - toApply});
+                .update({'balance': currentBalance + excess});
+          } else if (monthTotal < required && currentBalance > 0) {
+            // Apply balance if current month total is below required
+            final needed = required - monthTotal;
+            final toApply = currentBalance >= needed ? needed : currentBalance;
+
+            if (toApply > 0) {
+              // Record the balance application as a contribution
+              final balanceContribution = Contribution(
+                memberId: request.memberId,
+                amount: toApply,
+                date: DateTime.now(),
+                month: request.requestDate.month,
+                year: request.requestDate.year,
+                notes: 'Applied from balance',
+                createdBy: 'system',
+              );
+
+              await FirebaseService.firestore
+                  .collection('contributions')
+                  .add(balanceContribution.toMap());
+
+              await FirebaseService.firestore
+                  .collection('members')
+                  .doc(request.memberId)
+                  .update({'balance': currentBalance - toApply});
+            }
           }
         }
+      } else if (request.type == PaymentType.loan && request.loanId != null) {
+        final repayment = Repayment(
+          loanId: request.loanId!,
+          amountPaid: request.amount,
+          date: DateTime.now(),
+        );
+
+        final loanRepo = LoanRepository();
+        await loanRepo.addRepayment(repayment);
       }
-    } else if (request.type == PaymentType.loan && request.loanId != null) {
-      final repayment = Repayment(
-        loanId: request.loanId!,
-        amountPaid: request.amount,
-        date: DateTime.now(),
+
+      final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
+      final amountLabel = CurrencyFormatter.format(request.amount);
+      NotificationRepository.notifyMember(
+        request.memberId,
+        '$typeLabel Approved',
+        'Your $typeLabel of $amountLabel has been approved',
+        type: 'payment_request_approved',
       );
-
-      final loanRepo = LoanRepository();
-      await loanRepo.addRepayment(repayment);
+    } catch (e) {
+      // Post-transaction work failed; revert the approval
+      await requestRef.update({
+        'status': 'pending',
+        'approvedDate': null,
+        'approvedBy': null,
+        'notes': notes ?? existingData['notes'],
+      });
+      rethrow;
     }
-
-    final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
-    final amountLabel = CurrencyFormatter.format(request.amount);
-    NotificationRepository.notifyMember(
-      request.memberId,
-      '$typeLabel Approved',
-      'Your $typeLabel of $amountLabel has been approved',
-      type: 'payment_request_approved',
-    );
     return true;
   }
 

@@ -8,6 +8,7 @@ import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../data/repositories/contribution_repository.dart';
 import '../../core/utils/currency_formatter.dart';
+import 'pending_approval_dialog.dart';
 
 class MemberLoanRequestModal extends ConsumerStatefulWidget {
   const MemberLoanRequestModal({super.key});
@@ -92,10 +93,12 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
 
       if (mounted) {
         Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Loan request submitted! Waiting for admin approval'),
-            backgroundColor: Colors.green,
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => const PendingApprovalDialog(
+            title: 'Loan Request Submitted',
+            message: 'Your loan request has been received. Please wait for admin review and approval.',
           ),
         );
       }

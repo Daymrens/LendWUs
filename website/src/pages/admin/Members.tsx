@@ -68,26 +68,30 @@ const Members: React.FC = () => {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as Member));
       setMembers(list);
 
-      const paySnap = await getDocs(collection(db, "payment_requests"));
-      const memberPayments: Record<string, { latest: number; status: string }> = {};
-      paySnap.docs.forEach(d => {
-        const p = d.data() as Record<string, unknown>;
-        const mid = p.memberId as string;
-        const pd = (p.requestDate as Timestamp)?.toDate?.() || new Date();
-        const ts = pd.getTime();
-        if (!memberPayments[mid] || ts > memberPayments[mid].latest) {
-          memberPayments[mid] = { latest: ts, status: (p.status as string) || "pending" };
-        }
+      const now = new Date();
+      const thisMonth = now.getMonth() + 1;
+      const thisYear = now.getFullYear();
+
+      // Get contributions for this month to compute paid vs partial
+      const contribSnap = await getDocs(
+        query(collection(db, "contributions"), where("month", "==", thisMonth), where("year", "==", thisYear))
+      );
+      const memberMonthTotal: Record<string, number> = {};
+      contribSnap.docs.forEach(d => {
+        const c = d.data() as Record<string, unknown>;
+        const mid = c.memberId as string;
+        memberMonthTotal[mid] = (memberMonthTotal[mid] || 0) + (Number(c.amount) || 0);
       });
 
       const statuses: Record<string, string> = {};
       list.forEach(m => {
-        const mp = memberPayments[m.id];
-        if (!mp) statuses[m.id] = "pending";
-        else if (mp.status === "pending") statuses[m.id] = "pending";
-        else if (mp.status === "approved") {
-          const daysSince = Math.floor((Date.now() - mp.latest) / (1000 * 60 * 60 * 24));
-          statuses[m.id] = daysSince > 30 ? "overdue" : "paid";
+        const totalRequired = m.totalRequired || 0;
+        const paidThisMonth = memberMonthTotal[m.id] || 0;
+
+        if (paidThisMonth >= totalRequired && totalRequired > 0) {
+          statuses[m.id] = "paid";
+        } else if (paidThisMonth > 0) {
+          statuses[m.id] = "partial";
         } else {
           statuses[m.id] = "pending";
         }
@@ -175,6 +179,7 @@ const Members: React.FC = () => {
   const statusChip = (status: string) => {
     if (status === "paid") return <span className="chip active-chip">PAID</span>;
     if (status === "overdue") return <span className="chip" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>OVERDUE</span>;
+    if (status === "partial") return <span className="chip" style={{ background: "rgba(234,179,8,0.15)", color: "#eab308" }}>PARTIAL</span>;
     return <span className="chip badge-orange">PENDING</span>;
   };
 

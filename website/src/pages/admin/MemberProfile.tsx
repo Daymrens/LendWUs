@@ -19,6 +19,8 @@ interface Contribution {
   amount: number;
   date: Timestamp;
   status: string;
+  notes?: string;
+  createdBy?: string;
 }
 interface Loan {
   id: string;
@@ -52,6 +54,7 @@ const MemberProfile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tab, setTab] = useState(0);
+  const [selectedContrib, setSelectedContrib] = useState<Contribution | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -143,13 +146,18 @@ const MemberProfile: React.FC = () => {
       {tab === 0 && (
         <div className="table-wrap">
           <table className="data-table">
-            <thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+            <thead><tr><th>Date</th><th>Amount</th><th>Notes</th><th>Status</th></tr></thead>
             <tbody>
-              {contributions.length === 0 ? <tr><td colSpan={3} className="empty-text">No contributions</td></tr> :
+              {contributions.length === 0 ? <tr><td colSpan={4} className="empty-text">No contributions</td></tr> :
                 contributions.map(c => (
-                  <tr key={c.id}>
+                  <tr key={c.id} onClick={() => setSelectedContrib(c)} style={{ cursor: "pointer" }}>
                     <td>{c.date?.toDate?.()?.toLocaleDateString() || "N/A"}</td>
                     <td>₱{fmt(Number(c.amount) || 0)}</td>
+                    <td>
+                      {c.createdBy === "admin" ? <span className="chip badge-orange" style={{ fontSize: 11 }}>Admin</span> :
+                       c.createdBy === "system" ? <span className="chip" style={{ fontSize: 11, background: "#1f6feb33", color: "#58a6ff", border: "1px solid #1f6feb" }}>Balance</span> :
+                       c.notes || "-"}
+                    </td>
                     <td><span className={`chip ${c.status === "approved" ? "active-chip" : c.status === "pending" ? "badge-orange" : "inactive-chip"}`}>{c.status || "pending"}</span></td>
                   </tr>
                 ))
@@ -197,6 +205,62 @@ const MemberProfile: React.FC = () => {
               }
             </tbody>
           </table>
+        </div>
+      )}
+      {selectedContrib && (
+        <div className="modal-overlay" onClick={() => setSelectedContrib(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <div className="modal-header">
+              <h2>Contribution Details</h2>
+              <button className="btn-icon" onClick={() => setSelectedContrib(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: "0 24px 24px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <div style={{
+                  width: 48, height: 48, borderRadius: "50%",
+                  background: selectedContrib.createdBy === "admin" ? "#f59e0b33" : "#22c55e33",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill={selectedContrib.createdBy === "admin" ? "#f59e0b" : "#22c55e"}>
+                    {selectedContrib.createdBy === "admin"
+                      ? <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                      : <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>}
+                  </svg>
+                </div>
+                <div>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: "#c9d1d9" }}>
+                    ₱{fmt(Number(selectedContrib.amount) || 0)}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#8b949e" }}>
+                    {selectedContrib.date?.toDate?.()?.toLocaleDateString() || "N/A"}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ display: "flex", fontSize: 13 }}>
+                  <span style={{ width: 100, color: "#8b949e" }}>Month</span>
+                  <span style={{ color: "#c9d1d9", fontWeight: 500 }}>
+                    {(selectedContrib.date?.toDate?.()?.getMonth() ?? 0) + 1}/{(selectedContrib.date?.toDate?.()?.getFullYear() || "N/A")}
+                  </span>
+                </div>
+                {selectedContrib.notes && (
+                  <div style={{ display: "flex", fontSize: 13 }}>
+                    <span style={{ width: 100, color: "#8b949e" }}>Notes</span>
+                    <span style={{ color: "#c9d1d9", fontWeight: 500 }}>{selectedContrib.notes}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", fontSize: 13 }}>
+                  <span style={{ width: 100, color: "#8b949e" }}>Source</span>
+                  <span style={{ color: "#c9d1d9", fontWeight: 500 }}>
+                    {selectedContrib.createdBy === "admin" ? "Logged by Admin" :
+                     selectedContrib.createdBy === "system" ? "Balance Application" : "Member Payment"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

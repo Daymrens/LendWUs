@@ -22,6 +22,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   late TextEditingController _loanInterestController;
   late TextEditingController _cutoffDay1Controller;
   late TextEditingController _cutoffDay2Controller;
+  late TextEditingController _paymentTatController;
   String _selectedCurrencyCode = 'PHP';
   String _selectedCurrencySymbol = '\u20B1';
 
@@ -45,6 +46,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _loanInterestController = TextEditingController();
     _cutoffDay1Controller = TextEditingController();
     _cutoffDay2Controller = TextEditingController();
+    _paymentTatController = TextEditingController();
   }
 
   @override
@@ -54,7 +56,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _loanInterestController.dispose();
     _cutoffDay1Controller.dispose();
     _cutoffDay2Controller.dispose();
-    super.dispose();
+    _paymentTatController.dispose();
   }
 
   void _loadSettingsOnce(AppSettings settings) {
@@ -64,6 +66,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _loanInterestController.text = settings.loanInterestPercent.toString();
     _cutoffDay1Controller.text = settings.cutoffDay1.toString();
     _cutoffDay2Controller.text = settings.cutoffDay2.toString();
+    _paymentTatController.text = settings.paymentTatHours.toString();
     _selectedCurrencyCode = settings.currencyCode;
     _selectedCurrencySymbol = settings.currencySymbol;
     _initialized = true;
@@ -163,7 +166,6 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                         const Gap(16),
                         DropdownButtonFormField<String>(
-                          initialValue: _selectedCurrencyCode,
                           decoration: const InputDecoration(
                             labelText: 'Select Currency',
                             border: OutlineInputBorder(),
@@ -283,6 +285,45 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                     ),
                   ),
                 ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Approval Turnaround Time',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        const Text('Estimated processing time for member payment and loan requests.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        TextFormField(
+                          controller: _paymentTatController,
+                          decoration: const InputDecoration(
+                            labelText: 'TAT (hours)',
+                            suffixText: 'hours',
+                            border: OutlineInputBorder(),
+                            helperText: 'e.g. 24 = within 24 hours',
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return 'Required';
+                            final hrs = int.tryParse(value);
+                            if (hrs == null || hrs < 1) return 'Enter valid hours (>= 1)';
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 const Gap(32),
                 SizedBox(
                   width: double.infinity,
@@ -337,6 +378,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     final interest = double.parse(_loanInterestController.text);
     final cutoff1 = int.parse(_cutoffDay1Controller.text);
     final cutoff2 = int.parse(_cutoffDay2Controller.text);
+    final tatHours = int.parse(_paymentTatController.text);
 
     if (minPay <= 0 || maxPay <= 0) {
       _showError('Min and max payment must be greater than 0');
@@ -363,6 +405,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       currencyCode: _selectedCurrencyCode,
       cutoffDay1: cutoff1,
       cutoffDay2: cutoff2,
+      paymentTatHours: tatHours,
     );
 
     try {

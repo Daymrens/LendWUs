@@ -106,6 +106,11 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const LandingPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const featuresRef = React.useRef<HTMLElement>(null);
+
+  const scrollToFeatures = () => {
+    featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="app">
@@ -118,7 +123,7 @@ const LandingPage: React.FC = () => {
             <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a>
             <button 
               className="btn btn-primary btn-sm" 
-              onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}
+              onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}
             >
               Download
             </button>
@@ -139,11 +144,11 @@ const LandingPage: React.FC = () => {
             <div className="hero-btns">
               <button 
                 className="btn btn-primary"
-                onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}
+                onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}
               >
                 Get Started <ArrowRight size={20} />
               </button>
-              <button className="btn btn-outline">
+              <button className="btn btn-outline" onClick={scrollToFeatures}>
                 Learn More
               </button>
             </div>
@@ -151,6 +156,10 @@ const LandingPage: React.FC = () => {
               <div className="trust-item"><CheckCircle size={16} /> Secure Firestore</div>
               <div className="trust-item"><CheckCircle size={16} /> Real-time Updates</div>
               <div className="trust-item"><CheckCircle size={16} /> Admin Verified</div>
+            </div>
+            <div className="hero-group-code">
+              <span className="group-code-label">Group Code:</span>
+              <span className="group-code-value">LENDWUS</span>
             </div>
           </div>
           <div className="hero-visual">
@@ -203,7 +212,7 @@ const LandingPage: React.FC = () => {
         </div>
       </header>
 
-      <section id="features" className="features">
+      <section id="features" className="features" ref={featuresRef}>
         <div className="container">
           <div className="section-header">
             <h2 className="section-title">Built for <span className="highlight">Transparency</span></h2>
@@ -349,7 +358,7 @@ const LandingPage: React.FC = () => {
             <h2>Ready to grow your fund?</h2>
             <p>Download LendWUs today and start managing your group financials professionally.</p>
             <div className="download-btns">
-              <button className="btn btn-primary" onClick={() => window.open('https://www.mediafire.com/file/nkhelj5w6819rnb/LendWUS_v2.1.apk/file', '_blank')}>
+              <button className="btn btn-primary" onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}>
                 <Download size={20} /> Android APK (v2.1)
               </button>
               <button className="btn btn-outline" disabled>
@@ -368,7 +377,7 @@ const LandingPage: React.FC = () => {
             <p>Empowering Group Financials.</p>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2024 LendWUs App. All rights reserved.</p>
+            <p>&copy; 2025 LendWUs App. All rights reserved.</p>
           </div>
         </div>
       </footer>

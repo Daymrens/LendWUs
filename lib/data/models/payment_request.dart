@@ -10,6 +10,7 @@ class PaymentRequest {
   PaymentType type;
   double amount;
   String? receiptPath;
+  String? receiptUrl;
   PaymentStatus status;
   DateTime requestDate;
   DateTime? approvedDate;
@@ -24,6 +25,7 @@ class PaymentRequest {
     required this.type,
     required this.amount,
     this.receiptPath,
+    this.receiptUrl,
     this.status = PaymentStatus.pending,
     required this.requestDate,
     this.approvedDate,
@@ -40,6 +42,7 @@ class PaymentRequest {
       'type': type.name,
       'amount': amount,
       'receiptPath': receiptPath,
+      'receiptUrl': receiptUrl,
       'status': status.name,
       'requestDate': requestDate.toIso8601String(),
       'approvedDate': approvedDate?.toIso8601String(),
@@ -60,6 +63,7 @@ class PaymentRequest {
       ),
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       receiptPath: map['receiptPath'],
+      receiptUrl: map['receiptUrl'],
       status: PaymentStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => PaymentStatus.pending,

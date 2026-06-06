@@ -196,26 +196,42 @@ const Dashboard: React.FC = () => {
 
   const handleQuickAction = async (type: string, formData: Record<string, unknown>) => {
     try {
-      const col = type === "contribution" ? "contributions" : type === "loan" ? "loans" : "payment_requests";
-      const payload: Record<string, unknown> = { ...formData };
+      const now = Timestamp.now();
+      const d = now.toDate();
       if (type === "contribution") {
-        const now = Timestamp.now();
-        const d = now.toDate();
+        const payload: Record<string, unknown> = { ...formData };
         payload.date = now;
         payload.month = d.getMonth() + 1;
         payload.year = d.getFullYear();
+        payload.status = "approved";
+        payload.createdBy = "admin";
         if (payload.notes === undefined || payload.notes === "") delete payload.notes;
+        await addDoc(collection(db, "contributions"), payload);
+        // Also create an approved payment_request so member status reflects correctly
+        await addDoc(collection(db, "payment_requests"), {
+          memberId: formData.memberId,
+          amount: formData.amount,
+          type: "contribution",
+          status: "approved",
+          requestDate: now,
+          approvedDate: now,
+          approvedBy: "Admin (Manual)",
+          notes: formData.notes || "Manual contribution",
+        });
       } else if (type === "loan") {
-        payload.issuedDate = Timestamp.now();
+        const payload: Record<string, unknown> = { ...formData };
+        payload.issuedDate = now;
         payload.isFullyRepaid = false;
         payload.status = "active";
         if (payload.notes === undefined || payload.notes === "") delete payload.notes;
+        await addDoc(collection(db, "loans"), payload);
       } else {
-        payload.requestDate = Timestamp.now();
+        const payload: Record<string, unknown> = { ...formData };
+        payload.requestDate = now;
         payload.status = "pending";
         payload.type = "loan";
+        await addDoc(collection(db, "payment_requests"), payload);
       }
-      await addDoc(collection(db, col), payload);
       setActionModal(null);
       const labels: Record<string, string> = { contribution: "Contribution", loan: "Loan", repayment: "Repayment" };
       setActionMsg(`${labels[type] || "Record"} saved successfully.`);

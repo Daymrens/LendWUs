@@ -470,17 +470,59 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
   }
 
   Widget _buildContributionTile(Contribution contribution) {
+    final isAdmin = contribution.createdBy == 'admin';
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: AppColors.success.withAlpha(51),
-        child: const Icon(Icons.check, color: AppColors.success, size: 18),
+        backgroundColor: isAdmin ? AppColors.warning.withAlpha(51) : AppColors.success.withAlpha(51),
+        child: Icon(
+          isAdmin ? Icons.admin_panel_settings : Icons.check,
+          color: isAdmin ? AppColors.warning : AppColors.success,
+          size: 18,
+        ),
       ),
       title: Text(
         CurrencyFormatter.format(contribution.amount),
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
-      subtitle: Text(_formatDate(contribution.date)),
+      subtitle: Row(
+        children: [
+          Text(_formatDate(contribution.date)),
+          if (isAdmin) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withAlpha(30),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Admin',
+                style: TextStyle(color: AppColors.warning, fontSize: 10, fontWeight: FontWeight.w600)),
+            ),
+          ],
+          if (contribution.createdBy == 'system') ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.info.withAlpha(30),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text('Balance',
+                style: TextStyle(color: AppColors.info, fontSize: 10, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ],
+      ),
       trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+      onTap: () => _showContributionDetails(contribution),
+    );
+  }
+
+  void _showContributionDetails(Contribution contribution) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ContributionDetailsSheet(contribution: contribution),
     );
   }
 
@@ -491,5 +533,112 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${d.day}/${d.month}/${d.year}';
+  }
+}
+
+class _ContributionDetailsSheet extends StatelessWidget {
+  final Contribution contribution;
+  const _ContributionDetailsSheet({required this.contribution});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAdmin = contribution.createdBy == 'admin';
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withAlpha(77),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const Gap(20),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 24,
+                backgroundColor: isAdmin ? AppColors.warning.withAlpha(51) : AppColors.success.withAlpha(51),
+                child: Icon(
+                  isAdmin ? Icons.admin_panel_settings : Icons.check,
+                  color: isAdmin ? AppColors.warning : AppColors.success,
+                  size: 24,
+                ),
+              ),
+              const Gap(16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    CurrencyFormatter.format(contribution.amount),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Gap(4),
+                  Text(
+                    _formatDetailDate(contribution.date),
+                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const Gap(24),
+          _detailRow(context, 'Month', '${contribution.month}/${contribution.year}'),
+          if (contribution.notes != null && contribution.notes!.isNotEmpty)
+            _detailRow(context, 'Notes', contribution.notes!),
+          _detailRow(context, 'Source', isAdmin ? 'Logged by Admin' : contribution.createdBy == 'system' ? 'Balance Application' : 'Member Payment'),
+          const Gap(24),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              child: const Text('Close', style: TextStyle(color: Colors.white)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDetailDate(DateTime d) {
+    return '${d.day}/${d.month}/${d.year} at ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
   }
 }
