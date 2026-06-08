@@ -62,9 +62,20 @@ export async function backfillMissingMemberIds(db: Firestore): Promise<number> {
   const missing = snap.docs
     .filter((d) => !(d.data().memberId as string | undefined))
     .sort((a, b) => {
-      const at = (a.data().joinedAt as string | undefined) ?? "";
-      const bt = (b.data().joinedAt as string | undefined) ?? "";
-      return at.localeCompare(bt);
+      const aData = a.data();
+      const bData = b.data();
+
+      const getMillis = (val: any) => {
+        if (!val) return 0;
+        if (val.toMillis) return val.toMillis();
+        if (val instanceof Date) return val.getTime();
+        if (typeof val === "string") return new Date(val).getTime();
+        return 0;
+      };
+
+      const at = getMillis(aData.joinedAt);
+      const bt = getMillis(bData.joinedAt);
+      return at - bt;
     });
 
   if (missing.length === 0) {

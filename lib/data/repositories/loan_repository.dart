@@ -2,6 +2,7 @@ import '../models/loan.dart';
 import '../models/repayment.dart';
 import 'fund_repository.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../core/utils/interest_calculator.dart';
 
 class LoanRepository {
   Future<List<Loan>> getAllLoans() async {
@@ -109,30 +110,30 @@ class LoanRepository {
     final firestore = FirebaseService.firestore;
     final loanRef = firestore.collection('loans').doc(loanId);
 
-    final loanDoc = await loanRef.get();
-    if (!loanDoc.exists) return;
+    await firestore.runTransaction((txn) async {
+      final loanDoc = await txn.get(loanRef);
+      if (!loanDoc.exists) return;
 
-    final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
-    if (loan.isFullyRepaid) return;
+      final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
+      if (loan.isFullyRepaid) return;
 
-    final repaymentsSnap = await firestore
-        .collection('repayments')
-        .where('loanId', isEqualTo: loanId)
-        .get();
+      final repaymentsSnap = await firestore
+          .collection('repayments')
+          .where('loanId', isEqualTo: loanId)
+          .get();
 
-    final totalRepaid = repaymentsSnap.docs
-        .fold<double>(0.0, (sum, d) => sum + (d.data()['amountPaid'] as num).toDouble());
-    final totalDue = loan.principal + (loan.principal * loan.interestRate);
+      final repayments = repaymentsSnap.docs
+          .map((d) => Repayment.fromMap({...d.data(), 'id': d.id}))
+          .toList();
 
-    if (totalRepaid >= totalDue) {
-      await firestore.runTransaction((txn) async {
+      if (InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
         final fresh = await txn.get(loanRef);
         if (!fresh.exists) return;
         final data = fresh.data()!;
         if (data['isFullyRepaid'] == true) return;
         txn.update(loanRef, {'isFullyRepaid': true});
-      });
-    }
+      }
+    });
   }
 
   Future<double> getTotalLoansIssued() async {
@@ -143,16 +144,7 @@ class LoanRepository {
   Future<double> getTotalInterestEarned() async {
     final loans = await getAllLoans();
     final repayments = await getAllRepayments();
-
-    double totalInterest = 0.0;
-    for (var loan in loans) {
-      final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-      final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-      final excess = totalRepaid - loan.principal;
-      if (excess > 0) totalInterest += excess;
-    }
-
-    return totalInterest;
+    return InterestCalculator.calculateTotalInterestEarned(loans, repayments);
   }
 
   Stream<List<Loan>> watchAllLoans() {
@@ -186,10 +178,7 @@ class LoanRepository {
     final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
     final repayments = await getRepaymentsByLoan(loanId);
 
-    final totalRepaid = repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-    final totalDue = loan.principal + (loan.principal * loan.interestRate);
-
-    return (totalDue - totalRepaid).clamp(0.0, double.infinity);
+    return InterestCalculator.calculateRemainingBalance(loan, repayments);
   }
 
   Future<List<Map<String, dynamic>>> getMemberActiveLoans(String memberId) async {

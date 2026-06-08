@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/members_provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../core/services/notification_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -101,6 +104,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
                   user?.email ?? '',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
+                if (user?.displayId != null) ...[
+                  const Gap(4),
+                  Text(
+                    'ID: ${user!.displayId}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                  ),
+                ],
                 const Gap(8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -122,6 +135,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           ),
           ),
           ),
+          if (user?.memberId != null) ...[
+            const Gap(24),
+            _MemberStatsSection(memberId: user!.memberId!),
+          ],
           const Gap(40),
           Text(
             'Account Settings',
@@ -225,6 +242,102 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
           const Gap(40),
         ],
       ),
+    );
+  }
+}
+
+class _MemberStatsSection extends ConsumerWidget {
+  final String memberId;
+
+  const _MemberStatsSection({required this.memberId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final memberAsync = ref.watch(memberByIdProvider(memberId));
+    return memberAsync.when(
+      data: (member) {
+        if (member == null) return const SizedBox();
+        final joinedDate = DateFormat('MMM d, yyyy').format(member.joinedAt);
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Member Info',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const Gap(16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: colorScheme.outlineVariant.withAlpha(30)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: _statItem('Heads', '${member.headsCount}', AppColors.primary)),
+                      Container(height: 32, width: 1, color: AppColors.textMuted.withAlpha(30)),
+                      Expanded(child: _statItem('Per Head', CurrencyFormatter.format(member.amountPerHead), AppColors.secondary)),
+                      Container(height: 32, width: 1, color: AppColors.textMuted.withAlpha(30)),
+                      Expanded(child: _statItem('Required', CurrencyFormatter.format(member.totalRequired), AppColors.warning)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          children: [
+                            Icon(Icons.account_balance_wallet, size: 16, color: member.balance > 0 ? AppColors.success : AppColors.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Balance: ${CurrencyFormatter.format(member.balance)}',
+                              style: TextStyle(
+                                color: member.balance > 0 ? AppColors.success : AppColors.textMuted,
+                                fontWeight: FontWeight.w600, fontSize: 13,
+                              )),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        flex: 2,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 14, color: AppColors.textMuted),
+                            const SizedBox(width: 6),
+                            Text('Since $joinedDate',
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+      loading: () => const SizedBox(
+        height: 80,
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, __) => const SizedBox(),
+    );
+  }
+
+  Widget _statItem(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+      ],
     );
   }
 }

@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gap/gap.dart';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:io';
 import '../../core/theme/app_colors.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../core/services/storage_service.dart';
+import '../../data/models/app_settings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/settings_provider.dart';
@@ -110,11 +113,15 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
       }
 
       final repo = PaymentRequestRepository();
+      final bytes = await _receiptImage!.readAsBytes();
+      final receiptUrl = await StorageService.uploadReceipt(
+        memberId: user!.memberId!,
+        bytes: bytes,
+      );
 
       final request = PaymentRequest(
-        memberId: user!.memberId!,
+        memberId: user.memberId!,
         amount: double.parse(_amountController.text),
-        receiptPath: receiptUrl ?? _receiptImage?.path,
         receiptUrl: receiptUrl,
         status: PaymentStatus.pending,
         requestDate: DateTime.now(),
@@ -143,6 +150,78 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  Widget _buildQrContent(AppSettings? settings) {
+    final qrImageUrl = settings?.qrImageUrl ?? '';
+    final qrName = settings?.qrAccountName ?? '';
+    final qrNumber = settings?.qrAccountNumber ?? '';
+
+    if (qrImageUrl.isNotEmpty) {
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.memory(
+                base64Decode(qrImageUrl.split(',').last),
+                height: 180,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          const Gap(8),
+          const Text('Scan with GCash, PayMaya, or any PH bank app',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+        ],
+      );
+    }
+
+    if (qrName.isNotEmpty && qrNumber.isNotEmpty) {
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: QrImageView(
+              data: '$qrName\n$qrNumber',
+              version: QrVersions.auto,
+              size: 180,
+            ),
+          ),
+          const Gap(8),
+          Text('$qrName  •  $qrNumber',
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+          const Gap(4),
+          const Text('Scan with GCash, PayMaya, or any PH bank app',
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+        ],
+      );
+    }
+
+    return const Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: Text(
+            'No QR payment info configured yet',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
+        ),
+        Gap(8),
+        Text('Ask an admin to set up QR payment details',
+          style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+      ],
+    );
   }
 
   @override
@@ -421,25 +500,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                             const Divider(height: 1, indent: 16, endIndent: 16),
                             Padding(
                               padding: const EdgeInsets.all(24),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: QrImageView(
-                                      data: 'SINKING_FUND_PAYMENT',
-                                      version: QrVersions.auto,
-                                      size: 180,
-                                    ),
-                                  ),
-                                  const Gap(8),
-                                  const Text('Scan with GCash, PayMaya, or any PH bank app',
-                                    style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
-                                ],
-                              ),
+                              child: _buildQrContent(settings),
                             ),
                           ],
                         ],

@@ -8,7 +8,9 @@ import '../data/models/user.dart';
 import '../data/models/member.dart';
 import '../core/firebase/firebase_service.dart';
 import '../core/services/notification_service.dart';
+import '../core/utils/member_id_generator.dart';
 import 'members_provider.dart';
+import 'settings_provider.dart';
 
 final currentUserProvider = ChangeNotifierProvider<CurrentUserNotifier>((ref) {
   return CurrentUserNotifier(ref);
@@ -36,7 +38,10 @@ class CurrentUserNotifier extends ChangeNotifier {
     _initAuthListener();
   }
 
-  static const _adminEmails = ['act.drapor@gmail.com', 'daymrens@gmail.com'];
+  List<String> get _adminEmails {
+    final settings = ref.read(settingsProvider);
+    return settings.asData?.value.adminEmails ?? ['act.drapor@gmail.com', 'daymrens@gmail.com'];
+  }
 
   void _initAuthListener() {
     _authSub = FirebaseService.auth.authStateChanges().listen(
@@ -93,6 +98,7 @@ class CurrentUserNotifier extends ChangeNotifier {
           _isRecognized = false;
         } else {
           _isRecognized = true;
+          _user!.displayId = member.memberId;
           _startMemberWatcher(_user!.memberId!);
         }
       } else if (_user != null) {
@@ -235,37 +241,59 @@ class CurrentUserNotifier extends ChangeNotifier {
     if (firebaseUser == null || firebaseUser.email == null) return false;
 
     try {
-      final memberRepo = ref.read(memberRepositoryProvider);
-      final userRepo = ref.read(userRepositoryProvider);
+      final firestore = FirebaseService.firestore;
 
-      final memberId = await memberRepo.addMember(Member(
-        name: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-        linkedEmail: firebaseUser.email,
-        headsCount: 1,
-        amountPerHead: 500.0,
-        totalRequired: 500.0,
-        joinedAt: DateTime.now(),
-        isActive: true,
-      ));
+      String? memberDocId;
+      String? customMemberId;
+      await firestore.runTransaction((tx) async {
+        customMemberId = await MemberIdGenerator.generateNextMemberId(firestore);
+        
+        final member = Member(
+          name: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          linkedEmail: firebaseUser.email,
+          headsCount: 1,
+          amountPerHead: 500.0,
+          totalRequired: 500.0,
+          joinedAt: DateTime.now(),
+          isActive: true,
+          memberId: customMemberId,
+        );
+        final memberDocRef = firestore.collection('members').doc();
+        memberDocId = memberDocRef.id;
+        
+        tx.set(memberDocRef, member.toMap());
 
-      final newUser = User(
-        id: firebaseUser.uid,
-        username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-        email: firebaseUser.email!,
-        role: UserRole.member,
-        memberId: memberId,
-        photoUrl: firebaseUser.photoURL,
-        createdAt: DateTime.now(),
-      );
+        final newUser = User(
+          id: firebaseUser.uid,
+          username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          email: firebaseUser.email!,
+          role: UserRole.member,
+          memberId: memberDocId,
+          displayId: customMemberId,
+          photoUrl: firebaseUser.photoURL,
+          createdAt: DateTime.now(),
+        );
+        tx.set(firestore.collection('users').doc(firebaseUser.uid), newUser.toMap());
+      });
 
-      await userRepo.createUserDoc(newUser);
-
-      _deactivationReason = null;
-      _user = newUser;
-      _isRecognized = true;
-      _startMemberWatcher(memberId);
-      if (!_disposed) notifyListeners();
-      return true;
+      if (memberDocId != null && customMemberId != null) {
+        _deactivationReason = null;
+        _user = User(
+          id: firebaseUser.uid,
+          username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          email: firebaseUser.email!,
+          role: UserRole.member,
+          memberId: memberDocId,
+          displayId: customMemberId,
+          photoUrl: firebaseUser.photoURL,
+          createdAt: DateTime.now(),
+        );
+        _isRecognized = true;
+        _startMemberWatcher(memberDocId!);
+        if (!_disposed) notifyListeners();
+        return true;
+      }
+      return false;
     } catch (e) {
       debugPrint('Join Group Code Error: $e');
       return false;

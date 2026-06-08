@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../providers/auth_provider.dart';
@@ -193,6 +194,10 @@ class MemberDashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
+
+            const SizedBox(height: 24),
+
+            _RecentContributions(memberId: memberId),
 
             const SizedBox(height: 24),
 
@@ -623,5 +628,64 @@ class _MemberReturnsSection extends ConsumerWidget {
       loading: () => const SizedBox(),
       error: (_, __) => const SizedBox(),
     );
+  }
+}
+
+class _RecentContributions extends ConsumerWidget {
+  final String memberId;
+
+  const _RecentContributions({required this.memberId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final contributionsAsync = ref.watch(memberContributionsStreamProvider(memberId));
+    final contributions = [...?contributionsAsync.asData?.value];
+    final sorted = List<Contribution>.from(contributions)
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final recent = sorted.take(5).toList();
+
+    if (recent.isEmpty) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Recent Contributions',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Column(
+              children: recent.map((c) {
+                final dateStr = _formatDate(c.date);
+                return ListTile(
+                  dense: true,
+                  leading: CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.primary.withAlpha(25),
+                    child: const Icon(Icons.check, color: AppColors.primary, size: 16),
+                  ),
+                  title: Text(CurrencyFormatter.format(c.amount),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  trailing: Text(dateStr,
+                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    final now = DateTime.now();
+    final diff = now.difference(d);
+    if (diff.inDays == 0) return 'Today';
+    if (diff.inDays == 1) return 'Yesterday';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return DateFormat('MMM d').format(d);
   }
 }

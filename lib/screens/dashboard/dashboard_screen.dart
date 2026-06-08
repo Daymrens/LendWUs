@@ -15,11 +15,14 @@ import 'widgets/stat_card.dart';
 import 'widgets/action_buttons_row.dart';
 import 'widgets/activity_chart.dart';
 import 'widgets/recent_activity_list.dart';
+import 'widgets/top_contributors.dart';
 import '../modals/new_contribution_modal.dart';
 import '../modals/issue_loan_modal.dart';
 import '../modals/record_repayment_modal.dart';
 import '../../providers/notification_provider.dart';
 import '../notifications/notifications_screen.dart';
+import '../../core/utils/member_id_generator.dart';
+import '../../core/firebase/firebase_service.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -248,12 +251,49 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   builder: (context) => const RecordRepaymentModal(),
                 );
               },
+              onBackfillIds: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Backfill Member IDs?'),
+                    content: const Text(
+                      'This will generate formatted IDs (LWS000000) for all members missing them, '
+                      'ordered by their join date.',
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Backfill Now'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+
+                try {
+                  final count = await MemberIdGenerator.backfillMissingMemberIds(FirebaseService.firestore);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Backfilled $count members successfully')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error backfilling: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              },
               onViewMembers: () => context.push('/members'),
               onViewReports: () => context.push('/reports'),
               onViewApprovals: () => context.push('/approvals'),
             ),
             const Gap(24),
             _ReturnsSection(),
+            const Gap(24),
+            const TopContributors(),
             const Gap(24),
             Text(
               'Activity',

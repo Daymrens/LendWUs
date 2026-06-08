@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../data/models/member_with_status.dart';
@@ -150,7 +151,11 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                           padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                           itemCount: filtered.length,
                           itemBuilder: (context, index) {
-                            return MemberTileWithStatus(memberStatus: filtered[index]);
+                            final memberStatus = filtered[index];
+                            return GestureDetector(
+                              onTap: () => context.push('/member-profile/${memberStatus.member.id}'),
+                              child: MemberTileWithStatus(memberStatus: memberStatus),
+                            );
                           },
                         ),
                 ),

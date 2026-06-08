@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { downloadCSV } from "../../utils/export";
+import { backfillMissingMemberIds } from "../../utils/memberId";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -178,6 +179,16 @@ const Dashboard: React.FC = () => {
 
   const refresh = () => setFirstLoad((v) => v);
 
+  const handleBackfill = async () => {
+    if (!window.confirm("This will generate formatted IDs (LWS000000) for all members missing them, ordered by join date. Proceed?")) return;
+    try {
+      const count = await backfillMissingMemberIds(db);
+      alert(`Successfully backfilled ${count} members.`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Backfill failed");
+    }
+  };
+
   const exportDashboard = () => {
     if (!data) return;
     downloadCSV([
@@ -302,6 +313,7 @@ const Dashboard: React.FC = () => {
         <button className="btn btn-primary" onClick={() => setActionModal("contribution")}>+ New Contribution</button>
         <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b" }} onClick={() => setActionModal("loan")}>+ Issue Loan</button>
         <button className="btn btn-outline" style={{ borderColor: "#3b82f6", color: "#3b82f6" }} onClick={() => setActionModal("repayment")}>+ Record Repayment</button>
+        <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b", fontWeight: "bold" }} onClick={handleBackfill}>Backfill Member IDs</button>
         <button className="btn btn-outline" onClick={() => window.location.href="/admin/approvals"}>Pending ({data.pendingPayments+data.pendingLoans+data.pendingHeads})</button>
       </div>
 

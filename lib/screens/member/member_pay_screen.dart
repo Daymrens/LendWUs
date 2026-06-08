@@ -1,10 +1,10 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gap/gap.dart';
-import 'dart:io';
-import 'dart:io';
 import '../../core/theme/app_colors.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../data/models/payment_request.dart';
@@ -14,6 +14,9 @@ import '../../data/repositories/loan_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/services/storage_service.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../modals/pending_approval_dialog.dart';
 
@@ -102,20 +105,22 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final currentUser = ref.read(currentUserProvider).state;
+    final memberId = currentUser!.memberId!;
 
     String? receiptUrl;
     if (_receiptImage != null) {
-      receiptUrl = await FirebaseService.uploadReceiptImage(
-        File(_receiptImage!.path), currentUser!.memberId!,
+      final bytes = await _receiptImage!.readAsBytes();
+      receiptUrl = await StorageService.uploadReceipt(
+        memberId: memberId,
+        bytes: bytes,
       );
     }
 
     final paymentRequest = PaymentRequest(
-      memberId: currentUser!.memberId!,
+      memberId: memberId,
       loanId: widget.loanId,
       amount: double.parse(_amountController.text),
-      receiptPath: receiptUrl ?? _receiptImage?.path,
+      receiptPath: _receiptImage?.path,
       receiptUrl: receiptUrl,
       status: PaymentStatus.pending,
       requestDate: DateTime.now(),
@@ -143,13 +148,15 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const qrData = 'GCash: 09123456789\nName: Juan Dela Cruz';
     final colorScheme = Theme.of(context).colorScheme;
     final isLoan = widget.paymentType == PaymentType.loan;
     final settings = ref.watch(settingsProvider).asData?.value;
     final perHead = settings?.minPaymentPerHead ?? 500.0;
     final heads = _member?.headsCount ?? 1;
     final totalRequired = (_member?.totalRequired ?? 0.0) > 0 ? _member!.totalRequired : heads * perHead;
+    final qrImageUrl = settings?.qrImageUrl ?? '';
+    final qrName = settings?.qrAccountName ?? '';
+    final qrNumber = settings?.qrAccountNumber ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -283,15 +290,49 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey.shade200),
+                            if (qrImageUrl.isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  base64Decode(qrImageUrl.split(',').last),
+                                  height: 200,
+                                  fit: BoxFit.contain,
+                                ),
+                              )
+                            else if (qrName.isNotEmpty && qrNumber.isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.grey.shade200),
+                                ),
+                                child: QrImageView(
+                                  data: '$qrName\n$qrNumber',
+                                  version: QrVersions.auto,
+                                  size: 200.0,
+                                  backgroundColor: Colors.white,
+                                ),
+                              )
+                            else
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Text(
+                                  'No QR payment info configured yet',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(color: AppColors.textMuted),
+                                ),
                               ),
+                            if (qrName.isNotEmpty && qrNumber.isNotEmpty) ...[
+                              const Gap(12),
+                              Text(
+                                '$qrName  •  $qrNumber',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              ),
+                            ],
                               child: QrImageView(
-                                data: qrData,
+                                data: '$qrName\n$qrNumber',
                                 version: QrVersions.auto,
                                 size: 200.0,
                                 backgroundColor: Colors.white,
@@ -304,8 +345,8 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                                 color: AppColors.surfaceAlt,
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
-                                'GCash: 09123456789  •  Name: Juan Dela Cruz',
+                              child: Text(
+                                '$qrName  •  $qrNumber',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                               ),

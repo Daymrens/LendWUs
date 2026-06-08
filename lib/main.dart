@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app.dart';
 import 'core/firebase/firebase_service.dart';
 import 'core/services/notification_service.dart';
@@ -43,9 +44,13 @@ class _BootstrapAppState extends State<_BootstrapApp> {
           options: DefaultFirebaseOptions.currentPlatform,
         ).timeout(const Duration(seconds: 15));
       }
+      FirebaseFirestore.instance.settings =
+          const Settings(persistenceEnabled: true);
     } catch (e) {
       try {
         await Firebase.initializeApp().timeout(const Duration(seconds: 10));
+        FirebaseFirestore.instance.settings =
+            const Settings(persistenceEnabled: true);
       } catch (finalError) {
         if (mounted) {
           setState(() {

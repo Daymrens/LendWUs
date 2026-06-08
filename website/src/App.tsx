@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import { useAuth } from './context/AuthContext';
-import Login from './pages/admin/Login';
+import Login from './pages/Login';
 import Dashboard from './pages/admin/Dashboard';
 import Members from './pages/admin/Members';
 import MemberProfile from './pages/admin/MemberProfile';
@@ -13,10 +13,20 @@ import DataManagement from './pages/admin/DataManagement';
 import Notifications from './pages/admin/Notifications';
 import Activity from './pages/admin/Activity';
 import GlobalSearch from './pages/admin/GlobalSearch';
-import { 
-  ArrowRight, 
-  Download, 
-  ShieldCheck, 
+import MemberDashboard from './pages/member/Dashboard';
+import MemberContributions from './pages/member/Contributions';
+import MemberRequests from './pages/member/Requests';
+import MemberProfilePage from './pages/member/Profile';
+import MemberNotifications from './pages/member/Notifications';
+import MemberEditProfile from './pages/member/EditProfile';
+import MemberHelpSupport from './pages/member/HelpSupport';
+import MemberAbout from './pages/member/About';
+import MemberPrivacySecurity from './pages/member/PrivacySecurity';
+import MemberUnrecognized from './pages/member/Unrecognized';
+import {
+  ArrowRight,
+  Download,
+  ShieldCheck,
   Settings as SettingsIcon,
   CheckCircle,
   TrendingUp,
@@ -30,7 +40,8 @@ import {
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
-  if (!user) return <Navigate to="/admin" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "admin") return <Navigate to="/member/dashboard" replace />;
   return <>{children}</>;
 };
 
@@ -80,7 +91,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="sidebar-user">
             <div className="sidebar-user-email">{user?.email}</div>
           </div>
-          <button className="sidebar-logout" onClick={() => { logout(); navigate('/admin'); }}>
+          <button className="sidebar-logout" onClick={() => { logout(); navigate('/login'); }}>
             Sign Out
           </button>
           <a href="/" className="back-home">← Back to Home</a>
@@ -121,6 +132,13 @@ const LandingPage: React.FC = () => {
             <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
             <a href="#preview" onClick={() => setMenuOpen(false)}>App Preview</a>
             <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => window.location.href = '/login'}
+              style={{ borderColor: '#22c55e', color: '#22c55e' }}
+            >
+              Sign In
+            </button>
             <button 
               className="btn btn-primary btn-sm" 
               onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}
@@ -138,15 +156,15 @@ const LandingPage: React.FC = () => {
       <header className="hero">
         <div className="container">
           <div className="hero-content">
-            <div className="badge">New: Self-Onboarding v2.0</div>
+            <div className="badge">iOS Web App Now Available 🎉</div>
             <h1>Manage Your Group <span className="highlight">Sinking Fund</span> with Ease</h1>
-            <p>Smart lending, automated tracking, and transparent member contributions. All in one place. Built for groups, by groups.</p>
+            <p>Smart lending, automated tracking, and transparent member contributions. All in one place. Use on any device — iPhone, iPad, Android, or desktop.</p>
             <div className="hero-btns">
-              <button 
+              <button
                 className="btn btn-primary"
-                onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}
+                onClick={() => window.location.href = '/login'}
               >
-                Get Started <ArrowRight size={20} />
+                Sign In <ArrowRight size={20} />
               </button>
               <button className="btn btn-outline" onClick={scrollToFeatures}>
                 Learn More
@@ -155,7 +173,7 @@ const LandingPage: React.FC = () => {
             <div className="hero-trust">
               <div className="trust-item"><CheckCircle size={16} /> Secure Firestore</div>
               <div className="trust-item"><CheckCircle size={16} /> Real-time Updates</div>
-              <div className="trust-item"><CheckCircle size={16} /> Admin Verified</div>
+              <div className="trust-item"><CheckCircle size={16} /> iOS & Android</div>
             </div>
             <div className="hero-group-code">
               <span className="group-code-label">Group Code:</span>
@@ -356,16 +374,25 @@ const LandingPage: React.FC = () => {
         <div className="container">
           <div className="download-box">
             <h2>Ready to grow your fund?</h2>
-            <p>Download LendWUs today and start managing your group financials professionally.</p>
+            <p>Access LendWUs on any device. iOS users can add to home screen for an app-like experience.</p>
             <div className="download-btns">
-              <button className="btn btn-primary" onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}>
-                <Download size={20} /> Android APK (v2.1)
+              <button className="btn btn-primary" onClick={() => window.location.href = '/login'}>
+                <Smartphone size={20} /> Open iOS Web App
               </button>
-              <button className="btn btn-outline" disabled>
-                <Smartphone size={20} /> iOS (Coming Soon)
+              <button className="btn btn-outline" onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}>
+                <Download size={20} /> Android APK (v3.1)
               </button>
             </div>
-            <div className="download-info">Version 2.1.0 • 24MB • Requires Android 8.0+</div>
+            <div className="ios-instructions">
+              <p><strong>📱 iOS Users:</strong></p>
+              <ol>
+                <li>Open <a href="/login" style={{ color: '#2ecc71' }}>lmsystemm.web.app</a> in Safari</li>
+                <li>Tap the <strong>Share</strong> button <span style={{ fontSize: 18 }}>⎙</span></li>
+                <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+                <li>Tap <strong>"Add"</strong> — LendWUs will appear on your home screen like a native app!</li>
+              </ol>
+            </div>
+            <div className="download-info">Web App • Works on iOS 14+ • Android APK v2.1 • 24MB</div>
           </div>
         </div>
       </section>
@@ -385,11 +412,87 @@ const LandingPage: React.FC = () => {
   );
 };
 
+const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, loading, isRecognized } = useAuth();
+  if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "member") return <Navigate to="/admin/dashboard" replace />;
+  if (!isRecognized) return <Navigate to="/member/unrecognized" replace />;
+  return <>{children}</>;
+};
+
+const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navItems = [
+    { path: '/member/dashboard', label: 'Home', icon: '🏠' },
+    { path: '/member/contributions', label: 'Contributions', icon: '💰' },
+    { path: '/member/requests', label: 'Requests', icon: '📋' },
+    { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
+    { path: '/member/profile', label: 'Profile', icon: '👤' },
+    { path: '/member/edit-profile', label: 'Edit Profile', icon: '✏️' },
+    { path: '/member/privacy-security', label: 'Privacy & Security', icon: '🔒' },
+    { path: '/member/help-support', label: 'Help & Support', icon: '❓' },
+    { path: '/member/about', label: 'About', icon: 'ℹ️' },
+  ];
+
+  const handleNav = (path: string) => {
+    navigate(path);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className="admin-layout">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <span className="logo-text">Lend<span className="logo-accent">WUs</span></span>
+          <span className="sidebar-role">Member</span>
+        </div>
+        <nav className="sidebar-nav">
+          {navItems.map(item => (
+            <button
+              key={item.path}
+              className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => handleNav(item.path)}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="sidebar-user-email">{user?.email}</div>
+          </div>
+          <button className="sidebar-logout" onClick={() => { logout(); navigate('/login'); }}>
+            Sign Out
+          </button>
+          <a href="/" className="back-home">← Back to Home</a>
+        </div>
+      </aside>
+      {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+      <main className="admin-main">
+        <div className="admin-topbar">
+          <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Menu size={24} />
+          </button>
+          <span className="topbar-title">Member Portal</span>
+        </div>
+        {children}
+      </main>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/admin" element={<Login />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/admin" element={<Navigate to="/login" replace />} />
       <Route path="/admin/dashboard" element={<ProtectedRoute><AdminLayout><Dashboard /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/members" element={<ProtectedRoute><AdminLayout><Members /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/members/:id" element={<ProtectedRoute><AdminLayout><MemberProfile /></AdminLayout></ProtectedRoute>} />
@@ -399,6 +502,18 @@ const App: React.FC = () => {
       <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/data" element={<ProtectedRoute><AdminLayout><DataManagement /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/notifications" element={<ProtectedRoute><AdminLayout><Notifications /></AdminLayout></ProtectedRoute>} />
+      <Route path="/ios" element={<Navigate to="/login" replace />} />
+      <Route path="/member/login" element={<Navigate to="/login" replace />} />
+      <Route path="/member/unrecognized" element={<MemberUnrecognized />} />
+      <Route path="/member/dashboard" element={<ProtectedMemberRoute><MemberLayout><MemberDashboard /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/contributions" element={<ProtectedMemberRoute><MemberLayout><MemberContributions /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/profile" element={<ProtectedMemberRoute><MemberLayout><MemberProfilePage /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/notifications" element={<ProtectedMemberRoute><MemberLayout><MemberNotifications /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/edit-profile" element={<ProtectedMemberRoute><MemberLayout><MemberEditProfile /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/help-support" element={<ProtectedMemberRoute><MemberLayout><MemberHelpSupport /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/about" element={<ProtectedMemberRoute><MemberLayout><MemberAbout /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/privacy-security" element={<ProtectedMemberRoute><MemberLayout><MemberPrivacySecurity /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

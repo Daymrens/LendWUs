@@ -11,8 +11,9 @@ import '../data/models/payment_request.dart';
 import '../data/models/loan_request.dart';
 import '../data/models/head_change_request.dart';
 import '../data/models/user.dart';
+import 'loans_provider.dart';
 
-final memberRepositoryProvider = Provider((ref) => MemberRepository());
+final memberRepositoryProvider = Provider((ref) => MemberRepository(loanRepo: ref.watch(loanRepositoryProvider)));
 final userRepositoryProvider = Provider((ref) => UserRepository());
 final contributionRepositoryProvider = Provider((ref) => ContributionRepository());
 final paymentRequestRepositoryProvider = Provider((ref) => PaymentRequestRepository());

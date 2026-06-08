@@ -7,6 +7,10 @@ class AppSettings {
   final int cutoffDay1;
   final int cutoffDay2;
   final int paymentTatHours;
+  final List<String> adminEmails;
+  final String qrAccountName;
+  final String qrAccountNumber;
+  final String qrImageUrl;
 
   AppSettings({
     required this.minPaymentPerHead,
@@ -17,6 +21,10 @@ class AppSettings {
     this.cutoffDay1 = 13,
     this.cutoffDay2 = 28,
     this.paymentTatHours = 24,
+    this.adminEmails = const [],
+    this.qrAccountName = '',
+    this.qrAccountNumber = '',
+    this.qrImageUrl = '',
   });
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
@@ -29,6 +37,10 @@ class AppSettings {
       cutoffDay1: map['cutoffDay1'] ?? 13,
       cutoffDay2: map['cutoffDay2'] ?? 28,
       paymentTatHours: map['paymentTatHours'] ?? 24,
+      adminEmails: List<String>.from(map['adminEmails'] ?? []),
+      qrAccountName: map['qrAccountName'] ?? '',
+      qrAccountNumber: map['qrAccountNumber'] ?? '',
+      qrImageUrl: map['qrImageUrl'] ?? '',
     );
   }
 
@@ -42,6 +54,10 @@ class AppSettings {
       'cutoffDay1': cutoffDay1,
       'cutoffDay2': cutoffDay2,
       'paymentTatHours': paymentTatHours,
+      'adminEmails': adminEmails,
+      'qrAccountName': qrAccountName,
+      'qrAccountNumber': qrAccountNumber,
+      'qrImageUrl': qrImageUrl,
     };
   }
 
@@ -54,6 +70,10 @@ class AppSettings {
     int? cutoffDay1,
     int? cutoffDay2,
     int? paymentTatHours,
+    List<String>? adminEmails,
+    String? qrAccountName,
+    String? qrAccountNumber,
+    String? qrImageUrl,
   }) {
     return AppSettings(
       minPaymentPerHead: minPaymentPerHead ?? this.minPaymentPerHead,
@@ -64,6 +84,10 @@ class AppSettings {
       cutoffDay1: cutoffDay1 ?? this.cutoffDay1,
       cutoffDay2: cutoffDay2 ?? this.cutoffDay2,
       paymentTatHours: paymentTatHours ?? this.paymentTatHours,
+      adminEmails: adminEmails ?? this.adminEmails,
+      qrAccountName: qrAccountName ?? this.qrAccountName,
+      qrAccountNumber: qrAccountNumber ?? this.qrAccountNumber,
+      qrImageUrl: qrImageUrl ?? this.qrImageUrl,
     );
   }
 }

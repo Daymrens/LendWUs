@@ -8,11 +8,24 @@ import '../../providers/loans_provider.dart';
 import '../../providers/members_provider.dart';
 import 'widgets/report_stat_card.dart';
 
-class ReportsScreen extends ConsumerWidget {
+class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ReportsScreen> createState() => _ReportsScreenState();
+}
+
+class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  Future<void> _refresh() async {
+    ref.invalidate(totalFundProvider);
+    ref.invalidate(totalLoansProvider);
+    ref.invalidate(totalInterestProvider);
+    ref.invalidate(membersStreamProvider);
+    ref.invalidate(loansStreamProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final totalContribution = ref.watch(totalFundProvider);
     final totalLoansIssued = ref.watch(totalLoansProvider);
     final totalInterest = ref.watch(totalInterestProvider);
@@ -23,9 +36,12 @@ class ReportsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Reports'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             membersAsync.when(
@@ -113,6 +129,7 @@ class ReportsScreen extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

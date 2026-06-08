@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { collection, getDocs, deleteDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import { downloadCSV } from "../../utils/export";
+import { backfillMissingMemberIds } from "../../utils/memberId";
 
 const DataManagement: React.FC = () => {
   const [tab, setTab] = useState(0);
@@ -46,6 +47,20 @@ const DataManagement: React.FC = () => {
     downloadCSV(data, name);
   };
 
+  const handleBackfill = async () => {
+    if (!window.confirm("This will generate formatted IDs (LWS000000) for all members missing them, ordered by join date. Proceed?")) return;
+    try {
+      setLoading(true);
+      const count = await backfillMissingMemberIds(db);
+      alert(`Successfully backfilled ${count} members.`);
+      loadAll();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Backfill failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading data...</p></div>;
 
   const fmtDate = (d: unknown) => {
@@ -57,9 +72,20 @@ const DataManagement: React.FC = () => {
 
   return (
     <div className="admin-page">
-      <div className="page-header">
+      <div className="page-header" style={{ flexDirection: "column", alignItems: "flex-start", gap: 16 }}>
         <h1>Data Management</h1>
-        <button className="btn btn-outline btn-sm" onClick={loadAll}>Refresh</button>
+        <div style={{ display: "flex", gap: 12, width: "100%", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={handleBackfill}
+              style={{ backgroundColor: "#f59e0b", color: "#000" }}
+            >
+              Backfill Member IDs
+            </button>
+            <button className="btn btn-outline btn-sm" onClick={loadAll}>Refresh</button>
+          </div>
+        </div>
       </div>
 
       <div className="tabs" style={{ marginBottom: 16 }}>

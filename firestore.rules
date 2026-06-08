@@ -13,15 +13,16 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Helper: check if the user's email is a hardcoded admin
-    function isHardcodedAdmin() {
-      return request.auth.token.email == 'act.drapor@gmail.com' || 
-             request.auth.token.email == 'daymrens@gmail.com';
+    // Helper: check if the user's email is in the admin emails list from app settings
+    function isSettingsAdmin() {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/app_settings/fund_settings) &&
+        request.auth.token.email in get(/databases/$(database)/documents/app_settings/fund_settings).data.adminEmails;
     }
 
-    // Helper: check if the user is an admin (either by Firestore role or hardcoded email)
+    // Helper: check if the user is an admin (either by Firestore role or settings admin)
     function isAdmin() {
-      return isAuth() && (isFirestoreAdmin() || isHardcodedAdmin());
+      return isAuth() && (isFirestoreAdmin() || isSettingsAdmin());
     }
 
     // Helper: check if the authenticated user's user doc links to the given memberId

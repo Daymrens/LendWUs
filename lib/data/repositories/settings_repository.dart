@@ -17,6 +17,7 @@ class SettingsRepository {
         currencyCode: 'PHP',
         cutoffDay1: 13,
         cutoffDay2: 28,
+        adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
       );
       await saveSettings(defaultSettings);
       return defaultSettings;
@@ -39,6 +40,7 @@ class SettingsRepository {
           currencyCode: 'PHP',
           cutoffDay1: 13,
           cutoffDay2: 28,
+          adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
         );
       }
       return AppSettings.fromMap(doc.data()!);

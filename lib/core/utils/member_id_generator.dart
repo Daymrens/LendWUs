@@ -60,9 +60,27 @@ class MemberIdGenerator {
         .where((d) => (d.data()['memberId'] as String?) == null)
         .toList()
       ..sort((a, b) {
-        final aTs = (a.data()['joinedAt'] as String?) ?? '';
-        final bTs = (b.data()['joinedAt'] as String?) ?? '';
-        return aTs.compareTo(bTs);
+        final aData = a.data();
+        final bData = b.data();
+        
+        DateTime? aTime;
+        if (aData['joinedAt'] is Timestamp) {
+          aTime = (aData['joinedAt'] as Timestamp).toDate();
+        } else if (aData['joinedAt'] is String) {
+          aTime = DateTime.tryParse(aData['joinedAt'] as String);
+        }
+        
+        DateTime? bTime;
+        if (bData['joinedAt'] is Timestamp) {
+          bTime = (bData['joinedAt'] as Timestamp).toDate();
+        } else if (bData['joinedAt'] is String) {
+          bTime = DateTime.tryParse(bData['joinedAt'] as String);
+        }
+
+        if (aTime == null && bTime == null) return 0;
+        if (aTime == null) return 1;
+        if (bTime == null) return -1;
+        return aTime.compareTo(bTime);
       });
 
     if (missing.isEmpty) return 0;

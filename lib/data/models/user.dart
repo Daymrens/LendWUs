@@ -7,7 +7,8 @@ class User {
   String username;
   String email;
   UserRole role;
-  String? memberId;
+  String? memberId; // This is the doc ID
+  String? displayId; // This is the LWS format ID
   String? photoUrl;
   String? fcmToken;
   DateTime createdAt;
@@ -18,6 +19,7 @@ class User {
     required this.email,
     required this.role,
     this.memberId,
+    this.displayId,
     this.photoUrl,
     this.fcmToken,
     required this.createdAt,
@@ -30,6 +32,7 @@ class User {
       'email': email,
       'role': role.name,
       'memberId': memberId,
+      'displayId': displayId,
       'photoUrl': photoUrl,
       'fcmToken': fcmToken,
       'createdAt': createdAt.toIso8601String(),
@@ -46,6 +49,7 @@ class User {
         orElse: () => UserRole.member,
       ),
       memberId: map['memberId'],
+      displayId: map['displayId'],
       photoUrl: map['photoUrl'],
       fcmToken: map['fcmToken'],
       createdAt: parseFirestoreDate(map['createdAt']),

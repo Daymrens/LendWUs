@@ -10,6 +10,10 @@ interface AppSettings {
   currencyCode: string;
   cutoffDay1: number;
   cutoffDay2: number;
+  adminEmails: string[];
+  qrAccountName: string;
+  qrAccountNumber: string;
+  qrImageUrl: string;
 }
 
 const currencies = [
@@ -22,26 +26,33 @@ const currencies = [
   { code: "INR", symbol: "\u20B9" },
 ];
 
+const DEFAULT_SETTINGS: AppSettings = {
+  minPaymentPerHead: 150,
+  maxPaymentPerHead: 1000,
+  loanInterestPercent: 10,
+  currencySymbol: "\u20B1",
+  currencyCode: "PHP",
+  cutoffDay1: 13,
+  cutoffDay2: 28,
+  adminEmails: [],
+  qrAccountName: "",
+  qrAccountNumber: "",
+  qrImageUrl: "",
+};
+
 const Settings: React.FC = () => {
-  const [settings, setSettings] = useState<AppSettings>({
-    minPaymentPerHead: 150,
-    maxPaymentPerHead: 1000,
-    loanInterestPercent: 10,
-    currencySymbol: "\u20B1",
-    currencyCode: "PHP",
-    cutoffDay1: 13,
-    cutoffDay2: 28,
-  });
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
 
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDoc(doc(db, "settings", "app"));
+        const snap = await getDoc(doc(db, "app_settings", "fund_settings"));
         if (snap.exists()) {
-          setSettings(snap.data() as AppSettings);
+          setSettings({ ...DEFAULT_SETTINGS, ...snap.data() } as AppSettings);
         }
       } catch { /* ignore */ }
       finally { setLoading(false); }
@@ -53,7 +64,7 @@ const Settings: React.FC = () => {
     setSaving(true);
     setMessage("");
     try {
-      await setDoc(doc(db, "settings", "app"), settings);
+      await setDoc(doc(db, "app_settings", "fund_settings"), settings);
       setMessage("Settings saved successfully");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save";
@@ -63,8 +74,32 @@ const Settings: React.FC = () => {
     }
   };
 
-  const set = (key: keyof AppSettings, value: string | number) => {
+  const set = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const addAdminEmail = () => {
+    const email = newAdminEmail.trim().toLowerCase();
+    if (!email) return;
+    if (settings.adminEmails.includes(email)) return;
+    set("adminEmails", [...settings.adminEmails, email]);
+    setNewAdminEmail("");
+  };
+
+  const removeAdminEmail = (email: string) => {
+    set("adminEmails", settings.adminEmails.filter(e => e !== email));
+  };
+
+  const handleQRImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        set("qrImageUrl", reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading settings...</p></div>;
@@ -167,6 +202,88 @@ const Settings: React.FC = () => {
             />
           </div>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <h2>QR Payment Info</h2>
+        <p className="form-hint">Members see this when paying contributions.</p>
+        <div className="form-group">
+          <label>Account Name</label>
+          <input
+            type="text"
+            value={settings.qrAccountName}
+            onChange={e => set("qrAccountName", e.target.value)}
+            placeholder="e.g. LendWUs Group Fund"
+          />
+        </div>
+        <div className="form-group">
+          <label>Account Number</label>
+          <input
+            type="text"
+            value={settings.qrAccountNumber}
+            onChange={e => set("qrAccountNumber", e.target.value)}
+            placeholder="e.g. 09123456789"
+          />
+        </div>
+        <div className="form-group">
+          <label>QR Code Image</label>
+          {settings.qrImageUrl ? (
+            <div style={{ border: "1px solid #21262d", borderRadius: 8, padding: 12, marginBottom: 8 }}>
+              <img
+                src={settings.qrImageUrl}
+                alt="QR Code"
+                style={{ maxWidth: 200, maxHeight: 200, borderRadius: 4, display: "block", marginBottom: 8 }}
+              />
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => set("qrImageUrl", "")}
+                style={{ color: "#ef4444", borderColor: "#ef4444" }}
+              >
+                Remove QR
+              </button>
+            </div>
+          ) : (
+            <label className="btn btn-outline btn-sm" style={{ cursor: "pointer", display: "inline-block" }}>
+              📷 Upload QR Code Image
+              <input type="file" accept="image/*" onChange={handleQRImage} style={{ display: "none" }} />
+            </label>
+          )}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h2>Admin Emails</h2>
+        <p className="form-hint">Users with these emails are recognized as admins on login.</p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <input
+            type="email"
+            value={newAdminEmail}
+            onChange={e => setNewAdminEmail(e.target.value)}
+            placeholder="admin@example.com"
+            style={{ flex: 1 }}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAdminEmail(); } }}
+          />
+          <button type="button" className="btn btn-primary btn-sm" onClick={addAdminEmail}>Add</button>
+        </div>
+        {settings.adminEmails.length === 0 ? (
+          <span style={{ fontSize: 13, color: "#8b949e" }}>No admin emails configured.</span>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {settings.adminEmails.map(email => (
+              <span key={email} className="chip active-chip" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {email}
+                <button
+                  type="button"
+                  onClick={() => removeAdminEmail(email)}
+                  style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 14, padding: 0, lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <button

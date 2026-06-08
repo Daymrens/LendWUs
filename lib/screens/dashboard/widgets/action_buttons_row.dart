@@ -20,6 +20,7 @@ class ActionButtonsRow extends StatelessWidget {
   final VoidCallback onNewContribution;
   final VoidCallback onIssueLoan;
   final VoidCallback onRecordRepayment;
+  final VoidCallback? onBackfillIds;
   final VoidCallback? onViewMembers;
   final VoidCallback? onViewReports;
   final VoidCallback? onViewApprovals;
@@ -29,6 +30,7 @@ class ActionButtonsRow extends StatelessWidget {
     required this.onNewContribution,
     required this.onIssueLoan,
     required this.onRecordRepayment,
+    this.onBackfillIds,
     this.onViewMembers,
     this.onViewReports,
     this.onViewApprovals,
@@ -40,6 +42,8 @@ class ActionButtonsRow extends StatelessWidget {
       QuickAction(icon: Icons.add_circle, label: 'Contribution', color: AppColors.primary, onTap: onNewContribution),
       QuickAction(icon: Icons.account_balance, label: 'Issue Loan', color: AppColors.secondary, onTap: onIssueLoan),
       QuickAction(icon: Icons.payment, label: 'Repayment', color: AppColors.warning, onTap: onRecordRepayment),
+      if (onBackfillIds != null)
+        QuickAction(icon: Icons.refresh, label: 'Backfill IDs', color: AppColors.primary, onTap: onBackfillIds!),
       if (onViewMembers != null)
         QuickAction(icon: Icons.people, label: 'Members', color: AppColors.info, onTap: onViewMembers!),
       if (onViewReports != null)

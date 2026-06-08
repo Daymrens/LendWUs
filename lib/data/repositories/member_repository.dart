@@ -4,6 +4,10 @@ import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/member_id_generator.dart';
 
 class MemberRepository {
+  final LoanRepository _loanRepo;
+
+  MemberRepository({LoanRepository? loanRepo}) : _loanRepo = loanRepo ?? LoanRepository();
+
   Future<List<Member>> getAllMembers() async {
     final snapshot = await FirebaseService.firestore.collection('members').get();
     return snapshot.docs
@@ -55,8 +59,7 @@ class MemberRepository {
   }
 
   Future<void> deleteMember(String id) async {
-    final loanRepo = LoanRepository();
-    if (await loanRepo.hasActiveLoan(id)) {
+    if (await _loanRepo.hasActiveLoan(id)) {
       throw Exception('Cannot remove member with outstanding loan');
     }
 

@@ -26,6 +26,7 @@ import 'screens/admin/approvals_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
 import 'screens/admin/admin_data_screen.dart';
 import 'screens/admin/member_balance_screen.dart';
+import 'screens/admin/member_profile_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
@@ -157,6 +158,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const MemberBalanceScreen(),
           ),
           GoRoute(
+            path: '/member-profile/:memberId',
+            builder: (context, state) => AdminMemberProfileScreen(
+              memberId: state.pathParameters['memberId']!,
+            ),
+          ),
+          GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
           ),
@@ -257,57 +264,92 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _getSelectedIndex(),
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/');
-              break;
-            case 1:
-              context.go('/members');
-              break;
-            case 2:
-              context.go('/contributions');
-              break;
-            case 3:
-              context.go('/loans');
-              break;
-            case 4:
-              context.go('/reports');
-              break;
-            case 5:
-              context.go('/profile');
-              break;
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Home',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BottomNavigationBar(
+            currentIndex: _getSelectedIndex(),
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  context.go('/');
+                  break;
+                case 1:
+                  context.go('/members');
+                  break;
+                case 2:
+                  context.go('/contributions');
+                  break;
+                case 3:
+                  context.go('/loans');
+                  break;
+                case 4:
+                  context.go('/reports');
+                  break;
+                case 5:
+                  context.go('/profile');
+                  break;
+              }
+            },
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.dashboard),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.people),
+                label: 'Members',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.attach_money),
+                label: 'Contribs',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.account_balance),
+                label: 'Loans',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.assessment),
+                label: 'Reports',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Members',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
-            label: 'Contribs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance),
-            label: 'Loans',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assessment),
-            label: 'Reports',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Column(
+              children: [
+                Text(
+                  'Contact Us',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Email: daymrens@gmail.com  |  Contact: 09917185691',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  '© 2026 LendWUs App',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -335,43 +377,78 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       body: child,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _getSelectedIndex(),
-        onTap: (index) {
-          switch (index) {
-            case 0:
-              context.go('/member-home');
-              break;
-            case 1:
-              context.go('/member-contributions');
-              break;
-            case 2:
-              context.go('/member-requests');
-              break;
-            case 3:
-              context.go('/member-profile');
-              break;
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          BottomNavigationBar(
+            currentIndex: _getSelectedIndex(),
+            onTap: (index) {
+              switch (index) {
+                case 0:
+                  context.go('/member-home');
+                  break;
+                case 1:
+                  context.go('/member-contributions');
+                  break;
+                case 2:
+                  context.go('/member-requests');
+                  break;
+                case 3:
+                  context.go('/member-profile');
+                  break;
+              }
+            },
+            type: BottomNavigationBarType.fixed,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.attach_money),
+                label: 'My Contribs',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.request_page),
+                label: 'Requests',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
-            label: 'My Contribs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.request_page),
-            label: 'Requests',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: theme.colorScheme.surfaceContainerHighest,
+            child: Column(
+              children: [
+                Text(
+                  'Contact Us',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Email: daymrens@gmail.com  |  Contact: 09917185691',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  '© 2026 LendWUs App',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
