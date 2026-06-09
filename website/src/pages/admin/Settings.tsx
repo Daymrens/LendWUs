@@ -14,6 +14,11 @@ interface AppSettings {
   qrAccountName: string;
   qrAccountNumber: string;
   qrImageUrl: string;
+  apkDownloadUrl: string;
+  apkVersion: string;
+  contactEmail: string;
+  contactPhone: string;
+  downloadCount: number;
 }
 
 const currencies = [
@@ -38,6 +43,11 @@ const DEFAULT_SETTINGS: AppSettings = {
   qrAccountName: "",
   qrAccountNumber: "",
   qrImageUrl: "",
+  apkDownloadUrl: "",
+  apkVersion: "",
+  contactEmail: "",
+  contactPhone: "",
+  downloadCount: 0,
 };
 
 const Settings: React.FC = () => {
@@ -249,6 +259,59 @@ const Settings: React.FC = () => {
               <input type="file" accept="image/*" onChange={handleQRImage} style={{ display: "none" }} />
             </label>
           )}
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h2>APK Download</h2>
+        <p className="form-hint">Configure the Android APK download link and version shown on the landing page.</p>
+        <div className="form-group">
+          <label>APK Download URL</label>
+          <input
+            type="url"
+            value={settings.apkDownloadUrl}
+            onChange={e => set("apkDownloadUrl", e.target.value)}
+            placeholder="e.g. https://www.mediafire.com/file/..."
+          />
+        </div>
+        <div className="form-group">
+          <label>APK Version</label>
+          <input
+            type="text"
+            value={settings.apkVersion}
+            onChange={e => set("apkVersion", e.target.value)}
+            placeholder="e.g. v3.1"
+          />
+        </div>
+        <div className="form-group">
+          <label>Download Count</label>
+          <div style={{ padding: "10px 12px", background: "#0d1117", borderRadius: 8, color: "#22c55e", fontWeight: 700, fontSize: 18 }}>
+            {settings.downloadCount ?? 0}
+          </div>
+          <span className="form-hint">Total APK downloads (auto-tracked)</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <h2>Contact Information</h2>
+        <p className="form-hint">Shown in the footer of the landing page.</p>
+        <div className="form-group">
+          <label>Contact Email</label>
+          <input
+            type="email"
+            value={settings.contactEmail}
+            onChange={e => set("contactEmail", e.target.value)}
+            placeholder="e.g. support@lendwus.com"
+          />
+        </div>
+        <div className="form-group">
+          <label>Contact Phone</label>
+          <input
+            type="tel"
+            value={settings.contactPhone}
+            onChange={e => set("contactPhone", e.target.value)}
+            placeholder="e.g. +63 991 718 5691"
+          />
         </div>
       </div>
 

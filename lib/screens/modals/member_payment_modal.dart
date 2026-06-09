@@ -5,7 +5,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gap/gap.dart';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:io';
 import '../../core/theme/app_colors.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/services/storage_service.dart';
@@ -112,15 +111,17 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
         );
       }
 
-      final repo = PaymentRequestRepository();
-      final bytes = await _receiptImage!.readAsBytes();
-      final receiptUrl = await StorageService.uploadReceipt(
-        memberId: user!.memberId!,
-        bytes: bytes,
-      );
+      if (_receiptImage != null) {
+        final bytes = await _receiptImage!.readAsBytes();
+        receiptUrl = await StorageService.uploadReceipt(
+          memberId: user!.memberId!,
+          bytes: bytes,
+        );
+      }
 
+      final repo = PaymentRequestRepository();
       final request = PaymentRequest(
-        memberId: user.memberId!,
+        memberId: user!.memberId!,
         amount: double.parse(_amountController.text),
         receiptUrl: receiptUrl,
         status: PaymentStatus.pending,

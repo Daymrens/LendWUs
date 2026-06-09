@@ -134,7 +134,7 @@ const DataManagement: React.FC = () => {
                   <tr key={l.id as string}>
                     <td>{memberMap[l.memberId as string] || (l.memberId as string)}</td>
                     <td className="text-pending">₱{(Number(l.principal)||0).toLocaleString()}</td>
-                    <td>{String(l.interestRate ?? "")}%</td>
+                    <td>{((Number(l.interestRate) || 0) * 100).toFixed(0)}%</td>
                     <td>{fmtDate(l.issuedDate)}</td>
                     <td>{fmtDate(l.dueDate)}</td>
                     <td>{l.isFullyRepaid ? <span className="badge badge-blue">Paid</span> : <span className="badge badge-orange">Active</span>}</td>

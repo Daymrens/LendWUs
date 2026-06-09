@@ -8,7 +8,7 @@ void main() {
       final before = DateTime.now();
       final result = parseFirestoreDate(null);
       final after = DateTime.now();
-      expect(result.isBefore(after), isTrue);
+      expect(!result.isAfter(after), isTrue);
       expect(!result.isBefore(before), isTrue);
     });
 

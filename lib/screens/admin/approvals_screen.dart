@@ -556,20 +556,33 @@ class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
   Future<void> _handleApprove(BuildContext context) async {
     if (_busy) return;
     setState(() => _busy = true);
-    final repo = ref.read(loanRequestRepositoryProvider);
-    final approved = await repo.approveLoanRequest(loan.id!);
+    try {
+      final repo = ref.read(loanRequestRepositoryProvider);
+      final approved = await repo.approveLoanRequest(loan.id!);
 
-    ref.invalidate(pendingLoansProvider);
+      ref.invalidate(pendingLoansProvider);
 
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(approved ? 'Loan request approved' : 'Loan request already processed'),
-          backgroundColor: approved ? Colors.green : Colors.orange,
-        ),
-      );
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(approved ? 'Loan request approved' : 'Loan request already processed'),
+            backgroundColor: approved ? Colors.green : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

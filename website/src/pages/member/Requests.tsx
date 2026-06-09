@@ -246,7 +246,7 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
                     <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
                     <div>
                       <div style={{ fontSize: 18, fontWeight: 700 }}>₱{formatCurrency(r.amount)}</div>
-                      <div style={{ fontSize: 12, color: "#8b949e" }}>{(r.interestRate * 100).toFixed(0)}% interest</div>
+                      <div style={{ fontSize: 12, color: "#8b949e" }}>{r.interestRate}% interest</div>
                     </div>
                   </div>
                   {statusBadge(r.status)}
@@ -376,7 +376,7 @@ const LoanRequestModal: React.FC<{ memberId: string | undefined; onClose: () => 
       await addDoc(collection(db, "loan_requests"), {
         memberId,
         amount: amt,
-        interestRate: 0.1,
+        interestRate: 10,
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         status: "pending",
         requestedAt: Timestamp.now(),

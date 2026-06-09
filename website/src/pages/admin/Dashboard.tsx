@@ -101,7 +101,7 @@ const Dashboard: React.FC = () => {
     const totalRepayments = repayments.reduce((s, r) => s + (Number(r.amount)||0), 0);
     const fundBalance = totalContributions - totalLoansIssued + totalRepayments;
     const totalInterest = loans.reduce((s, l) => {
-      if (l.isFullyRepaid === true || l.isFullyRepaid === 1) return s + ((Number(l.principal)||0) * (Number(l.interestRate)||0) / 100);
+      if (l.isFullyRepaid === true || l.isFullyRepaid === 1) return s + ((Number(l.principal)||0) * (Number(l.interestRate)||0));
       return s;
     }, 0);
 

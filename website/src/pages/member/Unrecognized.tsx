@@ -37,17 +37,18 @@ const Unrecognized: React.FC = () => {
 
   if (welcome) {
     return (
-      <div className="login-page">
-        <div className="login-card" style={{ textAlign: "center" }}>
-          <div className="login-logo">
-            <span className="logo-text">Lend<span className="logo-accent">WUs</span></span>
+      <div className="app-login-page">
+        <div className="app-login-card" style={{ textAlign: "center" }}>
+          <div className="app-login-logo">
+            <div className="app-login-logo-icon">💰</div>
+            <h1 className="app-login-title">LendWUs</h1>
           </div>
           <div style={{ fontSize: 48, margin: "24px 0" }}>🤝</div>
-          <h2>Welcome to LendWUs!</h2>
+          <h2 style={{ color: "#fff", margin: "0 0 8px" }}>Welcome to LendWUs!</h2>
           <p style={{ color: "#8b949e", marginBottom: 8 }}>You've joined as</p>
           <p style={{ fontSize: 18, fontWeight: 600, color: "#c9d1d9", marginBottom: 24 }}>{displayName}</p>
           <button
-            className="btn btn-primary btn-block"
+            className="app-login-submit"
             onClick={() => navigate("/member/dashboard")}
           >
             Let's Get Started
@@ -58,39 +59,60 @@ const Unrecognized: React.FC = () => {
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">
-          <span className="logo-text">Lend<span className="logo-accent">WUs</span></span>
-          <span className="logo-sub">Join Group</span>
+    <div className="app-login-page">
+      <div className="app-login-card">
+        <div className="app-login-logo">
+          <div className="app-login-logo-icon">
+            💰
+          </div>
+          <h1 className="app-login-title">LendWUs</h1>
+          <p className="app-login-subtitle">Join Group</p>
         </div>
+
         <div style={{ fontSize: 48, textAlign: "center", margin: "16px 0" }}>👤</div>
-        <h2 style={{ textAlign: "center" }}>Member Not Recognized</h2>
+        <h2 style={{ color: "#fff", textAlign: "center", margin: "0 0 8px", fontSize: 20 }}>Member Not Recognized</h2>
         <p style={{ color: "#8b949e", textAlign: "center", marginBottom: 24, fontSize: 14 }}>
-          Your account is not yet registered. You can contact an admin or join using a group code if you have one.
+          Your account is not yet registered. Contact an admin or join using a group code.
         </p>
+
         {(localError || error) && <div className="form-error">{localError || error}</div>}
-        <div className="form-group">
-          <label htmlFor="groupCode">Enter Group Code</label>
-          <input
-            id="groupCode"
-            type="text"
-            value={code}
-            onChange={e => setCode(e.target.value)}
-            placeholder="e.g. LENDWUS"
-            style={{ textTransform: "uppercase" }}
-            disabled={submitting}
-          />
-        </div>
-        <button className="btn btn-primary btn-block" onClick={handleJoin} disabled={submitting || !code.trim()}>
-          {submitting ? "Joining..." : "Join Group"}
-        </button>
-        <div style={{ marginTop: 16, textAlign: "center" }}>
-          <button className="btn btn-outline btn-block" onClick={handleLogout} disabled={submitting}>
-            Log Out
+
+        <form onSubmit={e => { e.preventDefault(); handleJoin(); }}>
+          <div className="app-login-input-group">
+            <span className="app-login-input-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </span>
+            <input
+              type="text"
+              value={code}
+              onChange={e => setCode(e.target.value)}
+              placeholder="Enter Group Code"
+              style={{ textTransform: "uppercase" }}
+              disabled={submitting}
+              className="app-login-input"
+              required
+            />
+          </div>
+
+          <button type="submit" className="app-login-submit" disabled={submitting || !code.trim()}>
+            {submitting ? "Joining..." : "Join Group"}
           </button>
+        </form>
+
+        <div className="app-login-divider">
+          <span>OR</span>
         </div>
-        <a href="/member/login" className="back-link">← Back to Sign In</a>
+
+        <button className="app-login-google" onClick={handleLogout} disabled={submitting}>
+          Log Out
+        </button>
+
+        <div className="app-login-footer">
+          <a href="/member/login">Back to Sign In</a>
+        </div>
       </div>
     </div>
   );

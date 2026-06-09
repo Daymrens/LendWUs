@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/firebase/firebase_service.dart';
 import '../../data/models/payment_request.dart';
 import '../../data/models/member.dart';
 import '../../data/repositories/payment_request_repository.dart';
@@ -14,8 +13,6 @@ import '../../data/repositories/loan_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
-import '../../providers/settings_provider.dart';
-import '../../core/theme/app_colors.dart';
 import '../../core/services/storage_service.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../modals/pending_approval_dialog.dart';
@@ -105,7 +102,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final memberId = currentUser!.memberId!;
+    final memberId = ref.read(currentUserProvider).state!.memberId!;
 
     String? receiptUrl;
     if (_receiptImage != null) {
@@ -331,13 +328,6 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                                 style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                               ),
                             ],
-                              child: QrImageView(
-                                data: '$qrName\n$qrNumber',
-                                version: QrVersions.auto,
-                                size: 200.0,
-                                backgroundColor: Colors.white,
-                              ),
-                            ),
                             const Gap(12),
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

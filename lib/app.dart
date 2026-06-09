@@ -264,7 +264,6 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: Column(
@@ -322,35 +321,8 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
               ),
             ],
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Column(
-              children: [
-                Text(
-                  'Contact Us',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Email: daymrens@gmail.com  |  Contact: 09917185691',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  '© 2026 LendWUs App',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+
         ],
       ),
     );
@@ -377,7 +349,6 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: Column(
@@ -421,35 +392,8 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
               ),
             ],
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            color: theme.colorScheme.surfaceContainerHighest,
-            child: Column(
-              children: [
-                Text(
-                  'Contact Us',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Email: daymrens@gmail.com  |  Contact: 09917185691',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-                Text(
-                  '© 2026 LendWUs App',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
+
+
         ],
       ),
     );

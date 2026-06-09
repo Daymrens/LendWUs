@@ -54,10 +54,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _loanInterestController = TextEditingController();
     _cutoffDay1Controller = TextEditingController();
     _cutoffDay2Controller = TextEditingController();
-    _paymentTatController = TextEditingController();
     _adminEmailController = TextEditingController();
     _qrNameController = TextEditingController();
     _qrNumberController = TextEditingController();
+    _paymentTatController = TextEditingController();
   }
 
   @override
@@ -67,10 +67,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _loanInterestController.dispose();
     _cutoffDay1Controller.dispose();
     _cutoffDay2Controller.dispose();
-    _paymentTatController.dispose();
     _adminEmailController.dispose();
     _qrNameController.dispose();
     _qrNumberController.dispose();
+    _paymentTatController.dispose();
     super.dispose();
   }
 
@@ -206,8 +206,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                         ),
                       ],
                     ),
+                  ),
                 ),
-              ),
                 const Gap(24),
                 Card(
                   child: Padding(
@@ -299,146 +299,149 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                               ),
                             ),
                           ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const Gap(24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Admin Emails',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Gap(8),
-                const Text('Emails listed here will have automatic admin access on Google Sign-In.',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-                const Gap(16),
-                ..._adminEmails.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final email = entry.value;
-                  return ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(email),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-                      onPressed: () {
-                        setState(() {
-                          _adminEmails.removeAt(index);
-                        });
-                      },
-                    ),
-                  );
-                }),
-                const Gap(8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _adminEmailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Add Admin Email',
-                          border: OutlineInputBorder(),
-                          helperText: 'Press Enter to add',
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        onFieldSubmitted: (value) {
-                          final email = value.trim();
-                          if (email.isNotEmpty && email.contains('@') && !_adminEmails.contains(email)) {
-                            setState(() {
-                              _adminEmails.add(email);
-                              _adminEmailController.clear();
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        const Gap(24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'QR Payment Info',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Gap(8),
-                const Text('Account details shown to members for QR payment.',
-                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-                const Gap(16),
-                TextFormField(
-                  controller: _qrNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Account Name',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const Gap(12),
-                TextFormField(
-                  controller: _qrNumberController,
-                  decoration: const InputDecoration(
-                    labelText: 'Account Number',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const Gap(16),
-                if (_qrImageUrl.isNotEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceAlt,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.memory(
-                            base64Decode(_qrImageUrl.split(',').last),
-                            height: 150,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        const Gap(8),
-                        TextButton.icon(
-                          onPressed: () => setState(() => _qrImageUrl = ''),
-                          icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                          label: const Text('Remove', style: TextStyle(color: AppColors.error)),
                         ),
                       ],
                     ),
-                  )
-                else
-                  OutlinedButton.icon(
-                    onPressed: _pickQrImage,
-                    icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                    label: const Text('Upload QR Image'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Admin Emails',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        const Text('Emails listed here will have automatic admin access on Google Sign-In.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        ..._adminEmails.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final email = entry.value;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(email),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _adminEmails.removeAt(index);
+                                });
+                              },
+                            ),
+                          );
+                        }),
+                        const Gap(8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _adminEmailController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Add Admin Email',
+                                  border: OutlineInputBorder(),
+                                  helperText: 'Press Enter to add',
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                onFieldSubmitted: (value) {
+                                  final email = value.trim();
+                                  if (email.isNotEmpty && email.contains('@') && !_adminEmails.contains(email)) {
+                                    setState(() {
+                                      _adminEmails.add(email);
+                                      _adminEmailController.clear();
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'QR Payment Info',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        const Text('Account details shown to members for QR payment.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        TextFormField(
+                          controller: _qrNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Account Name',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const Gap(12),
+                        TextFormField(
+                          controller: _qrNumberController,
+                          decoration: const InputDecoration(
+                            labelText: 'Account Number',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const Gap(16),
+                        if (_qrImageUrl.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceAlt,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    base64Decode(_qrImageUrl.split(',').last),
+                                    height: 150,
+                                    fit: BoxFit.contain,
+                                  ),
+                                ),
+                                const Gap(8),
+                                TextButton.icon(
+                                  onPressed: () => setState(() => _qrImageUrl = ''),
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                                  label: const Text('Remove', style: TextStyle(color: AppColors.error)),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: _pickQrImage,
+                            icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                            label: const Text('Upload QR Image'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
@@ -613,4 +616,3 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     );
   }
 }
-

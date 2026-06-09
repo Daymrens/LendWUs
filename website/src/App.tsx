@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { db } from './firebase';
 import './App.css';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
@@ -117,7 +119,30 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const LandingPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [apkUrl, setApkUrl] = useState('https://www.mediafire.com/file/fltgf1rw4c2jsin/LendWUs_v4.1.apk/file');
+  const [apkVersion, setApkVersion] = useState('v3.1');
+  const [contactEmail, setContactEmail] = useState('daymren@gmail.com');
+  const [contactPhone, setContactPhone] = useState('+63 991 718 5691');
   const featuresRef = React.useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    getDoc(doc(db, 'app_settings', 'fund_settings')).then(snap => {
+      if (snap.exists()) {
+        const d = snap.data();
+        if (d.apkDownloadUrl) setApkUrl(d.apkDownloadUrl);
+        if (d.apkVersion) setApkVersion(d.apkVersion);
+        if (d.contactEmail) setContactEmail(d.contactEmail);
+        if (d.contactPhone) setContactPhone(d.contactPhone);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const handleDownload = async () => {
+    try {
+      await updateDoc(doc(db, 'app_settings', 'fund_settings'), { downloadCount: increment(1) });
+    } catch {}
+    window.open(apkUrl, '_blank');
+  };
 
   const scrollToFeatures = () => {
     featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -141,7 +166,7 @@ const LandingPage: React.FC = () => {
             </button>
             <button 
               className="btn btn-primary btn-sm" 
-              onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}
+              onClick={handleDownload}
             >
               Download
             </button>
@@ -175,10 +200,7 @@ const LandingPage: React.FC = () => {
               <div className="trust-item"><CheckCircle size={16} /> Real-time Updates</div>
               <div className="trust-item"><CheckCircle size={16} /> iOS & Android</div>
             </div>
-            <div className="hero-group-code">
-              <span className="group-code-label">Group Code:</span>
-              <span className="group-code-value">LENDWUS</span>
-            </div>
+
           </div>
           <div className="hero-visual">
             <div className="phone-mockup">
@@ -250,7 +272,7 @@ const LandingPage: React.FC = () => {
             <div className="feature-card">
               <div className="feature-icon"><Zap color="#2ecc71" /></div>
               <h3>Instant Onboarding</h3>
-              <p>No more manual entry. Members use group code LENDWUS to register themselves in seconds.</p>
+              <p>No more manual entry. Members register themselves in seconds with a unique invite code.</p>
             </div>
             <div className="feature-card">
               <div className="feature-icon"><ShieldCheck color="#2ecc71" /></div>
@@ -354,7 +376,7 @@ const LandingPage: React.FC = () => {
             <div className="step">
               <div className="step-num">1</div>
               <h4>Join with Code</h4>
-              <p>Enter <strong>LENDWUS</strong> to automatically join the group.</p>
+              <p>Enter your unique group code to automatically join.</p>
             </div>
             <div className="step">
               <div className="step-num">2</div>
@@ -379,8 +401,8 @@ const LandingPage: React.FC = () => {
               <button className="btn btn-primary" onClick={() => window.location.href = '/login'}>
                 <Smartphone size={20} /> Open iOS Web App
               </button>
-              <button className="btn btn-outline" onClick={() => window.open('https://www.mediafire.com/file/brhmepfujmxdkgb/LendWUs_v3.1.apk/file', '_blank')}>
-                <Download size={20} /> Android APK (v3.1)
+              <button className="btn btn-outline" onClick={handleDownload}>
+                <Download size={20} /> Android APK ({apkVersion})
               </button>
             </div>
             <div className="ios-instructions">
@@ -392,7 +414,7 @@ const LandingPage: React.FC = () => {
                 <li>Tap <strong>"Add"</strong> — LendWUs will appear on your home screen like a native app!</li>
               </ol>
             </div>
-            <div className="download-info">Web App • Works on iOS 14+ • Android APK v2.1 • 24MB</div>
+            <div className="download-info">Web App • Works on iOS 14+ • Android APK {apkVersion} • 24MB</div>
           </div>
         </div>
       </section>
@@ -402,6 +424,16 @@ const LandingPage: React.FC = () => {
           <div className="footer-top">
             <div className="logo">Lend<span>WUs</span></div>
             <p>Empowering Group Financials.</p>
+          </div>
+            <div className="footer-contact">
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📧</span>
+              <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
+            </div>
+            <div className="footer-contact-item">
+              <span className="footer-contact-icon">📞</span>
+              <span>{contactPhone}</span>
+            </div>
           </div>
           <div className="footer-bottom">
             <p>&copy; 2025 LendWUs App. All rights reserved.</p>

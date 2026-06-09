@@ -177,7 +177,7 @@ const MemberProfile: React.FC = () => {
                   <tr key={l.id}>
                     <td>{l.issuedDate?.toDate?.()?.toLocaleDateString() || "N/A"}</td>
                     <td>₱{fmt(Number(l.principal) || 0)}</td>
-                    <td>{l.interestRate || 0}%</td>
+                    <td>{((Number(l.interestRate) || 0) * 100).toFixed(0)}%</td>
                     <td>{l.dueDate?.toDate?.()?.toLocaleDateString() || "N/A"}</td>
                     <td><span className={`chip ${l.isFullyRepaid ? "active-chip" : "badge-orange"}`}>{l.isFullyRepaid ? "Repaid" : "Active"}</span></td>
                   </tr>

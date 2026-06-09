@@ -3,6 +3,7 @@ import '../models/loan.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/firestore_helpers.dart';
 
 class LoanRequestRepository {
   Future<String> createLoanRequest(LoanRequest request) async {
@@ -123,7 +124,7 @@ class LoanRequestRepository {
         memberId: memberId,
         principal: (fresh['amount'] as num).toDouble(),
         interestRate: ((fresh['interestRate'] as num?)?.toDouble() ?? 0) / 100,
-        dueDate: DateTime.parse(fresh['dueDate'] as String),
+        dueDate: parseFirestoreDate(fresh['dueDate']),
         issuedDate: DateTime.now(),
         isFullyRepaid: false,
       );

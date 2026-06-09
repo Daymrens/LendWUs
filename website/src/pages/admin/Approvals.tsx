@@ -5,8 +5,11 @@ import {
   updateDoc,
   doc,
   query,
+  where,
   orderBy,
   Timestamp,
+  limit,
+  runTransaction,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -222,11 +225,51 @@ const LoansTab: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, request: LoanRequest) => {
     try {
-      await updateDoc(doc(db, "loan_requests", id), {
-        status: "approved",
-        processedAt: Timestamp.now(),
+      await runTransaction(db, async (transaction) => {
+        const requestRef = doc(db, "loan_requests", id);
+        const requestSnap = await transaction.get(requestRef);
+        if (!requestSnap.exists()) throw new Error("Request not found");
+        const data = requestSnap.data();
+        if (data.status !== "pending") throw new Error("Request already processed");
+
+        const memberId = data.memberId;
+
+        // Check for existing active loans
+        const activeLoansQ = query(
+          collection(db, "loans"),
+          where("memberId", "==", memberId),
+          where("isFullyRepaid", "==", false),
+          limit(1)
+        );
+        const activeLoansSnap = await getDocs(activeLoansQ);
+        if (!activeLoansSnap.empty) throw new Error("Member already has an active loan");
+
+        // Create Loan doc
+        const loanRef = doc(collection(db, "loans"));
+        const interestRate = ((data.interestRate as number) || 0) / 100;
+        const dueDate = data.dueDate instanceof Timestamp
+          ? data.dueDate
+          : data.dueDate?.toDate
+            ? Timestamp.fromDate(data.dueDate.toDate())
+            : Timestamp.now();
+
+        transaction.set(loanRef, {
+          memberId: memberId,
+          principal: data.amount,
+          interestRate: interestRate,
+          issuedDate: Timestamp.now(),
+          dueDate: dueDate,
+          isFullyRepaid: false,
+        });
+
+        // Update request status to disbursed
+        transaction.update(requestRef, {
+          status: "disbursed",
+          processedAt: Timestamp.now(),
+          loanId: loanRef.id,
+        });
       });
       load();
     } catch (err: unknown) {
@@ -288,7 +331,7 @@ const LoansTab: React.FC = () => {
                 <button className="btn btn-outline btn-sm" style={{ color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleReject(r.id)}>
                   Reject
                 </button>
-                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id)}>
+                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id, r)}>
                   Approve
                 </button>
               </div>

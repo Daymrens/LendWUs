@@ -1,11 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
-import '../../core/utils/date_formatter.dart';
 import '../../data/models/contribution.dart';
 import '../../data/models/loan.dart';
 import '../../data/models/repayment.dart';
@@ -436,7 +433,13 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
-              return _PaymentRequestDataTile(payment: item, ref: ref);
+              return _DataTile(
+                title: '${CurrencyFormatter.format(item.amount)} • ${item.type.name}',
+                subtitle: '${item.memberId}  •  ${item.status.name}',
+                trailing: item.requestDate.day.toString(),
+                onEdit: null,
+                onDelete: () => _deletePaymentRequest(context, ref, item),
+              );
             },
           );
         },

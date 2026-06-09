@@ -183,7 +183,7 @@ const Members: React.FC = () => {
     return <span className="chip badge-orange">PENDING</span>;
   };
 
-  const totalContributions = members.reduce((s, m) => s + m.totalRequired, 0);
+  const totalContributions = members.reduce((s, m) => s + (m.totalRequired ?? 0), 0);
   const activeCount = members.filter(m => m.isActive).length;
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading members...</p></div>;
@@ -238,9 +238,9 @@ const Members: React.FC = () => {
                   {!m.isActive && <span className="badge badge-inactive">Inactive</span>}
                 </div>
                 <div className="member-details">
-                  <span>₱{(m.amountPerHead).toLocaleString()}/head</span>
-                  <span>Required: ₱{(m.totalRequired).toLocaleString()}</span>
-                  <span>Balance: ₱{(m.balance).toLocaleString()}</span>
+                  <span>₱{(m.amountPerHead ?? 0).toLocaleString()}/head</span>
+                  <span>Required: ₱{(m.totalRequired ?? 0).toLocaleString()}</span>
+                  <span>Balance: ₱{(m.balance ?? 0).toLocaleString()}</span>
                 </div>
               </div>
               <div className="member-actions">

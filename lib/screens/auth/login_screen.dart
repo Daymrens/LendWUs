@@ -35,11 +35,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final surfaceAlt = Theme.of(context).brightness == Brightness.dark
-        ? AppColors.surfaceAlt
-        : AppColors.lightSurfaceAlt;
-
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -67,24 +62,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const _DelayedWidget(delay: 0, child: _LoginHeader()),
                       const SizedBox(height: 40),
-                      const _DelayedWidget(delay: 150, child: _FeatureCards()),
-                      const SizedBox(height: 40),
-                      const _DelayedWidget(delay: 200, child: _LoginForm()),
-                      const SizedBox(height: 28),
-                      const _DelayedWidget(delay: 300, child: _SocialLogin()),
+                      const _DelayedWidget(delay: 150, child: _LoginForm()),
                       const SizedBox(height: 24),
-                      _DelayedWidget(
-                        delay: 400,
-                        child: Center(
-                          child: Text(
-                            'v1.0.0',
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                      ),
+                      const _DelayedWidget(delay: 250, child: _SocialLogin()),
                     ],
                   ),
                 ),
@@ -163,7 +143,7 @@ class _LoginHeader extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(22),
+            shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.3),
@@ -188,69 +168,13 @@ class _LoginHeader extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Group savings made simple',
+          'Financial management simplified',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
                 fontSize: 15,
               ),
         ),
       ],
-    );
-  }
-}
-
-class _FeatureCards extends StatelessWidget {
-  const _FeatureCards();
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final features = [
-      ('Group Savings', Icons.account_balance_wallet_rounded, 'Pool funds together and track contributions in real-time'),
-      ('Member Loans', Icons.trending_up_rounded, 'Issue loans with auto-calculated interest and repayment tracking'),
-      ('Reports', Icons.assessment_rounded, 'Visual dashboards, charts, and exportable financial reports'),
-    ];
-
-    return Column(
-      children: features.map((f) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.15)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(f.$2, size: 20, color: AppColors.primary),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(f.$1,
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                      const SizedBox(height: 2),
-                      Text(f.$3,
-                        style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 }
@@ -357,6 +281,7 @@ class _SocialLogin extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(_loginStateProvider);
     final notifier = ref.read(_loginStateProvider.notifier);
+    final colorScheme = Theme.of(context).colorScheme;
     final surfaceAlt = Theme.of(context).brightness == Brightness.dark
         ? AppColors.surfaceAlt
         : AppColors.lightSurfaceAlt;
@@ -395,7 +320,13 @@ class _SocialLogin extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.login_rounded, size: 20),
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CustomPaint(
+                    painter: _GoogleIconPainter(),
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Text(
                   'Sign in with Google',
@@ -404,6 +335,17 @@ class _SocialLogin extends ConsumerWidget {
                       ),
                 ),
               ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        TextButton(
+          onPressed: () => context.go('/unrecognized'),
+          child: Text(
+            'New member? Enter group code',
+            style: TextStyle(
+              color: colorScheme.onSurfaceVariant,
+              fontSize: 13,
             ),
           ),
         ),
@@ -562,4 +504,93 @@ class _LoginNotifier extends StateNotifier<_LoginState> {
     passwordController.dispose();
     super.dispose();
   }
+}
+
+class _GoogleIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2;
+
+    // White background circle
+    canvas.drawCircle(c, r, Paint()..color = Colors.white);
+
+    // Blue arc (left half + bottom)
+    final bluePaint = Paint()
+      ..color = const Color(0xFF4285F4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.32
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r * 0.68),
+      135 * 3.14159 / 180,
+      270 * 3.14159 / 180,
+      false,
+      bluePaint,
+    );
+
+    // Red arc (top-right quadrant)
+    final redPaint = Paint()
+      ..color = const Color(0xFFEA4335)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.32
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r * 0.68),
+      -45 * 3.14159 / 180,
+      90 * 3.14159 / 180,
+      false,
+      redPaint,
+    );
+
+    // Yellow arc (bottom-left)
+    final yellowPaint = Paint()
+      ..color = const Color(0xFFFBBC05)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.32
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r * 0.68),
+      45 * 3.14159 / 180,
+      90 * 3.14159 / 180,
+      false,
+      yellowPaint,
+    );
+
+    // Green arc (bottom-right)
+    final greenPaint = Paint()
+      ..color = const Color(0xFF34A853)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = r * 0.32
+      ..strokeCap = StrokeCap.butt;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: c, radius: r * 0.68),
+      -135 * 3.14159 / 180,
+      90 * 3.14159 / 180,
+      false,
+      greenPaint,
+    );
+
+    // Horizontal blue bar
+    final barPaint = Paint()..color = const Color(0xFF4285F4);
+    final barLeft = c.dx - r * 0.1;
+    final barRight = c.dx + r * 0.68;
+    final barTop = c.dy - r * 0.16;
+    final barBottom = c.dy + r * 0.16;
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(barLeft, barTop, barRight, barBottom),
+        const Radius.circular(2),
+      ),
+      barPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
