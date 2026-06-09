@@ -1,4 +1,5 @@
 import '../models/head_change_request.dart';
+import '../models/member.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
@@ -101,10 +102,39 @@ class HeadChangeRequestRepository {
       final memberData = memberDoc.data()!;
       final amountPerHead = (memberData['amountPerHead'] as num?)?.toDouble() ?? 0.0;
       final requestedHeads = (data['requestedHeads'] as num).toInt();
+      final newTotalRequired = requestedHeads * amountPerHead;
+
+      // Reconcile current month balance
+      final now = DateTime.now();
+      final monthYear = '${now.year}-${now.month}';
+      
+      final contribsSnap = await firestore
+          .collection('contributions')
+          .where('memberId', isEqualTo: memberId)
+          .where('month', isEqualTo: now.month)
+          .where('year', isEqualTo: now.year)
+          .get();
+      
+      double monthTotal = contribsSnap.docs.fold<double>(
+        0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
+      );
+
+      final member = Member.fromMap({...memberData, 'id': memberDoc.id});
+      
+      double oldExcess = member.currentMonthYear == monthYear && member.currentMonthTotal > member.totalRequired
+          ? member.currentMonthTotal - member.totalRequired
+          : 0.0;
+      
+      double newExcess = monthTotal > newTotalRequired
+          ? monthTotal - newTotalRequired
+          : 0.0;
 
       tx.update(memberRef, {
         'headsCount': requestedHeads,
-        'totalRequired': requestedHeads * amountPerHead,
+        'totalRequired': newTotalRequired,
+        'balance': (member.balance - oldExcess + newExcess).clamp(0.0, double.infinity),
+        'currentMonthTotal': monthTotal,
+        'currentMonthYear': monthYear,
       });
       tx.update(requestRef, {
         'status': 'approved',

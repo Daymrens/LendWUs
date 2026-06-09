@@ -158,6 +158,21 @@ class CurrentUserNotifier extends ChangeNotifier {
     _deactivationReason = null;
   }
 
+  Future<void> refreshUser() async {
+    if (_disposed) return;
+    final firebaseUser = FirebaseService.auth.currentUser;
+    if (firebaseUser == null) return;
+    final repo = ref.read(userRepositoryProvider);
+    _user = await repo.getUserById(firebaseUser.uid);
+    if (_user?.memberId != null) {
+      final member = await ref.read(memberRepositoryProvider).getMemberById(_user!.memberId!);
+      if (member != null) {
+        _user!.displayId = member.memberId;
+      }
+    }
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> _registerFcmToken() async {
     if (_user?.id == null) return;
     final repo = ref.read(userRepositoryProvider);
@@ -246,7 +261,7 @@ class CurrentUserNotifier extends ChangeNotifier {
       String? memberDocId;
       String? customMemberId;
       await firestore.runTransaction((tx) async {
-        customMemberId = await MemberIdGenerator.generateNextMemberId(firestore);
+        customMemberId = await MemberIdGenerator.generateNextMemberId(firestore, transaction: tx);
         
         final member = Member(
           name: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],

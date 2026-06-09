@@ -31,14 +31,15 @@ class MemberIdGenerator {
     return maxN;
   }
 
-  static Future<String> generateNextMemberId(FirebaseFirestore db) async {
-    final ids = await generateNextMemberIds(db, 1);
+  static Future<String> generateNextMemberId(FirebaseFirestore db, {Transaction? transaction}) async {
+    final ids = await generateNextMemberIds(db, 1, transaction: transaction);
     return ids.first;
   }
 
-  static Future<List<String>> generateNextMemberIds(FirebaseFirestore db, int count) async {
+  static Future<List<String>> generateNextMemberIds(FirebaseFirestore db, int count, {Transaction? transaction}) async {
     if (count <= 0) return [];
-    return db.runTransaction((tx) async {
+
+    Future<List<String>> action(Transaction tx) async {
       final counterRef = db.doc(counterDocPath);
       final counter = await tx.get(counterRef);
       final existingMax = (counter.data()?['lastNumber'] as int?) ?? 0;
@@ -49,9 +50,18 @@ class MemberIdGenerator {
         throw StateError('MemberID limit reached (max 999999)');
       }
 
-      tx.set(counterRef, {'lastNumber': end, 'updatedAt': FieldValue.serverTimestamp()});
+      tx.set(counterRef, {
+        'lastNumber': end,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
       return List<String>.generate(count, (i) => formatMemberId(start + i));
-    });
+    }
+
+    if (transaction != null) {
+      return action(transaction);
+    } else {
+      return db.runTransaction(action);
+    }
   }
 
   static Future<int> backfillMissingMemberIds(FirebaseFirestore db) async {

@@ -8,6 +8,8 @@ class Member {
   double amountPerHead;
   double totalRequired;
   double balance;
+  double currentMonthTotal;
+  String? currentMonthYear;
   String? avatarPath;
   DateTime joinedAt;
   bool isActive;
@@ -21,6 +23,8 @@ class Member {
     required this.amountPerHead,
     required this.totalRequired,
     this.balance = 0.0,
+    this.currentMonthTotal = 0.0,
+    this.currentMonthYear,
     this.avatarPath,
     required this.joinedAt,
     this.isActive = true,
@@ -38,6 +42,8 @@ class Member {
       'amountPerHead': amountPerHead,
       'totalRequired': totalRequired,
       'balance': balance,
+      'currentMonthTotal': currentMonthTotal,
+      if (currentMonthYear != null) 'currentMonthYear': currentMonthYear,
       if (avatarPath != null) 'avatarPath': avatarPath,
       'joinedAt': joinedAt.toIso8601String(),
       'isActive': isActive,
@@ -54,6 +60,8 @@ class Member {
       amountPerHead: (map['amountPerHead'] as num?)?.toDouble() ?? 0.0,
       totalRequired: (map['totalRequired'] as num?)?.toDouble() ?? 0.0,
       balance: (map['balance'] as num?)?.toDouble() ?? 0.0,
+      currentMonthTotal: (map['currentMonthTotal'] as num?)?.toDouble() ?? 0.0,
+      currentMonthYear: map['currentMonthYear'],
       avatarPath: map['avatarPath'],
       joinedAt: parseFirestoreDate(map['joinedAt']),
       isActive: map['isActive'] == true || map['isActive'] == 1,

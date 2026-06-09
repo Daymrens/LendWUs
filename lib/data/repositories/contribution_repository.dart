@@ -1,12 +1,18 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/contribution.dart';
+import 'member_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class ContributionRepository {
-  Future<String> createContribution(Contribution contribution) async {
-    final docRef = await FirebaseService.firestore
-        .collection('contributions')
-        .add(contribution.toMap());
-    return docRef.id;
+  Future<String> createContribution(Contribution contribution, {Transaction? transaction}) async {
+    final ref = FirebaseService.firestore.collection('contributions').doc();
+    if (transaction != null) {
+      transaction.set(ref, contribution.toMap());
+      return ref.id;
+    } else {
+      await ref.set(contribution.toMap());
+      return ref.id;
+    }
   }
 
   Future<List<Contribution>> getMemberContributions(String memberId) async {
@@ -47,13 +53,31 @@ class ContributionRepository {
         .collection('contributions')
         .doc(contribution.id!)
         .update(contribution.toMap());
+    
+    // Reconcile member balance
+    final memberRepo = MemberRepository();
+    await memberRepo.reconcileMemberMonth(
+      contribution.memberId,
+      contribution.month,
+      contribution.year,
+    );
   }
 
   Future<void> deleteContribution(String id) async {
-    await FirebaseService.firestore
-        .collection('contributions')
-        .doc(id)
-        .delete();
+    final firestore = FirebaseService.firestore;
+    final doc = await firestore.collection('contributions').doc(id).get();
+    if (!doc.exists) return;
+    
+    final contribution = Contribution.fromMap({...doc.data()!, 'id': doc.id});
+    await firestore.collection('contributions').doc(id).delete();
+    
+    // Reconcile member balance
+    final memberRepo = MemberRepository();
+    await memberRepo.reconcileMemberMonth(
+      contribution.memberId,
+      contribution.month,
+      contribution.year,
+    );
   }
 
   Stream<List<Contribution>> watchAllContributions() {

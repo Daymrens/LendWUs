@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/payment_request.dart';
 import '../models/contribution.dart';
 import '../models/repayment.dart';
+import '../models/loan.dart';
 import 'loan_repository.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/utils/interest_calculator.dart';
+import '../models/member.dart';
 
 class PaymentRequestRepository {
   Future<String> createPaymentRequest(PaymentRequest request) async {
@@ -96,75 +101,58 @@ class PaymentRequestRepository {
     final firestore = FirebaseService.firestore;
     final requestRef = firestore.collection('payment_requests').doc(requestId);
 
-    // Idempotent claim: only proceed if the request is still pending.
-    final existingData = await firestore.runTransaction((tx) async {
-      final snap = await tx.get(requestRef);
-      if (!snap.exists) return null;
-      final data = snap.data()!;
-      if (data['status'] != 'pending') return null;
-      tx.update(requestRef, {
-        'status': 'approved',
-        'approvedDate': DateTime.now().toIso8601String(),
-        'approvedBy': approvedBy,
-        if (notes != null) 'notes': notes,
-      });
-      return {...data, 'id': requestId};
-    });
-
-    if (existingData == null) return false;
-
-    final request = PaymentRequest.fromMap(existingData);
+    // Fetch necessary data outside transaction
+    final requestDoc = await requestRef.get();
+    if (!requestDoc.exists) return false;
+    final request = PaymentRequest.fromMap({...requestDoc.data()!, 'id': requestDoc.id});
+    if (request.status != 'pending') return false;
 
     try {
-      if (request.type == PaymentType.contribution) {
-        final contribution = Contribution(
-          memberId: request.memberId,
-          amount: request.amount,
-          date: request.requestDate,
-          month: request.requestDate.month,
-          year: request.requestDate.year,
-          createdBy: 'member',
-        );
+      await firestore.runTransaction((tx) async {
+        // 1. Update request status
+        tx.update(requestRef, {
+          'status': 'approved',
+          'approvedDate': DateTime.now().toIso8601String(),
+          'approvedBy': approvedBy,
+          if (notes != null) 'notes': notes,
+        });
 
-        await FirebaseService.firestore
-            .collection('contributions')
-            .add(contribution.toMap());
+        final memberRef = firestore.collection('members').doc(request.memberId);
+        final memberSnap = await tx.get(memberRef);
+        if (!memberSnap.exists) throw Exception('Member not found');
+        final member = Member.fromMap({...memberSnap.data()!, 'id': memberSnap.id});
 
-        // Track overpayment as balance
-        final contribsSnap = await FirebaseService.firestore
-            .collection('contributions')
-            .where('memberId', isEqualTo: request.memberId)
-            .where('month', isEqualTo: request.requestDate.month)
-            .where('year', isEqualTo: request.requestDate.year)
-            .get();
-        double monthTotal = contribsSnap.docs.fold<double>(
-          0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
-        );
+        // 2. Add contribution or repayment
+        if (request.type == PaymentType.contribution) {
+          final contribution = Contribution(
+            memberId: request.memberId,
+            amount: request.amount,
+            date: request.requestDate,
+            month: request.requestDate.month,
+            year: request.requestDate.year,
+            createdBy: 'member',
+          );
+          
+          final contribRef = firestore.collection('contributions').doc();
+          tx.set(contribRef, contribution.toMap());
 
-        final memberDoc = await FirebaseService.firestore
-            .collection('members')
-            .doc(request.memberId)
-            .get();
+          // 3. Update member balance and monthly total atomically
+          final requestMonthYear = '${request.requestDate.year}-${request.requestDate.month}';
+          double monthTotalBefore = (member.currentMonthYear == requestMonthYear) ? member.currentMonthTotal : 0.0;
+          double currentBalance = member.balance;
 
-        if (memberDoc.exists) {
-          final memberData = memberDoc.data()!;
-          final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
-          double currentBalance = (memberData['balance'] as num?)?.toDouble() ?? 0.0;
+          double newMonthTotal = monthTotalBefore + request.amount;
+          double newBalance = currentBalance;
 
-          if (monthTotal > required) {
-            final excess = monthTotal - required;
-            await FirebaseService.firestore
-                .collection('members')
-                .doc(request.memberId)
-                .update({'balance': currentBalance + excess});
-          } else if (monthTotal < required && currentBalance > 0) {
-            // Apply balance if current month total is below required
-            final needed = required - monthTotal;
+          if (newMonthTotal > member.totalRequired) {
+            final excess = newMonthTotal - member.totalRequired;
+            newBalance += excess;
+          } else if (newMonthTotal < member.totalRequired && currentBalance > 0) {
+            final needed = member.totalRequired - newMonthTotal;
             final toApply = currentBalance >= needed ? needed : currentBalance;
 
             if (toApply > 0) {
-              // Record the balance application as a contribution
-              final balanceContribution = Contribution(
+              final balanceContrib = Contribution(
                 memberId: request.memberId,
                 amount: toApply,
                 date: DateTime.now(),
@@ -173,29 +161,55 @@ class PaymentRequestRepository {
                 notes: 'Applied from balance',
                 createdBy: 'system',
               );
+              final balRef = firestore.collection('contributions').doc();
+              tx.set(balRef, balanceContrib.toMap());
+              
+              newBalance -= toApply;
+              newMonthTotal += toApply;
+            }
+          }
 
-              await FirebaseService.firestore
-                  .collection('contributions')
-                  .add(balanceContribution.toMap());
+          tx.update(memberRef, {
+            'balance': newBalance,
+            'currentMonthTotal': newMonthTotal,
+            'currentMonthYear': requestMonthYear,
+          });
 
-              await FirebaseService.firestore
-                  .collection('members')
-                  .doc(request.memberId)
-                  .update({'balance': currentBalance - toApply});
+        } else if (request.type == PaymentType.loan && request.loanId != null) {
+          final repayment = Repayment(
+            loanId: request.loanId!,
+            amountPaid: request.amount,
+            date: DateTime.now(),
+          );
+          
+          final repayRef = firestore.collection('repayments').doc();
+          tx.set(repayRef, repayment.toMap());
+          
+          // Update loan status (atomic within this tx)
+          final loanRef = firestore.collection('loans').doc(request.loanId!);
+          final loanSnap = await tx.get(loanRef);
+          if (loanSnap.exists) {
+            final loan = Loan.fromMap({...loanSnap.data()!, 'id': loanSnap.id});
+            if (!loan.isFullyRepaid) {
+              final repaymentsSnap = await firestore
+                  .collection('repayments')
+                  .where('loanId', isEqualTo: request.loanId)
+                  .get();
+              final repayments = repaymentsSnap.docs
+                  .map((d) => Repayment.fromMap({...d.data(), 'id': d.id}))
+                  .toList();
+              
+              repayments.add(repayment);
+
+              if (InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
+                tx.update(loanRef, {'isFullyRepaid': true});
+              }
             }
           }
         }
-      } else if (request.type == PaymentType.loan && request.loanId != null) {
-        final repayment = Repayment(
-          loanId: request.loanId!,
-          amountPaid: request.amount,
-          date: DateTime.now(),
-        );
+      });
 
-        final loanRepo = LoanRepository();
-        await loanRepo.addRepayment(repayment);
-      }
-
+      // 4. Notify (outside transaction)
       final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
       final amountLabel = CurrencyFormatter.format(request.amount);
       NotificationRepository.notifyMember(
@@ -204,17 +218,12 @@ class PaymentRequestRepository {
         'Your $typeLabel of $amountLabel has been approved',
         type: 'payment_request_approved',
       );
+      
+      return true;
     } catch (e) {
-      // Post-transaction work failed; revert the approval
-      await requestRef.update({
-        'status': 'pending',
-        'approvedDate': null,
-        'approvedBy': null,
-        'notes': notes ?? existingData['notes'],
-      });
-      rethrow;
+      debugPrint('approvePaymentRequest error: $e');
+      return false;
     }
-    return true;
   }
 
   Future<bool> rejectPaymentRequest(String requestId, {String? notes}) async {

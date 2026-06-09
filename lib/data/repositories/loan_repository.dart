@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan.dart';
 import '../models/repayment.dart';
 import 'fund_repository.dart';
@@ -43,18 +44,33 @@ class LoanRepository {
   }
 
   Future<String> addLoan(Loan loan) async {
-    if (await hasActiveLoan(loan.memberId)) {
-      throw Exception('Member already has an unpaid loan');
-    }
-    
-    final fundRepo = FundRepository();
-    final available = await fundRepo.getAvailableToLoan();
-    if (loan.principal > available) {
-      throw Exception('Insufficient fund balance');
-    }
+    final firestore = FirebaseService.firestore;
+    String? loanId;
 
-    final docRef = await FirebaseService.firestore.collection('loans').add(loan.toMap());
-    return docRef.id;
+    await firestore.runTransaction((tx) async {
+      final activeLoansSnap = await firestore
+          .collection('loans')
+          .where('memberId', isEqualTo: loan.memberId)
+          .where('isFullyRepaid', isEqualTo: false)
+          .limit(1)
+          .get();
+      
+      if (activeLoansSnap.docs.isNotEmpty) {
+        throw Exception('Member already has an unpaid loan');
+      }
+
+      final fundRepo = FundRepository();
+      final available = await fundRepo.getAvailableToLoan();
+      if (loan.principal > available) {
+        throw Exception('Insufficient fund balance');
+      }
+
+      final docRef = firestore.collection('loans').doc();
+      loanId = docRef.id;
+      tx.set(docRef, loan.toMap());
+    });
+
+    return loanId!;
   }
 
   Future<void> updateLoan(Loan loan) async {
@@ -62,16 +78,24 @@ class LoanRepository {
         .collection('loans')
         .doc(loan.id!)
         .update(loan.toMap());
+    
+    await _updateLoanStatus(loan.id!);
   }
 
-  Future<String> addRepayment(Repayment repayment) async {
-    final docRef = await FirebaseService.firestore
-        .collection('repayments')
-        .add(repayment.toMap());
+  Future<String> addRepayment(Repayment repayment, {Transaction? transaction}) async {
+    final firestore = FirebaseService.firestore;
+    final ref = firestore.collection('repayments').doc();
+    final String repaymentId = ref.id;
 
-    await _updateLoanStatus(repayment.loanId);
-
-    return docRef.id;
+    if (transaction != null) {
+      transaction.set(ref, repayment.toMap());
+      await _updateLoanStatus(repayment.loanId, transaction: transaction);
+      return repaymentId;
+    } else {
+      await ref.set(repayment.toMap());
+      await _updateLoanStatus(repayment.loanId);
+      return repaymentId;
+    }
   }
 
   Future<List<Repayment>> getAllRepayments() async {
@@ -100,40 +124,58 @@ class LoanRepository {
         .collection('repayments')
         .doc(repayment.id!)
         .update(repayment.toMap());
+    
+    await _updateLoanStatus(repayment.loanId);
   }
 
   Future<void> deleteRepayment(String id) async {
-    await FirebaseService.firestore.collection('repayments').doc(id).delete();
+    final firestore = FirebaseService.firestore;
+    final doc = await firestore.collection('repayments').doc(id).get();
+    if (!doc.exists) return;
+    
+    final repayment = Repayment.fromMap({...doc.data()!, 'id': doc.id});
+    await firestore.collection('repayments').doc(id).delete();
+    
+    await _updateLoanStatus(repayment.loanId);
   }
 
-  Future<void> _updateLoanStatus(String loanId) async {
+  Future<void> _updateLoanStatus(String loanId, {Transaction? transaction}) async {
     final firestore = FirebaseService.firestore;
     final loanRef = firestore.collection('loans').doc(loanId);
 
-    await firestore.runTransaction((txn) async {
+    // Fetch repayments outside transaction because Transaction.get(Query) is not supported
+    final repaymentsSnap = await firestore
+        .collection('repayments')
+        .where('loanId', isEqualTo: loanId)
+        .get();
+
+    final repayments = repaymentsSnap.docs
+        .map((d) => Repayment.fromMap({...d.data(), 'id': d.id}))
+        .toList();
+
+    Future<void> action(Transaction txn) async {
       final loanDoc = await txn.get(loanRef);
       if (!loanDoc.exists) return;
 
       final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
-      if (loan.isFullyRepaid) return;
-
-      final repaymentsSnap = await firestore
-          .collection('repayments')
-          .where('loanId', isEqualTo: loanId)
-          .get();
-
-      final repayments = repaymentsSnap.docs
-          .map((d) => Repayment.fromMap({...d.data(), 'id': d.id}))
-          .toList();
+      if (loan.isFullyRepaid) {
+        // If it was fully repaid, check if it still is
+        if (!InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
+          txn.update(loanRef, {'isFullyRepaid': false});
+        }
+        return;
+      }
 
       if (InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
-        final fresh = await txn.get(loanRef);
-        if (!fresh.exists) return;
-        final data = fresh.data()!;
-        if (data['isFullyRepaid'] == true) return;
         txn.update(loanRef, {'isFullyRepaid': true});
       }
-    });
+    }
+
+    if (transaction != null) {
+      await action(transaction);
+    } else {
+      await firestore.runTransaction(action);
+    }
   }
 
   Future<double> getTotalLoansIssued() async {

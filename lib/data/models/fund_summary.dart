@@ -28,27 +28,35 @@ class FundSummary {
     final totalLoansIssued = loans.fold<double>(0.0, (sum, l) => sum + l.principal);
     final totalRepayments = repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
 
-    double totalInterestEarned = 0.0;
-    for (var loan in loans) {
-      final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-      final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-      final excess = totalRepaid - loan.principal;
-      if (excess > 0) totalInterestEarned += excess;
+    // Group repayments by loanId for O(1) lookup
+    final repaymentsByLoan = <String, List<Repayment>>{};
+    for (final r in repayments) {
+      repaymentsByLoan.putIfAbsent(r.loanId, () => []).add(r);
     }
 
-    final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
-
+    double totalInterestEarned = 0.0;
     double outstanding = 0.0;
+
     for (var loan in loans) {
+      final loanId = loan.id;
+      if (loanId == null) continue;
+
+      final loanRepayments = repaymentsByLoan[loanId] ?? [];
+      final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+      
+      // Interest earned
+      final excess = totalRepaid - loan.principal;
+      if (excess > 0) totalInterestEarned += excess;
+
+      // Outstanding balance
       if (!loan.isFullyRepaid) {
-        final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-        final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
         final totalDue = loan.principal + (loan.principal * loan.interestRate);
         final remaining = totalDue - totalRepaid;
         if (remaining > 0) outstanding += remaining;
       }
     }
 
+    final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
     final availableToLoan = fundBalance - outstanding;
 
     return FundSummary(

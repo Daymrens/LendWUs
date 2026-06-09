@@ -38,13 +38,22 @@ class MonthlyReport {
 
     double interestGained = 0.0;
     for (var repayment in repaid) {
-      final loan = loans.firstWhere((l) => l.id == repayment.loanId);
-      final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-      final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-
-      if (totalRepaid > loan.principal) {
-        final interest = totalRepaid - loan.principal;
-        interestGained += interest;
+      final loan = loans.firstWhere((l) => l.id == repayment.loanId, orElse: () => throw Exception('Loan not found: ${repayment.loanId}'));
+      
+      // Calculate total repaid before THIS repayment
+      final priorRepayments = repayments.where((r) => 
+        r.loanId == loan.id && 
+        (r.date.isBefore(repayment.date) || (r.date.isAtSameMomentAs(repayment.date) && r.id!.compareTo(repayment.id!) < 0))
+      );
+      final totalPrior = priorRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+      
+      final totalWithCurrent = totalPrior + repayment.amountPaid;
+      
+      if (totalWithCurrent > loan.principal) {
+        final currentInterestPortion = totalWithCurrent - (totalPrior > loan.principal ? totalPrior : loan.principal);
+        if (currentInterestPortion > 0) {
+          interestGained += currentInterestPortion;
+        }
       }
     }
 

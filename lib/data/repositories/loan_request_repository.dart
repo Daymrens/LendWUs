@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan_request.dart';
 import '../models/loan.dart';
+import 'fund_repository.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -110,6 +112,13 @@ class LoanRequestRepository {
         .limit(1)
         .get();
     if (existingActive.docs.isNotEmpty) return false;
+
+    // 2. Check available funds
+    final fundRepo = FundRepository();
+    final available = await fundRepo.getAvailableToLoan();
+    if ((data['amount'] as num).toDouble() > available) {
+      throw Exception('Insufficient fund balance. Available: ${CurrencyFormatter.format(available)}');
+    }
 
     // Pre-generate a loan doc reference so the create + request update can be atomic.
     final loanRef = firestore.collection('loans').doc();
