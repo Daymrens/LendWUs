@@ -31,9 +31,9 @@ final memberContributionsTotalProvider = FutureProvider.family<double, String>((
   return contribs.fold<double>(0.0, (s, c) => s + c.amount);
 });
 
-final memberActiveLoansProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, memberId) async {
+final memberActiveLoansProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, memberId) {
   final repo = LoanRepository();
-  return await repo.getMemberActiveLoans(memberId);
+  return repo.watchMemberActiveLoans(memberId);
 });
 
 class MemberDashboardScreen extends ConsumerWidget {

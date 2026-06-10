@@ -6,7 +6,6 @@ import 'package:gap/gap.dart';
 import 'dart:convert';
 import 'dart:io';
 import '../../core/theme/app_colors.dart';
-import '../../core/firebase/firebase_service.dart';
 import '../../core/services/storage_service.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/auth_provider.dart';
@@ -105,12 +104,6 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
 
     try {
       String? receiptUrl;
-      if (_receiptImage != null) {
-        receiptUrl = await FirebaseService.uploadReceiptImage(
-          File(_receiptImage!.path), user!.memberId!,
-        );
-      }
-
       if (_receiptImage != null) {
         final bytes = await _receiptImage!.readAsBytes();
         receiptUrl = await StorageService.uploadReceipt(

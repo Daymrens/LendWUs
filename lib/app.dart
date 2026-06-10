@@ -14,6 +14,7 @@ import 'screens/loans/loans_screen.dart';
 import 'screens/onboarding/introduction_screen.dart';
 import 'screens/member/member_dashboard_screen.dart';
 import 'screens/member/member_contributions_screen.dart';
+import 'screens/member/member_loans_screen.dart';
 import 'screens/member/member_requests_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/profile/help_support_screen.dart';
@@ -21,6 +22,7 @@ import 'screens/profile/about_screen.dart';
 import 'screens/profile/privacy_security_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
+
 
 import 'screens/admin/approvals_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
@@ -183,6 +185,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const MemberContributionsScreen(),
           ),
           GoRoute(
+            path: '/member-loans',
+            builder: (context, state) => const MemberLoansScreen(),
+          ),
+          GoRoute(
             path: '/member-requests',
             builder: (context, state) => const MemberRequestsScreen(),
           ),
@@ -342,8 +348,9 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
   int _getSelectedIndex() {
     if (location == '/member-home') return 0;
     if (location == '/member-contributions') return 1;
-    if (location == '/member-requests') return 2;
-    if (location == '/member-profile') return 3;
+    if (location == '/member-loans') return 2;
+    if (location == '/member-requests') return 3;
+    if (location == '/member-profile') return 4;
     return 0;
   }
 
@@ -351,49 +358,49 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: child,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          BottomNavigationBar(
-            currentIndex: _getSelectedIndex(),
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  context.go('/member-home');
-                  break;
-                case 1:
-                  context.go('/member-contributions');
-                  break;
-                case 2:
-                  context.go('/member-requests');
-                  break;
-                case 3:
-                  context.go('/member-profile');
-                  break;
-              }
-            },
-            type: BottomNavigationBarType.fixed,
-            items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.attach_money),
-                label: 'My Contribs',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.request_page),
-                label: 'Requests',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
-              ),
-            ],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _getSelectedIndex(),
+        onTap: (index) {
+          switch (index) {
+            case 0:
+              context.go('/member-home');
+              break;
+            case 1:
+              context.go('/member-contributions');
+              break;
+            case 2:
+              context.go('/member-loans');
+              break;
+            case 3:
+              context.go('/member-requests');
+              break;
+            case 4:
+              context.go('/member-profile');
+              break;
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
           ),
-
-
+          BottomNavigationBarItem(
+            icon: Icon(Icons.attach_money),
+            label: 'My Contribs',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance),
+            label: 'Loans',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.request_page),
+            label: 'Requests',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
+          ),
         ],
       ),
     );

@@ -17,6 +17,7 @@ import Activity from './pages/admin/Activity';
 import GlobalSearch from './pages/admin/GlobalSearch';
 import MemberDashboard from './pages/member/Dashboard';
 import MemberContributions from './pages/member/Contributions';
+import MemberLoans from './pages/member/Loans';
 import MemberRequests from './pages/member/Requests';
 import MemberProfilePage from './pages/member/Profile';
 import MemberNotifications from './pages/member/Notifications';
@@ -119,8 +120,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const LandingPage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [apkUrl, setApkUrl] = useState('https://www.mediafire.com/file/fltgf1rw4c2jsin/LendWUs_v4.1.apk/file');
-  const [apkVersion, setApkVersion] = useState('v3.1');
+  const [apkUrl, setApkUrl] = useState('https://www.mediafire.com/file/aawu2bcxuz6r6rn/LendWUs_v5.1.apk/file');
+  const [apkVersion, setApkVersion] = useState('v5.1');
   const [contactEmail, setContactEmail] = useState('daymren@gmail.com');
   const [contactPhone, setContactPhone] = useState('+63 991 718 5691');
   const featuresRef = React.useRef<HTMLElement>(null);
@@ -461,6 +462,7 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const navItems = [
     { path: '/member/dashboard', label: 'Home', icon: '🏠' },
+    { path: '/member/loans', label: 'Loans', icon: '🏦' },
     { path: '/member/contributions', label: 'Contributions', icon: '💰' },
     { path: '/member/requests', label: 'Requests', icon: '📋' },
     { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
@@ -538,6 +540,7 @@ const App: React.FC = () => {
       <Route path="/member/login" element={<Navigate to="/login" replace />} />
       <Route path="/member/unrecognized" element={<MemberUnrecognized />} />
       <Route path="/member/dashboard" element={<ProtectedMemberRoute><MemberLayout><MemberDashboard /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/loans" element={<ProtectedMemberRoute><MemberLayout><MemberLoans /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/contributions" element={<ProtectedMemberRoute><MemberLayout><MemberContributions /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/profile" element={<ProtectedMemberRoute><MemberLayout><MemberProfilePage /></MemberLayout></ProtectedMemberRoute>} />

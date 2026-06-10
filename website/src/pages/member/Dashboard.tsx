@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import PaymentModal from "./modals/PaymentModal";
 import LoanRequestModal from "./modals/LoanRequestModal";
 import HeadChangeModal from "./modals/HeadChangeModal";
+import RepaymentModal from "./modals/RepaymentModal";
 
 interface Contribution {
   id: string;
@@ -68,6 +69,7 @@ const Dashboard: React.FC = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [repaymentsData, setRepaymentsData] = useState<Array<{id:string; loanId:string; amountPaid:number; memberId:string}>>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,6 +77,8 @@ const Dashboard: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showHeadModal, setShowHeadModal] = useState(false);
+  const [showRepaymentModal, setShowRepaymentModal] = useState(false);
+  const [repayLoan, setRepayLoan] = useState<Loan | null>(null);
 
   const [cutoffDay1, setCutoffDay1] = useState(13);
   const [cutoffDay2, setCutoffDay2] = useState(28);
@@ -127,6 +131,11 @@ const Dashboard: React.FC = () => {
       (snap) => { setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest))); }
     ));
 
+    unsubs.push(onSnapshot(
+      query(collection(db, "repayments"), where("memberId", "==", member.id)),
+      (snap) => { setRepaymentsData(snap.docs.map(d => ({ id: d.id, ...(d.data() as Record<string,unknown>) } as any))); }
+    ));
+
     if (user?.uid) {
       unsubs.push(onSnapshot(
         query(collection(db, "notifications"), where("userId", "==", user.uid), where("read", "==", false)),
@@ -150,6 +159,18 @@ const Dashboard: React.FC = () => {
   const totalThisMonth = thisMonth.reduce((s, c) => s + (Number(c.amount) || 0), 0);
   const required = member?.totalRequired || 0;
   const progress = required > 0 ? Math.min(totalThisMonth / required, 1) : 0;
+
+  const loanRepaymentMap: Record<string, number> = {};
+  repaymentsData.forEach((r) => {
+    if (r.loanId) loanRepaymentMap[r.loanId] = (loanRepaymentMap[r.loanId] || 0) + (Number(r.amountPaid) || 0);
+  });
+  const totalInterestEarned = loans.reduce((s, l) => {
+    const repaid = loanRepaymentMap[l.id] || 0;
+    const interest = repaid - (Number(l.principal) || 0);
+    return s + (interest > 0 ? interest : 0);
+  }, 0);
+  const totalHeads = member?.headsCount || 1;
+  const perHeadShare = totalHeads > 0 ? totalInterestEarned / totalHeads : 0;
 
   // Cutoff calculation
   const today = now.getDate();
@@ -290,15 +311,19 @@ const Dashboard: React.FC = () => {
 
       {/* Returns Section */}
       <div className="annual-returns">
-        <div className="annual-returns-title">Returns Pool</div>
+        <div className="annual-returns-title">End of Year Returns</div>
         <div className="mini-stats">
           <div className="mini-stat accent">
-            <span className="mini-stat-label">Total Fund</span>
-            <span className="mini-stat-value">₱{formatCurrency(totalContributions)}</span>
+            <span className="mini-stat-label">Returns Pool</span>
+            <span className="mini-stat-value">₱{formatCurrency(totalInterestEarned)}</span>
           </div>
           <div className="mini-stat">
-            <span className="mini-stat-label">Active Loans</span>
-            <span className="mini-stat-value">{activeLoans.length}</span>
+            <span className="mini-stat-label">Per Head Share</span>
+            <span className="mini-stat-value">₱{formatCurrency(perHeadShare)}</span>
+          </div>
+          <div className="mini-stat">
+            <span className="mini-stat-label">My Heads</span>
+            <span className="mini-stat-value">{totalHeads}</span>
           </div>
         </div>
       </div>
@@ -344,6 +369,13 @@ const Dashboard: React.FC = () => {
                     <span>Principal: ₱{formatCurrency(loan.principal)}</span>
                     <span>Due: {dueDate?.toLocaleDateString() || "N/A"}</span>
                   </div>
+                  <button
+                    className="btn btn-warning btn-sm"
+                    style={{ width: "100%", marginTop: 8 }}
+                    onClick={() => { setRepayLoan(loan); setShowRepaymentModal(true); }}
+                  >
+                    Repay Loan
+                  </button>
                 </div>
               );
             })}
@@ -371,6 +403,16 @@ const Dashboard: React.FC = () => {
           memberDocId={memberDocId}
           currentHeads={member.headsCount}
           onClose={() => setShowHeadModal(false)}
+        />
+      )}
+      {showRepaymentModal && repayLoan && (
+        <RepaymentModal
+          memberDocId={memberDocId}
+          loanId={repayLoan.id}
+          principal={repayLoan.principal}
+          interestRate={repayLoan.interestRate}
+          remainingBalance={repayLoan.remainingBalance ?? (repayLoan.principal + (repayLoan.principal * (repayLoan.interestRate || 0)))}
+          onClose={() => { setShowRepaymentModal(false); setRepayLoan(null); }}
         />
       )}
     </div>

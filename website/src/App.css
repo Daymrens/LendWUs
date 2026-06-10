@@ -116,6 +116,17 @@ h1, h2, h3, h4 {
   box-shadow: 0 4px 15px rgba(26, 77, 46, 0.4);
 }
 
+.btn-warning {
+  background-color: #f59e0b;
+  color: #000;
+  border: 1px solid #f59e0b;
+}
+
+.btn-warning:hover {
+  background-color: #d97706;
+  color: #000;
+}
+
 .btn-outline {
   background-color: transparent;
   border: 1px solid #30363d;

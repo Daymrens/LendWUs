@@ -78,7 +78,7 @@ const Requests: React.FC = () => {
       {tab === "loans" && (
         <>
           <LoansTab memberId={memberDocId} />
-          {showLoanModal && <LoanRequestModal memberId={memberDocId} onClose={() => setShowLoanModal(false)} />}
+          {showLoanModal && <LoanRequestModal memberDocId={memberDocId} onClose={() => setShowLoanModal(false)} />}
         </>
       )}
       {tab === "heads" && <HeadsTab memberId={memberDocId} />}
@@ -361,20 +361,20 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
 };
 
 /* Loan Request Modal */
-const LoanRequestModal: React.FC<{ memberId: string | undefined; onClose: () => void }> = ({ memberId, onClose }) => {
+const LoanRequestModal: React.FC<{ memberDocId: string | undefined; onClose: () => void }> = ({ memberDocId, onClose }) => {
   const [amount, setAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberId || !amount) return;
+    if (!memberDocId || !amount) return;
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt <= 0) { alert("Amount must be greater than 0."); return; }
     setSubmitting(true);
     try {
       await addDoc(collection(db, "loan_requests"), {
-        memberId,
+        memberId: memberDocId,
         amount: amt,
         interestRate: 10,
         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),

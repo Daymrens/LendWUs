@@ -10,6 +10,8 @@ import {
   Timestamp,
   limit,
   runTransaction,
+  addDoc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -20,6 +22,7 @@ interface PaymentRequest {
   amount: number;
   status: string;
   requestDate: Timestamp;
+  loanId?: string;
   notes?: string;
   rejectReason?: string;
   receiptPath?: string;
@@ -110,12 +113,113 @@ const PaymentsTab: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  const handleApprove = async (id: string) => {
+  const resolveMemberDocId = async (memberId: string): Promise<string> => {
+    const direct = await getDoc(doc(db, "members", memberId));
+    if (direct.exists()) return memberId;
+    const byDisplay = await getDocs(query(collection(db, "members"), where("memberId", "==", memberId), limit(1)));
+    if (!byDisplay.empty) return byDisplay.docs[0].id;
+    return memberId;
+  };
+
+  const handleApprove = async (req: PaymentRequest) => {
     try {
-      await updateDoc(doc(db, "payment_requests", id), {
-        status: "approved",
-        approvedDate: Timestamp.now(),
+      const requestRef = doc(db, "payment_requests", req.id);
+      let approved = false;
+
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(requestRef);
+        if (!snap.exists) throw new Error("Request not found");
+        const data = snap.data()!;
+        if (data.status !== "pending") throw new Error("Request already processed");
+
+        transaction.update(requestRef, {
+          status: "approved",
+          approvedDate: Timestamp.now(),
+        });
+        approved = true;
       });
+
+      if (!approved) return;
+
+      const memberDocId = await resolveMemberDocId(req.memberId);
+
+      if (req.type === "contribution") {
+        const now = Timestamp.now();
+        const d = now.toDate();
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+
+        await addDoc(collection(db, "contributions"), {
+          memberId: memberDocId,
+          amount: req.amount,
+          date: now,
+          month,
+          year,
+          createdBy: "member",
+        });
+
+        const contribsSnap = await getDocs(query(
+          collection(db, "contributions"),
+          where("memberId", "==", memberDocId),
+          where("month", "==", month),
+          where("year", "==", year),
+        ));
+        let monthTotal = 0;
+        contribsSnap.docs.forEach(d => { monthTotal += Number(d.data().amount) || 0; });
+
+        const memberDoc = await getDoc(doc(db, "members", memberDocId));
+        if (memberDoc.exists()) {
+          const memberData = memberDoc.data();
+          const required = Number(memberData.totalRequired) || 0;
+          const currentBalance = Number(memberData.balance) || 0;
+
+          if (monthTotal > required) {
+            const excess = monthTotal - required;
+            await updateDoc(doc(db, "members", memberDocId), {
+              balance: currentBalance + excess,
+            });
+          } else if (monthTotal < required && currentBalance > 0) {
+            const needed = required - monthTotal;
+            const toApply = currentBalance >= needed ? needed : currentBalance;
+            if (toApply > 0) {
+              await addDoc(collection(db, "contributions"), {
+                memberId: memberDocId,
+                amount: toApply,
+                date: now,
+                month,
+                year,
+                notes: "Applied from balance",
+                createdBy: "system",
+              });
+              await updateDoc(doc(db, "members", memberDocId), {
+                balance: currentBalance - toApply,
+              });
+            }
+          }
+        }
+      } else if (req.type === "loan" && req.loanId) {
+        await addDoc(collection(db, "repayments"), {
+          loanId: req.loanId,
+          amountPaid: req.amount,
+          date: Timestamp.now(),
+        });
+
+        const loanDoc = await getDoc(doc(db, "loans", req.loanId));
+        if (loanDoc.exists()) {
+          const loan = loanDoc.data();
+          const totalDue = (loan.principal || 0) + ((loan.principal || 0) * (loan.interestRate || 0));
+          const repaymentsSnap = await getDocs(query(
+            collection(db, "repayments"),
+            where("loanId", "==", req.loanId),
+          ));
+          let totalRepaid = 0;
+          repaymentsSnap.docs.forEach(d => { totalRepaid += Number(d.data().amountPaid) || 0; });
+          if (totalRepaid >= totalDue) {
+            await updateDoc(doc(db, "loans", req.loanId), { isFullyRepaid: true });
+          }
+        }
+      }
+
       reload();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to approve");
@@ -182,7 +286,7 @@ const PaymentsTab: React.FC = () => {
                 <button className="btn btn-outline btn-sm" style={{ color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleReject(r.id)}>
                   Reject
                 </button>
-                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id)}>
+                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r)}>
                   Approve
                 </button>
               </div>

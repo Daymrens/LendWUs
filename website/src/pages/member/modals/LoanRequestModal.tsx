@@ -14,7 +14,9 @@ interface LoanRequestModalProps {
   onClose: () => void;
 }
 
-const LoanRequestModal: React.FC<LoanRequestModalProps> = ({ memberDocId, onClose }) => {
+const LoanRequestModal: React.FC<LoanRequestModalProps> = ({
+  memberDocId, onClose,
+}) => {
   const [amount, setAmount] = useState("");
   const [interestRate, setInterestRate] = useState(10);
   const [dueDate, setDueDate] = useState(() => {

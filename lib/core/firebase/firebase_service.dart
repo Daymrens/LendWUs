@@ -1,14 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import '../utils/member_id_generator.dart';
 
 class FirebaseService {
   static FirebaseAuth get auth => FirebaseAuth.instance;
   static FirebaseFirestore get firestore => FirebaseFirestore.instance;
-  static FirebaseStorage get storage => FirebaseStorage.instance;
 
   static const _seedFlagDoc = 'meta/seeded';
   static const _memberIdBackfillFlagDoc = 'meta/member_ids_backfilled';
@@ -57,13 +56,9 @@ class FirebaseService {
 
   static Future<String?> uploadReceiptImage(File file, String memberId) async {
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final random = timestamp % 10000;
-      final ext = file.path.split('.').last.toLowerCase();
-      final path = 'receipts/$memberId/${timestamp}_$random.$ext';
-      final ref = storage.ref(path);
-      await ref.putFile(file);
-      return await ref.getDownloadURL();
+      final bytes = await file.readAsBytes();
+      final base64 = base64Encode(bytes);
+      return 'data:image/jpeg;base64,$base64';
     } catch (e) {
       debugPrint('uploadReceiptImage error: $e');
       return null;

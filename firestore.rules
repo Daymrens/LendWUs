@@ -2,159 +2,118 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: check if the requester is authenticated
+    // ─── Helpers ──────────────────────────────────────────────
     function isAuth() {
       return request.auth != null;
     }
 
-    // Helper: check if the user's role from Firestore is admin
-    function isFirestoreAdmin() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Helper: check if the user's email is in the admin emails list from app settings
-    function isSettingsAdmin() {
-      return isAuth() &&
-        exists(/databases/$(database)/documents/app_settings/fund_settings) &&
-        request.auth.token.email in get(/databases/$(database)/documents/app_settings/fund_settings).data.adminEmails;
-    }
-
-    // Helper: check if the user is an admin (either by Firestore role or settings admin)
     function isAdmin() {
-      return isAuth() && (isFirestoreAdmin() || isSettingsAdmin());
+      return isAuth() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+        ||
+        (exists(/databases/$(database)/documents/app_settings/fund_settings) &&
+          request.auth.token.email in get(/databases/$(database)/documents/app_settings/fund_settings).data.adminEmails)
+      );
     }
 
-    // Helper: check if the authenticated user's user doc links to the given memberId
     function isMemberOf(memberId) {
-      return isAuth() && 
+      return isAuth() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.memberId == memberId;
     }
 
-    // Helper: check if the user is the owner of the document
     function isOwner(userId) {
       return isAuth() && request.auth.uid == userId;
     }
 
     // ─── users ──────────────────────────────────────────────
     match /users/{userId} {
-      // Users can create their own doc; admins can create docs for any user
       allow create: if isAuth() && (isOwner(userId) || isAdmin());
-      // Users can read/update their own doc; admins can read/update all
-      allow read, update: if isAuth() && (isOwner(userId) || isAdmin());
-      // Only admins can delete or list users
+      allow read: if isAuth() && (isOwner(userId) || isAdmin() || get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin');
+      allow update: if isAuth() && (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
       allow list: if isAdmin();
     }
 
     // ─── members ────────────────────────────────────────────
     match /members/{memberId} {
-      // Any authenticated user can create a member (self-signup via group code)
       allow create: if isAuth();
       allow read: if isAuth();
-      // Admins can update or delete members
       allow update, delete: if isAdmin();
     }
 
     // ─── contributions ──────────────────────────────────────
     match /contributions/{contributionId} {
-      // Admins can create; done via payment request approval or manually
       allow create: if isAdmin();
-      // Members can read their own; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
       allow update, delete: if isAdmin();
     }
 
     // ─── payment_requests ───────────────────────────────────
     match /payment_requests/{requestId} {
-      // Members can create their own payment requests; admins can create approved ones
       allow create: if isAuth() && (isMemberOf(request.resource.data.memberId) || isAdmin());
-      // Members can read their own; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
-      // Only admins can update (approve/reject) or delete
       allow update, delete: if isAdmin();
     }
 
     // ─── loan_requests ──────────────────────────────────────
     match /loan_requests/{requestId} {
-      // Members can create their own loan requests
       allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
-      // Members can read their own; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
-      // Only admins can update (approve/reject) or delete
       allow update, delete: if isAdmin();
     }
 
     // ─── loans ──────────────────────────────────────────────
     match /loans/{loanId} {
-      // Only admins can create loans (done via loan request approval)
       allow create: if isAdmin();
-      // Members can read their own loans; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
-      // Only admins can update or delete loans
       allow update, delete: if isAdmin();
     }
 
     // ─── repayments ─────────────────────────────────────────
     match /repayments/{repaymentId} {
-      // Only admins can create repayments
       allow create: if isAdmin();
-      // Members can read repayments on their own loans; admins can read all
-      allow read: if isAuth() && (isAdmin() || (exists(/databases/$(database)/documents/loans/$(resource.data.loanId)) && isMemberOf(get(/databases/$(database)/documents/loans/$(resource.data.loanId)).data.memberId)));
-      // Only admins can update or delete
+      allow read: if isAuth() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/loans/$(resource.data.loanId)) &&
+          isMemberOf(get(/databases/$(database)/documents/loans/$(resource.data.loanId)).data.memberId))
+      );
       allow update, delete: if isAdmin();
     }
 
     // ─── app_settings ───────────────────────────────────────
     match /app_settings/{settingId} {
-      // Any authenticated user can read app settings
       allow read: if isAuth();
-      // Only admins can write app settings
       allow create, update, delete: if isAdmin();
     }
 
-    // ─── head_change_requests ─────────────────────────────────
+    // ─── head_change_requests ──────────────────────────────
     match /head_change_requests/{requestId} {
-      // Members can create their own head change requests
       allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
-      // Members can read their own; admins can read all
       allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
-      // Only admins can update (approve/reject) or delete
       allow update, delete: if isAdmin();
     }
 
     // ─── returns ─────────────────────────────────────────────
     match /returns/{docId} {
-      // Any authenticated user can read returns info
       allow read: if isAuth();
-      // Only admins can write returns info
       allow create, update, delete: if isAdmin();
     }
 
     // ─── notifications ───────────────────────────────────────
     match /notifications/{notificationId} {
-      // Allow users to read and update their own notifications
-      // For create, we allow it if authenticated so system can push them
       allow create: if isAuth();
-      // For read/update/delete, check if owner or admin
-      // Since it's a list query usually, the query must filter by userId
-      allow read, update, delete: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow read, update, delete: if isAuth() &&
+        (resource.data.userId == request.auth.uid || isAdmin());
     }
 
     // ─── meta ────────────────────────────────────────────────
-    // System metadata: seed flag, backfill flag, etc.
-    // Admins can read and write.
     match /meta/{docId} {
       allow read, write: if isAdmin();
     }
 
     // ─── meta/member_counter ─────────────────────────────────
-    // MemberID counter. Self-signup via group code writes to this
-    // counter from the client, so any authenticated user needs write
-    // access. The rule constrains the write to the expected shape so
-    // a malicious user cannot inject unrelated fields or out-of-range
-    // values.
     match /meta/member_counter {
       allow read: if isAuth();
       allow write: if isAuth()

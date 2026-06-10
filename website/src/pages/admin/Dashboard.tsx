@@ -35,6 +35,8 @@ interface DashboardData {
   annualContributions: number;
   annualLoans: number;
   annualRepayments: number;
+  totalHeads: number;
+  perHeadShare: number;
 }
 
 const COLORS = ["#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899"];
@@ -47,6 +49,7 @@ const Dashboard: React.FC = () => {
   const [loanReqs, setLoanReqs] = useState<RawDoc[]>([]);
   const [heads, setHeads] = useState<RawDoc[]>([]);
   const [repayments, setRepayments] = useState<RawDoc[]>([]);
+  const [repaymentsData, setRepaymentsData] = useState<RawDoc[]>([]);
   const [recentContribs, setRecentContribs] = useState<RawDoc[]>([]);
   const [recentPayments, setRecentPayments] = useState<RawDoc[]>([]);
   const [firstLoad, setFirstLoad] = useState(true);
@@ -71,6 +74,7 @@ const Dashboard: React.FC = () => {
     attach<RawDoc[]>(setLoanReqs, collection(db, "loan_requests"));
     attach<RawDoc[]>(setHeads, collection(db, "head_change_requests"));
     attach<RawDoc[]>(setRepayments, query(collection(db, "payment_requests"), where("type","==","loan"), where("status","==","approved")));
+    attach<RawDoc[]>(setRepaymentsData, collection(db, "repayments"));
     attach<RawDoc[]>(setRecentContribs, query(collection(db, "contributions"), orderBy("date","desc"), limit(10)));
     attach<RawDoc[]>(setRecentPayments, query(collection(db, "payment_requests"), orderBy("requestDate","desc"), limit(10)));
 
@@ -100,10 +104,21 @@ const Dashboard: React.FC = () => {
 
     const totalRepayments = repayments.reduce((s, r) => s + (Number(r.amount)||0), 0);
     const fundBalance = totalContributions - totalLoansIssued + totalRepayments;
+
+    const loanRepaymentMap: Record<string, number> = {};
+    repaymentsData.forEach((r) => {
+      const lid = r.loanId as string;
+      if (lid) loanRepaymentMap[lid] = (loanRepaymentMap[lid] || 0) + (Number(r.amountPaid) || 0);
+    });
     const totalInterest = loans.reduce((s, l) => {
-      if (l.isFullyRepaid === true || l.isFullyRepaid === 1) return s + ((Number(l.principal)||0) * (Number(l.interestRate)||0));
-      return s;
+      const repaid = loanRepaymentMap[l.id] || 0;
+      const interest = repaid - (Number(l.principal) || 0);
+      return s + (interest > 0 ? interest : 0);
     }, 0);
+
+    const activeMembersList = members.filter((m) => m.isActive === true || m.isActive === 1);
+    const totalHeads = activeMembersList.reduce((s, m) => s + (Number(m.headsCount) || 1), 0);
+    const perHeadShare = totalHeads > 0 ? totalInterest / totalHeads : 0;
 
     const recentActivity = [
       ...recentContribs.map((r) => {
@@ -174,8 +189,8 @@ const Dashboard: React.FC = () => {
       .reduce((s, p) => s + (Number(p.amount)||0), 0);
     const annualReturns = annualRepayments - annualLoans + annualContributions;
 
-    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments };
-  }, [firstLoad, members, contributions, loans, payments, loanReqs, heads, repayments, recentContribs, recentPayments]);
+    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments, totalHeads, perHeadShare };
+  }, [firstLoad, members, contributions, loans, payments, loanReqs, heads, repayments, repaymentsData, recentContribs, recentPayments]);
 
   const refresh = () => setFirstLoad((v) => v);
 
@@ -305,6 +320,24 @@ const Dashboard: React.FC = () => {
           <div className="annual-return-item highlight-item">
             <span className="annual-return-label">Net Annual Returns</span>
             <span className="annual-return-value" style={{ color: data.annualReturns >= 0 ? "#22c55e" : "#ef4444" }}>₱{fmt(data.annualReturns)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="annual-returns" style={{ borderColor: "#3b82f6" }}>
+        <div className="annual-returns-title">End of Year Returns</div>
+        <div className="annual-returns-grid">
+          <div className="annual-return-item">
+            <span className="annual-return-label">Returns Pool (Interest)</span>
+            <span className="annual-return-value" style={{ color: "#22c55e" }}>₱{fmt(data.totalInterest)}</span>
+          </div>
+          <div className="annual-return-item">
+            <span className="annual-return-label">Total Heads</span>
+            <span className="annual-return-value" style={{ color: "#f59e0b" }}>{data.totalHeads}</span>
+          </div>
+          <div className="annual-return-item highlight-item">
+            <span className="annual-return-label">Per Head Share</span>
+            <span className="annual-return-value" style={{ color: "#3b82f6" }}>₱{fmt(data.perHeadShare)}</span>
           </div>
         </div>
       </div>

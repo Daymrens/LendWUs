@@ -1,38 +1,55 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/returns_info.dart';
-import '../data/repositories/returns_repository.dart';
-import 'loans_provider.dart';
-import 'members_provider.dart';
+import '../data/repositories/loan_repository.dart';
+import '../data/repositories/member_repository.dart';
 import '../core/utils/interest_calculator.dart';
-
-final returnsRepositoryProvider = Provider<ReturnsRepository>((ref) {
-  return ReturnsRepository();
-});
+import 'members_provider.dart';
 
 final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
-  final repo = ref.watch(returnsRepositoryProvider);
-  return repo.watchReturns();
-});
+  final loanRepo = LoanRepository();
+  final memberRepo = ref.watch(memberRepositoryProvider);
 
-final computeReturnsProvider = FutureProvider<void>((ref) async {
-  final loanRepo = ref.read(loanRepositoryProvider);
-  final memberRepo = ref.read(memberRepositoryProvider);
+  final controller = StreamController<ReturnsInfo>.broadcast();
 
-  final loans = await loanRepo.getAllLoans();
-  final repayments = await loanRepo.getAllRepayments();
-  final members = await memberRepo.getAllMembers();
+  List<dynamic> currentLoans = [];
+  List<dynamic> currentRepayments = [];
+  List<dynamic> currentMembers = [];
 
-  final totalInterestEarned = InterestCalculator.calculateTotalInterestEarned(loans, repayments);
+  void emit() {
+    if (currentMembers.isEmpty) return;
+    final totalInterest = InterestCalculator.calculateTotalInterestEarned(
+      currentLoans.cast(),
+      currentRepayments.cast(),
+    );
+    final activeMembers = currentMembers.where((m) => m.isActive).toList();
+    final totalHeads = activeMembers.fold<int>(0, (sum, m) => sum + (m.headsCount as int));
+    controller.add(ReturnsInfo(
+      totalReturns: totalInterest,
+      totalHeads: totalHeads,
+      perHeadShare: InterestCalculator.calculatePerHeadShare(totalInterest, totalHeads),
+    ));
+  }
 
-  final activeMembers = members.where((m) => m.isActive).toList();
-  final totalHeads = activeMembers.fold<int>(0, (sum, m) => sum + m.headsCount);
+  final sub1 = loanRepo.watchAllLoans().listen((loans) {
+    currentLoans = loans;
+    emit();
+  });
+  final sub2 = loanRepo.watchAllRepayments().listen((repayments) {
+    currentRepayments = repayments;
+    emit();
+  });
+  final sub3 = memberRepo.watchAllMembers().listen((members) {
+    currentMembers = members;
+    emit();
+  });
 
-  final info = ReturnsInfo(
-    totalReturns: totalInterestEarned,
-    totalHeads: totalHeads,
-    perHeadShare: InterestCalculator.calculatePerHeadShare(totalInterestEarned, totalHeads),
-  );
+  ref.onDispose(() {
+    sub1.cancel();
+    sub2.cancel();
+    sub3.cancel();
+    controller.close();
+  });
 
-  final repo = ref.read(returnsRepositoryProvider);
-  await repo.saveReturns(info);
+  return controller.stream;
 });

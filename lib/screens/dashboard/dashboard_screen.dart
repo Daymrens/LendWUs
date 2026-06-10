@@ -347,22 +347,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _ReturnsSection extends ConsumerStatefulWidget {
+class _ReturnsSection extends ConsumerWidget {
   @override
-  ConsumerState<_ReturnsSection> createState() => _ReturnsSectionState();
-}
-
-class _ReturnsSectionState extends ConsumerState<_ReturnsSection> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(computeReturnsProvider.future);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final returnsAsync = ref.watch(returnsInfoProvider);
 
     return returnsAsync.when(

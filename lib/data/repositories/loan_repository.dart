@@ -154,6 +154,29 @@ class LoanRepository {
             .toList());
   }
 
+  Stream<List<Loan>> watchLoansByMember(String memberId) {
+    return FirebaseService.firestore
+        .collection('loans')
+        .where('memberId', isEqualTo: memberId)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Loan.fromMap({...doc.data(), 'id': doc.id}))
+            .toList());
+  }
+
+  Stream<List<Map<String, dynamic>>> watchMemberActiveLoans(String memberId) {
+    return watchLoansByMember(memberId).asyncMap((loans) async {
+      final activeLoans = loans.where((l) => !l.isFullyRepaid && l.id != null).toList();
+      final balances = await Future.wait(
+        activeLoans.map((loan) => getRemainingBalance(loan.id!)),
+      );
+      return List.generate(activeLoans.length, (i) => {
+            'loan': activeLoans[i],
+            'remainingBalance': balances[i],
+          });
+    });
+  }
+
   Stream<List<Loan>> watchActiveLoans() {
     return FirebaseService.firestore
         .collection('loans')
