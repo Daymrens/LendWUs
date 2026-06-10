@@ -458,7 +458,7 @@ const QuickActionModal: React.FC<{
       if (type === "loan") {
         data.principal = amt;
         data.dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-        data.interestRate = 10;
+        data.interestRate = 0.1;
       }
       await onSave(type, data);
     } finally { setSubmitting(false); }

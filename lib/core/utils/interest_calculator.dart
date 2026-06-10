@@ -54,4 +54,20 @@ class InterestCalculator {
     final totalRepaid = calculateTotalRepaid(repayments);
     return totalRepaid >= totalDue;
   }
+
+  static double calculateMonthlyPayment(double principal, double annualRateDecimal, int termMonths) {
+    final monthlyRate = annualRateDecimal / 12;
+    if (monthlyRate <= 0 || termMonths <= 0) return principal / (termMonths > 0 ? termMonths : 1);
+    final factor = (1 + monthlyRate);
+    final powFactor = _pow(factor, termMonths);
+    return principal * monthlyRate * powFactor / (powFactor - 1);
+  }
+
+  static double _pow(double x, int n) {
+    double result = 1.0;
+    for (var i = 0; i < n; i++) {
+      result *= x;
+    }
+    return result;
+  }
 }

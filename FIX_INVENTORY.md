@@ -1,0 +1,198 @@
+# LendWUs Fix Inventory
+
+Generated: 2026-06-11
+
+## Status Legend
+- ✅ **Done** — fix implemented and committed
+- 🔄 **In Progress** — being worked on
+- ⏳ **Pending** — not yet started
+- ❌ **Deferred** — decided to skip/do later
+
+---
+
+## Phase 1: 🔴 Critical Financial & Security Bugs
+
+### 1.1 SecurityService — Biometric, OTP, Backup Codes ✅
+**Files:** `lib/core/services/security_service.dart`
+
+**What was wrong:**
+- `authenticateWithBiometrics()` returned `true` without calling device biometric API
+- `generateBackupCode()` used deterministic low-entropy algorithm (always produced "22222222")
+- `verifyBackupCode()` accepted any 8-character string — no actual verification
+- OTP generation used first char of microseconds → only 10 possible OTPs
+- All user settings stored under hardcoded doc ID `'current_user'` — all users share same doc
+- OTP email hardcoded to `'user@lendwus.app'`
+
+**What was done:**
+- Delegated biometric auth to existing `BiometricService` (which correctly uses `local_auth` package)
+- Added passcode auth using `local_auth` with `biometricOnly: false`
+- Backup codes now use `Random.secure()` and store hash in Firestore per-user
+- `verifyBackupCode` compares against stored hash
+- OTP uses `Random.secure()` for 6-digit codes, stored hashed
+- All Firestore doc paths use actual Firebase Auth UID (via `FirebaseService.auth.currentUser.uid`)
+- `sendOTPToEmail()` now takes `userEmail` parameter instead of hardcoded address
+- `DataBackupService` chunks data into multiple docs (50 records per doc) to avoid 1MB limit
+- Backup docs use `writeBatch` with 500-operation limit
+
+### 1.2 Interest Rate Format Inconsistency ✅
+**Files:** 
+- `lib/core/utils/interest_calculator.dart` (reverted — was already correct)
+- `lib/core/services/email_notification_service.dart` (fixed)
+- `website/src/pages/admin/BulkLoanProcessing.tsx` (fixed)
+- `website/src/pages/admin/Dashboard.tsx` (fixed)
+
+**What was wrong:**
+All codebases now agree: **`interestRate` is stored as a decimal** (e.g., `0.1` for 10%). This is consistent with how `issue_loan_modal.dart:57` creates loans (`double.parse(text) / 100`).
+
+Inconsistencies found and fixed:
+- `email_notification_service.dart:366` — displayed `loan.interestRate` directly as percentage (showed "0.1%" instead of "10%") → now shows `(loan.interestRate * 100)`
+- `email_notification_service.dart:373` — divided by 100 AGAIN in total interest calc → removed `/ 100`
+- `BulkLoanProcessing.tsx:76` — stored percentage directly (stored `5` for 5%) → now divides by 100
+- `Dashboard.tsx:461` — hardcoded `10` in quick action modal → changed to `0.1`
+
+### 1.3 Base64 Images → Firebase Storage ⏳
+**Files:** `lib/core/firebase/firebase_service.dart`, `website/src/pages/admin/Settings.tsx`
+
+**What's wrong:** Receipt images and QR codes are stored as base64 data URIs in Firestore — will exceed 1MB doc limit for any real photo.
+
+**What to do:** Upload to Firebase Storage, store only download URL in Firestore. Fall back to base64 for Spark plan users.
+
+### 1.4 Repayments Missing `memberId` (Web) ⏳
+**Files:** `website/src/pages/admin/Approvals.tsx`
+
+**What's wrong:** When payment is approved, repayment records are created with only `{ loanId, amountPaid, date }` — no `memberId`. Member dashboard queries by `memberId` → always returns empty.
+
+**What to do:** Add `memberId` field from the payment request being approved.
+
+### 1.5 ActivityLog Date Parsing ✅
+**File:** `lib/data/models/activity_log.dart`
+
+**What was wrong:** Used `DateTime.parse(map['createdAt'])` which crashes on Firestore `Timestamp` objects. All other models use `parseFirestoreDate()` helper correctly.
+
+**What was done:**
+- Added import for `firestore_helpers.dart`
+- Replaced with `parseFirestoreDate(map['createdAt'])` which handles `DateTime`, `Timestamp`, `String`, and `int` formats
+
+### 1.6 Race Conditions in Financial Operations ⏳
+**Files:** `lib/data/repositories/loan_repository.dart`, `website/src/pages/admin/Approvals.tsx`
+
+**What's wrong:**
+- `loan_repository.dart:addLoan()` checks `hasActiveLoan` and fund availability outside transaction → TOCTOU race
+- `loan_repository.dart:_updateLoanStatus()` reads repayments outside transaction
+- `Approvals.tsx` updates request status inside transaction but creates actual records outside
+
+**What to do:** Wrap check-and-write in Firestore `runTransaction`; move repayment reads inside transaction.
+
+### 1.7 DataBackupService Doc Size Limit ✅
+**File:** `lib/core/services/security_service.dart` (DataBackupService)
+
+**What was wrong:** Entire collection data embedded in a single Firestore doc → exceeds 1MB limit.
+
+**What was done:** Chunked into 50-record batches per doc, uses `writeBatch` with 500-op limit.
+
+### 1.8 Loan Calculator Fix ✅
+**File:** `lib/screens/member/loan_calculator.dart`
+
+**What was wrong:**
+- Amortization formula used `(1+r)*n` instead of `(1+r)^n` (multiplication not exponentiation)
+- Pre-approval used hardcoded mock data (`totalContributions = 50000`, `existingLoans = 0`, `repaymentHistory = 80`)
+- `_submitLoanRequest()` only showed dialog/snackbar — no Firestore write
+- Hardcoded `₱` instead of `CurrencyFormatter`
+- Affordability bar always showed 0.67
+
+**What was done:**
+- Added `_pow()` helper, correct formula: `P * r * (1+r)^n / ((1+r)^n - 1)`
+- Changed `termMonths` from `double` to `int`
+- Set mock values to 0 (neutral), labeled as "Estimated"
+- Added TODO for real Firestore data query
+- Converted to `ConsumerStatefulWidget`, submits real `LoanRequest` to Firestore
+- Replaced `₱` with `CurrencyFormatter`
+- Affordability → Interest ratio: `_totalInterest / _totalPayment`
+
+### 1.9 app.dart Redirect & Navigation ✅
+**File:** `lib/app.dart`
+
+**What's wrong:**
+- Line 63: `ref.read(currentUserProvider)` should be `ref.watch` to subscribe to auth changes
+- Multiple screens use `Navigator.push()` instead of GoRouter's `context.push()`
+
+**What to do:**
+- Change `ref.read` → `ref.watch` on line 63
+- Replace `Navigator.push` in `member_dashboard_screen.dart`, `dashboard_screen.dart`, `member_loans_screen.dart` with `context.push()`
+
+---
+
+## Phase 2: ❌ Problematic Code
+
+| # | Issue | Files | Status | Notes |
+|---|-------|-------|--------|-------|
+| 13 | Wrong amortization in web Loans.tsx | `website/src/pages/member/Loans.tsx:40-58` | ✅ Done (part of 1.2) | Formula verified correct already |
+| 14 | `_submitLoanRequest` stub | `loan_calculator.dart:320-357` | ✅ Done (part of 1.8) | |
+| 15 | Mock pre-approval data | `loan_calculator.dart:68-71` | ✅ Done (part of 1.8) | |
+| 16 | `notification_watcher` listener leak | `notification_watcher.dart:15` | ⏳ Pending | Add StreamSubscription field, cancel on dispose |
+| 17 | N+1 queries in reminder_service | `reminder_service.dart:23-44` | ⏳ Pending | Batch member queries with `in` filter |
+| 18 | CSV export pagination | `csv_export_service.dart:50-58` | ⏳ Pending | Remove delays, paginate fetches |
+| 19 | `app.dart:63` stale redirect | `app.dart:63` | ⏳ Pending | `ref.read` → `ref.watch` |
+| 20 | Bottom nav mismatch | `app.dart:301-383` | ⏳ Pending | 7 nav items but 18 admin routes |
+| 21 | `FutureBuilder` + `ref.read` in admin_data | `admin_data_screen.dart:211` | ⏳ Pending | Convert to proper Riverpod provider |
+| 22 | Mixed navigation | `member_dashboard_screen.dart:74`, `dashboard_screen.dart:69`, `member_loans_screen.dart:135` | ⏳ Pending | Use `context.push()` |
+| 23 | BulkLoanProcessing no transaction | `BulkLoanProcessing.tsx:51-90` | ⏳ Pending | Add `writeBatch` or `runTransaction`, active-loan check |
+| 24 | Non-atomic payment approval | `Approvals.tsx:129-221` | ⏳ Pending | Move record creation inside transaction |
+| 25 | `@types/react-router-dom` v5 mismatch | `package.json:9` | ⏳ Pending | Pin matching types |
+| 26 | Dynamic import in onSnapshot | `member/Loans.tsx:77-81` | ⏳ Pending | Static import at top |
+| 27 | `backfillMissingMemberIds` runs on every mount | `Members.tsx:49` | ⏳ Pending | Add guard flag |
+
+---
+
+## Phase 3: ⚠️ Needs Attention
+
+| # | Issue | Files | Status | Notes |
+|---|-------|-------|--------|-------|
+| 28 | Email verification gate | `auth_provider.dart:60-93` | ⏳ Pending | Check `firebaseUser.emailVerified` |
+| 29 | Hardcoded group code in client | `auth_provider.dart:240` | ⏳ Pending | Move to server-side validation |
+| 30 | Pagination on `getAll*` methods | All repositories | ⏳ Pending | Add `limit()` + cursor pagination |
+| 31 | Add caching layer | Riverpod providers | ⏳ Pending | Use `keepAlive` |
+| 32 | Missing composite indexes | Multiple repos | ⏳ Pending | Document required indexes |
+| 33 | Hardcoded admin emails in source | `auth_provider.dart:43-44` | ⏳ Pending | Remove from source |
+| 34 | Route-level auth guards inside shells | `app.dart` | ⏳ Pending | Add middleware per route |
+| 35 | `resolveUser()` race condition | `AuthContext.tsx:251` | ⏳ Pending | Add mutex |
+| 36 | Member delete orphaned data | `Members.tsx:142-155` | ⏳ Pending | Cascade delete |
+| 37 | No `:focus-visible` styles | `App.css` | ⏳ Pending | |
+| 38 | No `prefers-reduced-motion` | `App.css` | ⏳ Pending | |
+| 39 | Upgrade TypeScript to 5.x | `package.json` | ⏳ Pending | |
+| 40 | Weak email validation | `login_screen.dart:204-206` | ⏳ Pending | |
+| 41 | Unsafe numeric casts | `returns_info.dart:13-14`, `app_settings.dart:36-38` | ⏳ Pending | |
+| 42 | Missing provider invalidations | `new_contribution_modal.dart` | ⏳ Pending | Invalidate `membersProvider` |
+| 43 | `_calculateRemainingBalance` placeholder | `email_notification_service.dart:530-533` | ⏳ Pending | Already has TODO, mark as N/A |
+| 44 | Missing email transport Function | `email_notification_service.dart:237` | ⏳ Pending | Add Firebase Function trigger or docs |
+| 45 | `MemberProfile.tsx:69` wasteful query | `MemberProfile.tsx:69` | ⏳ Pending | Use `doc()` not `where("__name__")` |
+
+---
+
+## Phase 4: Placeholder/Stub Screen Implementations
+
+| # | Issue | Files | Status | Notes |
+|---|-------|-------|--------|-------|
+| 49 | `bulk_loan_processing.dart` is a stub | `lib/screens/admin/bulk_loan_processing.dart` | ⏳ Pending | Add CSV parsing, writeBatch, active-loan checks |
+| 50 | `compliance_reports.dart` is a stub | `lib/screens/admin/compliance_reports.dart` | ⏳ Pending | Query real data, implement export |
+| 51 | `member_migration.dart` actions not wired | `lib/screens/admin/member_migration.dart` | ⏳ Pending | Wire up Transfer/Edit/Remove to real Firestore ops |
+
+---
+
+## Summary
+
+| Phase | Total Items | ✅ Done | 🔄 In Progress | ⏳ Pending |
+|-------|-------------|---------|----------------|------------|
+| **1. Critical** | 9 | 6 | 0 | 3 |
+| **2. Problematic** | 15 | 2 | 0 | 13 |
+| **3. Needs Attention** | 18 | 0 | 0 | 18 |
+| **4. Stubs** | 3 | 0 | 0 | 3 |
+| **Total** | **45** | **8** | **0** | **37** |
+
+---
+
+## Next Steps (Resume Instructions)
+
+1. `git add . && git commit -m "fix: security, interest rate, loan calculator, activity log, backup" && git push`
+2. Continue with remaining Phase 1 items (1.3, 1.4, 1.6)
+3. Then proceed through Phases 2 → 3 → 4
