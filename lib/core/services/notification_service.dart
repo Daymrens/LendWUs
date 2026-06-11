@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -7,17 +9,18 @@ const _channelName = 'Sinking Fund Notifications';
 const _channelDescription = 'Payment, loan, and head change notifications';
 
 final FlutterLocalNotificationsPlugin _localPlugin = FlutterLocalNotificationsPlugin();
+final GlobalKey<NavigatorState> notificationNavKey = GlobalKey<NavigatorState>();
 bool _foregroundListenerInstalled = false;
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   final notification = message.notification;
   if (notification != null) {
-    await _showLocalNotification(notification.title ?? '', notification.body ?? '');
+    await showLocalNotification(notification.title ?? '', notification.body ?? '');
   }
 }
 
-Future<void> _showLocalNotification(String title, String body, {String? payload}) async {
+Future<void> showLocalNotification(String title, String body, {String? payload}) async {
   await _localPlugin.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,
     title,
@@ -50,6 +53,7 @@ class NotificationService {
     );
     await _localPlugin.initialize(
       const InitializationSettings(android: androidSettings, iOS: iosSettings),
+      onDidReceiveNotificationResponse: _onNotificationTap,
     );
 
     const androidChannel = AndroidNotificationChannel(
@@ -69,9 +73,16 @@ class NotificationService {
       FirebaseMessaging.onMessage.listen((message) {
         final notification = message.notification;
         if (notification != null) {
-          _showLocalNotification(notification.title ?? '', notification.body ?? '');
+          showLocalNotification(notification.title ?? '', notification.body ?? '');
         }
       });
+    }
+  }
+
+  static void _onNotificationTap(NotificationResponse response) {
+    final nav = notificationNavKey.currentContext;
+    if (nav != null) {
+      GoRouter.of(nav).push('/notifications');
     }
   }
 

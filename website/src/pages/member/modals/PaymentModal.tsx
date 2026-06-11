@@ -19,6 +19,7 @@ interface PaymentModalProps {
   totalRequired: number;
   balance: number;
   onClose: () => void;
+  defaultAdvance?: boolean;
 }
 
 interface QRSettings {
@@ -31,9 +32,8 @@ const formatCurrency = (n: number) =>
   n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const PaymentModal: React.FC<PaymentModalProps> = ({
-  memberId, memberDocId, memberName, headsCount, totalRequired, balance, onClose,
+  memberId, memberDocId, memberName, headsCount, totalRequired, balance, onClose, defaultAdvance,
 }) => {
-  const [amount, setAmount] = useState(String(totalRequired));
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -115,18 +115,27 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     } finally { setSubmitting(false); }
   };
 
+  const perCutoffAmount = totalRequired / 2;
+  const perHeadAmount = totalRequired / headsCount;
   const remaining = totalRequired - thisMonthContribs;
   const met = thisMonthContribs >= totalRequired;
-  const [payAdvance, setPayAdvance] = useState(!met);
+  const initialAdvance = defaultAdvance ?? (!met && thisMonthContribs > 0);
+  const [payAdvance, setPayAdvance] = useState(initialAdvance);
+  const [amount, setAmount] = useState(initialAdvance ? String(perCutoffAmount) : String(totalRequired));
 
   useEffect(() => {
-    setPayAdvance(!met);
-    if (!met) setAmount(String(totalRequired));
-  }, [met, totalRequired]);
+    if (defaultAdvance === undefined) {
+      setPayAdvance(!met);
+      if (!met) setAmount(String(totalRequired));
+      else setAmount(String(perCutoffAmount));
+    }
+  }, [met, totalRequired, perCutoffAmount, defaultAdvance]);
 
-  const quickAmounts = met
-    ? [50, 75, 100, 125].map(pct => (totalRequired * pct) / 100)
-    : [25, 50, 75, 100].map(pct => (totalRequired * pct) / 100);
+  const quickAmounts = payAdvance
+    ? [50, 75, 100, 125].map(pct => (perCutoffAmount * pct) / 100)
+    : met
+      ? [50, 75, 100, 125].map(pct => (totalRequired * pct) / 100)
+      : [25, 50, 75, 100].map(pct => (totalRequired * pct) / 100);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -156,19 +165,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
           <div className="chart-card" style={{ marginBottom: 12 }}>
             <div style={{ fontSize: 12, color: "#8b949e", marginBottom: 8 }}>
-              This Month: ₱{formatCurrency(thisMonthContribs)} / ₱{formatCurrency(totalRequired)} per head
+              {payAdvance
+                ? `Next Cutoff: ₱0 / ₱${formatCurrency(perCutoffAmount)}`
+                : `This Month: ₱${formatCurrency(thisMonthContribs)} / ₱${formatCurrency(totalRequired)}`}
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={{ fontSize: 13, color: met ? "#22c55e" : "#f59e0b" }}>
-                ₱{formatCurrency(thisMonthContribs)}
+                ₱{formatCurrency(payAdvance ? 0 : thisMonthContribs)}
               </span>
               <span style={{ fontSize: 12, color: "#8b949e" }}>
-                ₱{formatCurrency(totalRequired)}
+                {payAdvance
+                  ? `₱${formatCurrency(perCutoffAmount)} (next cutoff)`
+                  : `₱${formatCurrency(totalRequired)} (₱${formatCurrency(perHeadAmount)}/head × ${headsCount})`}
               </span>
             </div>
             <div style={{ height: 8, background: "#1c2128", borderRadius: 4, overflow: "hidden" }}>
               <div style={{
-                width: `${Math.min((thisMonthContribs / totalRequired) * 100, 100)}%`,
+                width: `${payAdvance ? 0 : Math.min((thisMonthContribs / totalRequired) * 100, 100)}%`,
                 height: "100%", background: met ? "#22c55e" : "#f59e0b",
                 borderRadius: 4,
               }} />
@@ -203,6 +216,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             <p style={{ color: "#8b949e", fontSize: 14, margin: "0 0 20px" }}>
               Your contribution requirement for this month is already met.
             </p>
+            <div style={{ marginBottom: 16, fontSize: 13, color: "#8b949e" }}>
+              Pay in advance for the next cutoff <strong style={{ color: "#c9d1d9" }}>₱{formatCurrency(perCutoffAmount)}</strong>
+            </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <button className="btn btn-primary" onClick={onClose}>Skip</button>
               <button
@@ -217,7 +233,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         ) : (
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label>Quick Select</label>
+            <label>Quick Select {payAdvance ? `(next cutoff: ₱${formatCurrency(perCutoffAmount)})` : ''}</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {quickAmounts.map((q, i) => (
                 <button
@@ -243,7 +259,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               onChange={e => setAmount(e.target.value)}
               required
             />
-            <span className="form-hint">Min: ₱{formatCurrency(totalRequired)} • Max: ₱{formatCurrency(totalRequired * 5)}</span>
+            <span className="form-hint">{payAdvance ? 'Next cutoff' : 'Min'}: ₱{formatCurrency(payAdvance ? perCutoffAmount : totalRequired)} • Max: ₱{formatCurrency(totalRequired * 5)}</span>
           </div>
 
           <div className="form-group">

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../utils/member_id_generator.dart';
 
 class FirebaseService {
@@ -56,9 +57,25 @@ class FirebaseService {
 
   static Future<String?> uploadReceiptImage(File file, String memberId) async {
     try {
-      final bytes = await file.readAsBytes();
-      final base64 = base64Encode(bytes);
-      return 'data:image/jpeg;base64,$base64';
+      final storageRef = FirebaseStorage.instance
+          .ref()
+          .child('receipts')
+          .child('${memberId}_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await storageRef.putFile(file);
+      return await storageRef.getDownloadURL();
+    } on FirebaseException catch (e) {
+      if (e.code == 'project-not-found' || e.code == 'storage/object-not-found') {
+        try {
+          final bytes = await file.readAsBytes();
+          final base64 = base64Encode(bytes);
+          return 'data:image/jpeg;base64,$base64';
+        } catch (e2) {
+          debugPrint('uploadReceiptImage base64 fallback error: $e2');
+          return null;
+        }
+      }
+      debugPrint('uploadReceiptImage storage error: $e');
+      return null;
     } catch (e) {
       debugPrint('uploadReceiptImage error: $e');
       return null;

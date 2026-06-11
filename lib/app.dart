@@ -22,16 +22,22 @@ import 'screens/profile/about_screen.dart';
 import 'screens/profile/privacy_security_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
-
+import 'screens/member/member_pay_screen.dart';
+import 'data/models/payment_request.dart';
 
 import 'screens/admin/approvals_screen.dart';
 import 'screens/admin/admin_settings_screen.dart';
 import 'screens/admin/admin_data_screen.dart';
 import 'screens/admin/member_balance_screen.dart';
 import 'screens/admin/member_profile_screen.dart';
+import 'screens/admin/bulk_loan_processing.dart';
+import 'screens/admin/compliance_reports.dart';
+import 'screens/admin/member_migration.dart';
+import 'screens/admin/send_notification_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
+import 'core/services/notification_service.dart';
 
 final onboardingCompleteProvider = StateProvider<bool>((ref) => false);
 
@@ -49,38 +55,57 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(currentUserProvider);
 
   return GoRouter(
+    navigatorKey: notificationNavKey,
     initialLocation: '/login',
     refreshListenable: authNotifier,
     redirect: (context, state) {
-      final auth = ref.read(currentUserProvider);
-      final user = auth.state;
-      final isRecognized = auth.isRecognized;
+      final user = authNotifier.state;
+      final isRecognized = authNotifier.isRecognized;
+      final isAdmin = authNotifier.isAdmin;
 
       final onboardingComplete = ref.read(onboardingCompleteProvider);
 
-      final isLoggingIn = state.matchedLocation == '/login';
-      final isIntro = state.matchedLocation == '/intro';
-      final isUnrecognized = state.matchedLocation == '/unrecognized';
-      final isAuthPage = isLoggingIn || isIntro || isUnrecognized;
+      final location = state.matchedLocation;
+      final isLoggingIn = location == '/login';
+      final isIntro = location == '/intro';
+      final isUnrecognized = location == '/unrecognized';
+      final isMemberRoute = location.startsWith('/member-');
+      final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
+          location == '/help' || location == '/about' ||
+          location == '/privacy-security' || location == '/edit-profile' ||
+          location == '/notifications' || location == '/member-pay';
 
-      if (auth.isFirebaseUser && isRecognized && isUnrecognized) {
-        return auth.isAdmin ? '/' : '/member-home';
+      // Unrecognized → redirect to home if recognized
+      if (authNotifier.isFirebaseUser && isRecognized && isUnrecognized) {
+        return isAdmin ? '/' : '/member-home';
       }
 
-      if (auth.isFirebaseUser && !isRecognized && !isUnrecognized) {
+      // Firebase user but unrecognized → go to unrecognized page
+      if (authNotifier.isFirebaseUser && !isRecognized && !isUnrecognized) {
         return '/unrecognized';
       }
 
-      if (!auth.isFirebaseUser && !isAuthPage) {
+      // No Firebase user → login (unless already there)
+      if (!authNotifier.isFirebaseUser && !isPublicRoute) {
         return '/login';
       }
 
+      // Already logged in and recognized → redirect from login/auth pages
       if (user != null && isRecognized && isLoggingIn) {
-        return auth.isAdmin ? '/' : '/member-home';
+        return isAdmin ? '/' : '/member-home';
       }
 
+      // Intro → skip if completed
       if (isIntro && onboardingComplete) {
         return '/login';
+      }
+
+      // Route-level auth: prevent crossing between admin and member shells
+      if (isRecognized && isAdmin && isMemberRoute) {
+        return '/';
+      }
+      if (isRecognized && !isAdmin && !isPublicRoute && !isMemberRoute && location != '/') {
+        return '/member-home';
       }
 
       return null;
@@ -117,6 +142,18 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/member-pay',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final loanId = extra?['loanId'] as String?;
+          final paymentTypeStr = extra?['paymentType'] as String?;
+          final paymentType = paymentTypeStr == 'loan'
+              ? PaymentType.loan
+              : PaymentType.contribution;
+          return MemberPayScreen(loanId: loanId, paymentType: paymentType);
+        },
       ),
       ShellRoute(
         builder: (context, state, child) {
@@ -168,6 +205,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/profile',
             builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/bulk-loans',
+            builder: (context, state) => const BulkLoanProcessingScreen(),
+          ),
+          GoRoute(
+            path: '/compliance-reports',
+            builder: (context, state) => const ComplianceReportsScreen(),
+          ),
+          GoRoute(
+            path: '/member-migration',
+            builder: (context, state) => const MemberMigrationScreen(),
+          ),
+          GoRoute(
+            path: '/send-notification',
+            builder: (context, state) => const SendNotificationScreen(),
           ),
         ],
       ),

@@ -21,8 +21,8 @@ lib/
   core/
     firebase/
       firebase_service.dart - FirebaseService (static auth/firestore access, seedDefaults, uploadReceiptImage)
-    services/               - 12 services: security, reminder, email_notification, audit, biometric,
-                              push_notification, notification_watcher, csv_export, pdf_export, storage, etc.
+    services/               - 7 services: security, notification_watcher, reminder_service,
+                              notification_service, email_notification_service, csv_export_service, storage_service
     utils/                  - 7 utils: interest_calculator, firestore_helpers, export_utils,
                               currency_formatter, cutoff_calculator, date_formatter, member_id_generator
   data/

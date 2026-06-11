@@ -11,6 +11,7 @@ class AppSettings {
   final String qrAccountName;
   final String qrAccountNumber;
   final String qrImageUrl;
+  final String groupCode;
 
   AppSettings({
     required this.minPaymentPerHead,
@@ -25,13 +26,14 @@ class AppSettings {
     this.qrAccountName = '',
     this.qrAccountNumber = '',
     this.qrImageUrl = '',
+    this.groupCode = 'LENDWUS',
   });
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
     return AppSettings(
-      minPaymentPerHead: (map['minPaymentPerHead'] ?? 0.0).toDouble(),
-      maxPaymentPerHead: (map['maxPaymentPerHead'] ?? 1000.0).toDouble(),
-      loanInterestPercent: (map['loanInterestPercent'] ?? 10.0).toDouble(),
+      minPaymentPerHead: (map['minPaymentPerHead'] is num ? (map['minPaymentPerHead'] as num).toDouble() : 0.0),
+      maxPaymentPerHead: (map['maxPaymentPerHead'] is num ? (map['maxPaymentPerHead'] as num).toDouble() : 1000.0),
+      loanInterestPercent: (map['loanInterestPercent'] is num ? (map['loanInterestPercent'] as num).toDouble() : 10.0),
       currencySymbol: map['currencySymbol'] ?? '\u20B1',
       currencyCode: map['currencyCode'] ?? 'PHP',
       cutoffDay1: map['cutoffDay1'] ?? 13,
@@ -41,6 +43,7 @@ class AppSettings {
       qrAccountName: map['qrAccountName'] ?? '',
       qrAccountNumber: map['qrAccountNumber'] ?? '',
       qrImageUrl: map['qrImageUrl'] ?? '',
+      groupCode: map['groupCode'] ?? 'LENDWUS',
     );
   }
 
@@ -58,6 +61,7 @@ class AppSettings {
       'qrAccountName': qrAccountName,
       'qrAccountNumber': qrAccountNumber,
       'qrImageUrl': qrImageUrl,
+      'groupCode': groupCode,
     };
   }
 
@@ -74,6 +78,7 @@ class AppSettings {
     String? qrAccountName,
     String? qrAccountNumber,
     String? qrImageUrl,
+    String? groupCode,
   }) {
     return AppSettings(
       minPaymentPerHead: minPaymentPerHead ?? this.minPaymentPerHead,
@@ -88,6 +93,7 @@ class AppSettings {
       qrAccountName: qrAccountName ?? this.qrAccountName,
       qrAccountNumber: qrAccountNumber ?? this.qrAccountNumber,
       qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+      groupCode: groupCode ?? this.groupCode,
     );
   }
 }

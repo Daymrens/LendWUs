@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/firebase/firebase_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../data/models/head_change_request.dart';
 import '../../data/repositories/head_change_request_repository.dart';
@@ -57,18 +58,47 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
     if (!_formKey.currentState!.validate()) return;
 
     final user = ref.read(currentUserProvider).state;
-    if (user?.memberId == null) return;
+    final memberId = user?.memberId;
+    if (memberId == null) return;
 
     setState(() => _isSubmitting = true);
 
     try {
+      // Check head change rules
+      final now = DateTime.now();
+      final isJanuary = now.month == 1;
+
+      final contribSnapshot = await FirebaseService.firestore
+          .collection('contributions')
+          .where('memberId', isEqualTo: memberId)
+          .get();
+
+      final paymentSnapshot = await FirebaseService.firestore
+          .collection('payment_requests')
+          .where('memberId', isEqualTo: memberId)
+          .get();
+
+      final hasContributions = contribSnapshot.docs.isNotEmpty ||
+          paymentSnapshot.docs.any((d) {
+            final data = d.data();
+            return data['status'] == 'approved' && data['type'] == 'contribution';
+          });
+
+      if (hasContributions && !isJanuary) {
+        if (mounted) {
+          setState(() => _isSubmitting = false);
+          _showValidationDialog(context);
+        }
+        return;
+      }
+
       final repo = HeadChangeRequestRepository();
       final memberRepo = MemberRepository();
-      final member = await memberRepo.getMemberById(user!.memberId!);
+      final member = await memberRepo.getMemberById(memberId);
 
       final request = HeadChangeRequest(
-        memberId: user.memberId!,
-        memberName: member?.name ?? user.username,
+        memberId: memberId,
+        memberName: member?.name ?? user?.username ?? '',
         currentHeads: _currentHeads,
         requestedHeads: _requestedHeads,
         status: HeadChangeStatus.pending,
@@ -95,6 +125,35 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
+  }
+
+  void _showValidationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.info_outline, color: AppColors.warning),
+            SizedBox(width: 8),
+            Text('Head Change Not Allowed', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: const Text(
+          'Head changes for members with existing contributions are only allowed in January (start of the year reset). '
+          'Please wait until January to submit your request.\n\n'
+          'New members with no contributions can change heads at any time.',
+          style: TextStyle(color: AppColors.textMuted, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

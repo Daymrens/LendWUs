@@ -75,9 +75,11 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState("");
 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalDefaultAdvance, setPaymentModalDefaultAdvance] = useState(false);
   const [showLoanModal, setShowLoanModal] = useState(false);
   const [showHeadModal, setShowHeadModal] = useState(false);
   const [showRepaymentModal, setShowRepaymentModal] = useState(false);
+  const [showTrackDialog, setShowTrackDialog] = useState(false);
   const [repayLoan, setRepayLoan] = useState<Loan | null>(null);
 
   const [cutoffDay1, setCutoffDay1] = useState(13);
@@ -97,16 +99,21 @@ const Dashboard: React.FC = () => {
     if (!memberId) return;
     const unsubs: Array<() => void> = [];
 
+    console.log("[Dashboard] fetching member doc:", memberId);
     unsubs.push(onSnapshot(
       doc(db, "members", memberId),
       (snap) => {
         if (snap.exists()) {
+          const data = snap.data() as Record<string, unknown>;
+          console.log("[Dashboard] member doc exists, id:", snap.id, "memberId field:", data.memberId);
           setMember({ id: snap.id, ...snap.data() } as MemberData);
           setMemberDocId(snap.id);
+        } else {
+          console.error("[Dashboard] member doc NOT FOUND for:", memberId);
         }
         setLoading(false);
       },
-      (err) => { setError(err.message); setLoading(false); }
+      (err) => { console.error("[Dashboard] member doc error:", err); setError(err.message); setLoading(false); }
     ));
 
     return () => unsubs.forEach(u => u());
@@ -114,26 +121,31 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (!member?.id) return;
+    console.log("[Dashboard] memberId for queries:", member.id);
     const unsubs: Array<() => void> = [];
 
     unsubs.push(onSnapshot(
       query(collection(db, "contributions"), where("memberId", "==", member.id), orderBy("date", "desc")),
-      (snap) => { setContributions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Contribution))); }
+      (snap) => { console.log("[Dashboard] contributions count:", snap.docs.length); setContributions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Contribution))); },
+      (err) => { console.error("[Dashboard] contributions error:", err); }
     ));
 
     unsubs.push(onSnapshot(
       query(collection(db, "loans"), where("memberId", "==", member.id)),
-      (snap) => { setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as Loan))); }
+      (snap) => { setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as Loan))); },
+      (err) => { console.error("[Dashboard] loans error:", err); }
     ));
 
     unsubs.push(onSnapshot(
       query(collection(db, "payment_requests"), where("memberId", "==", member.id), orderBy("requestDate", "desc")),
-      (snap) => { setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest))); }
+      (snap) => { setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest))); },
+      (err) => { console.error("[Dashboard] payment_requests error:", err); }
     ));
 
     unsubs.push(onSnapshot(
       query(collection(db, "repayments"), where("memberId", "==", member.id)),
-      (snap) => { setRepaymentsData(snap.docs.map(d => ({ id: d.id, ...(d.data() as Record<string,unknown>) } as any))); }
+      (snap) => { setRepaymentsData(snap.docs.map(d => ({ id: d.id, ...(d.data() as Record<string,unknown>) } as any))); },
+      (err) => { console.error("[Dashboard] repayments error:", err); }
     ));
 
     if (user?.uid) {
@@ -157,8 +169,12 @@ const Dashboard: React.FC = () => {
     return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const totalThisMonth = thisMonth.reduce((s, c) => s + (Number(c.amount) || 0), 0);
-  const required = member?.totalRequired || 0;
-  const progress = required > 0 ? Math.min(totalThisMonth / required, 1) : 0;
+  const totalHeadsCount = member?.headsCount || 1;
+  const perCutoffAmount = ((member?.amountPerHead ?? 0) > 0
+    ? member!.amountPerHead! * totalHeadsCount
+    : member?.totalRequired ?? 0);
+  const fullMonthlyRequired = perCutoffAmount * 2;
+  const progress = fullMonthlyRequired > 0 ? Math.min(totalThisMonth / fullMonthlyRequired, 1) : 0;
 
   const loanRepaymentMap: Record<string, number> = {};
   repaymentsData.forEach((r) => {
@@ -169,8 +185,7 @@ const Dashboard: React.FC = () => {
     const interest = repaid - (Number(l.principal) || 0);
     return s + (interest > 0 ? interest : 0);
   }, 0);
-  const totalHeads = member?.headsCount || 1;
-  const perHeadShare = totalHeads > 0 ? totalInterestEarned / totalHeads : 0;
+  const perHeadShare = totalHeadsCount > 0 ? totalInterestEarned / totalHeadsCount : 0;
 
   // Cutoff calculation
   const today = now.getDate();
@@ -250,16 +265,16 @@ const Dashboard: React.FC = () => {
           <div style={{ fontSize: 32, fontWeight: 800, color: "#22c55e", marginBottom: 12 }}>
             ₱{formatCurrency(totalContributions)}
           </div>
-          {required > 0 && (
+          {fullMonthlyRequired > 0 && (
             <>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: totalThisMonth >= required ? "#22c55e" : "#f59e0b" }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b" }}>
                   This month: ₱{formatCurrency(totalThisMonth)}
                 </span>
-                <span style={{ fontSize: 12, color: "#8b949e" }}>Required: ₱{formatCurrency(required)}</span>
+                <span style={{ fontSize: 12, color: "#8b949e" }}>Required: ₱{formatCurrency(fullMonthlyRequired)}</span>
               </div>
               <div style={{ height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${progress * 100}%`, height: "100%", background: totalThisMonth >= required ? "#22c55e" : "#f59e0b", borderRadius: 3 }} />
+                <div style={{ width: `${progress * 100}%`, height: "100%", background: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b", borderRadius: 3 }} />
               </div>
             </>
           )}
@@ -298,7 +313,13 @@ const Dashboard: React.FC = () => {
 
       {/* Quick Actions */}
       <div className="dashboard-actions">
-        <button className="btn btn-primary" onClick={() => setShowPaymentModal(true)}>
+        <button className="btn btn-primary" onClick={() => {
+          if (totalThisMonth >= perCutoffAmount && fullMonthlyRequired > 0) {
+            setShowTrackDialog(true);
+          } else {
+            setShowPaymentModal(true);
+          }
+        }}>
           + Pay Contribution
         </button>
         <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b" }} onClick={() => setShowLoanModal(true)}>
@@ -323,7 +344,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="mini-stat">
             <span className="mini-stat-label">My Heads</span>
-            <span className="mini-stat-value">{totalHeads}</span>
+            <span className="mini-stat-value">{totalHeadsCount}</span>
           </div>
         </div>
       </div>
@@ -383,6 +404,41 @@ const Dashboard: React.FC = () => {
         )}
       </div>
 
+      {/* Track Dialog */}
+      {showTrackDialog && (
+        <div className="modal-overlay" onClick={() => setShowTrackDialog(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 400, textAlign: "center" }}>
+            <div className="modal-header">
+              <h2>YOU'RE ON TRACK!</h2>
+              <button className="btn-icon" onClick={() => setShowTrackDialog(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div style={{ padding: "24px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>🎯</div>
+              <p style={{ color: "#22c55e", fontSize: 16, fontWeight: 600, marginBottom: 12 }}>
+                You've met your contribution for this cutoff period.
+              </p>
+              <p style={{ color: "#8b949e", fontSize: 14 }}>
+                Contributed: ₱{formatCurrency(totalThisMonth)} / ₱{formatCurrency(perCutoffAmount)} this cutoff
+              </p>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 24 }}>
+                <button className="btn btn-primary" onClick={() => setShowTrackDialog(false)}>
+                  Close
+                </button>
+                <button
+                  className="btn btn-outline"
+                  style={{ borderColor: "#22c55e", color: "#22c55e" }}
+                  onClick={() => { setShowTrackDialog(false); setPaymentModalDefaultAdvance(true); setShowPaymentModal(true); }}
+                >
+                  Pay in Advance
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       {showPaymentModal && member && (
         <PaymentModal
@@ -390,9 +446,10 @@ const Dashboard: React.FC = () => {
           memberDocId={memberDocId}
           memberName={member.name}
           headsCount={member.headsCount}
-          totalRequired={member.totalRequired}
+          totalRequired={fullMonthlyRequired}
           balance={member.balance}
-          onClose={() => setShowPaymentModal(false)}
+          onClose={() => { setShowPaymentModal(false); setPaymentModalDefaultAdvance(false); }}
+          defaultAdvance={paymentModalDefaultAdvance || undefined}
         />
       )}
       {showLoanModal && (

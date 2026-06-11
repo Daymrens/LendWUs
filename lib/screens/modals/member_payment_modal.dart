@@ -20,7 +20,9 @@ import '../../core/utils/cutoff_calculator.dart';
 import 'pending_approval_dialog.dart';
 
 class MemberPaymentModal extends ConsumerStatefulWidget {
-  const MemberPaymentModal({super.key});
+  const MemberPaymentModal({super.key, this.defaultAdvance = false});
+
+  final bool defaultAdvance;
 
   @override
   ConsumerState<MemberPaymentModal> createState() => _MemberPaymentModalState();
@@ -241,20 +243,29 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     ).toList();
     final thisMonthTotal = thisMonthContribs.fold<double>(0.0, (s, c) => s + c.amount);
     final effectiveRequired = minAmount.clamp(0.0, double.infinity);
-    final totalRequired = _member?.totalRequired ?? effectiveRequired;
-    final progress = totalRequired > 0 ? (thisMonthTotal / totalRequired).clamp(0.0, 1.0) : 0.0;
-    final met = thisMonthTotal >= totalRequired;
+    final perHeadAmount = _member?.amountPerHead ?? (effectiveRequired / (_member?.headsCount ?? 1).clamp(1, double.infinity));
+    final headsCount = _member?.headsCount ?? 1;
+    final perCutoffAmount = perHeadAmount * headsCount;
+    final fullMonthlyRequired = perCutoffAmount * 2;
+    final progress = fullMonthlyRequired > 0 ? (thisMonthTotal / fullMonthlyRequired).clamp(0.0, 1.0) : 0.0;
+    final met = thisMonthTotal >= fullMonthlyRequired;
+    final payAdvance = widget.defaultAdvance || (!met && thisMonthTotal > 0);
     final balance = _member?.balance ?? 0.0;
     final cutoffDay1 = settings?.cutoffDay1 ?? 13;
     final cutoffDay2 = settings?.cutoffDay2 ?? 28;
 
-    // Dynamic quick amounts based on totalRequired
-    final quickAmounts = [
-      totalRequired * 0.25,
-      totalRequired * 0.5,
-      totalRequired * 0.75,
-      totalRequired,
-    ].map((a) => (a * 100).round() / 100).toList();
+    // Dynamic quick amounts based on pay mode
+    final rawAmounts = payAdvance
+      ? [perCutoffAmount * 0.5, perCutoffAmount * 0.75, perCutoffAmount, perCutoffAmount * 1.25]
+      : met
+        ? [fullMonthlyRequired * 0.5, fullMonthlyRequired * 0.75, fullMonthlyRequired, fullMonthlyRequired * 1.25]
+        : [fullMonthlyRequired * 0.25, fullMonthlyRequired * 0.5, fullMonthlyRequired * 0.75, fullMonthlyRequired];
+    final quickAmounts = rawAmounts.map((a) => (a * 100).round() / 100).toList();
+
+    if (!_amountInitialized) {
+      _amountController.text = (payAdvance ? perCutoffAmount : fullMonthlyRequired).toStringAsFixed(2);
+      _amountInitialized = true;
+    }
 
     final memberName = user?.username ?? 'Member';
 
@@ -354,11 +365,18 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('This Month ($totalRequired/head)', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
                               Text(
-                                '${CurrencyFormatter.format(thisMonthTotal)} / ${CurrencyFormatter.format(totalRequired)}',
+                                payAdvance
+                                  ? 'Next Cutoff (${CurrencyFormatter.format(perCutoffAmount)})'
+                                  : 'This Month (${CurrencyFormatter.format(fullMonthlyRequired)} total)',
+                                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                              ),
+                              Text(
+                                payAdvance
+                                  ? '₱0 / ${CurrencyFormatter.format(perCutoffAmount)}'
+                                  : '${CurrencyFormatter.format(thisMonthTotal)} / ${CurrencyFormatter.format(fullMonthlyRequired)}',
                                 style: TextStyle(
-                                  color: met ? AppColors.primary : AppColors.warning,
+                                  color: payAdvance ? AppColors.textMuted : (met ? AppColors.primary : AppColors.warning),
                                   fontWeight: FontWeight.bold, fontSize: 13,
                                 ),
                               ),
@@ -368,17 +386,19 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(3),
                             child: LinearProgressIndicator(
-                              value: met ? 1.0 : progress,
+                              value: payAdvance ? 0.0 : (met ? 1.0 : progress),
                               backgroundColor: AppColors.surfaceAlt,
-                              color: met ? AppColors.primary : AppColors.warning,
+                              color: payAdvance ? AppColors.textMuted : (met ? AppColors.primary : AppColors.warning),
                               minHeight: 8,
                             ),
                           ),
                           const Gap(6),
                           Text(
-                            met ? 'Requirement met for this month' : '${CurrencyFormatter.format(totalRequired - thisMonthTotal)} remaining this month',
+                            payAdvance
+                              ? 'Paying in advance for next cutoff'
+                              : (met ? 'Requirement met for this month' : '${CurrencyFormatter.format(fullMonthlyRequired - thisMonthTotal)} remaining this month'),
                             style: TextStyle(
-                              color: met ? AppColors.primary : AppColors.textMuted,
+                              color: payAdvance ? AppColors.textMuted : (met ? AppColors.primary : AppColors.textMuted),
                               fontSize: 11,
                             ),
                           ),
@@ -415,7 +435,12 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                     const Gap(20),
 
                     // Quick amounts
-                    const Text('Quick Amount', style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text(
+                      payAdvance
+                        ? 'Quick Amount (next cutoff: ${CurrencyFormatter.format(perCutoffAmount)})'
+                        : 'Quick Amount',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
                     const Gap(10),
                     Row(
                       children: cappedQuickAmounts.map((amount) {

@@ -113,12 +113,90 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            isScrollControlled: true,
-            backgroundColor: Colors.transparent,
-            builder: (_) => const MemberPaymentModal(),
-          );
+          final perHeadAmount = member?.amountPerHead ?? 0;
+          final headCount = member?.headsCount ?? 1;
+          final perCutoffAmount = perHeadAmount * headCount;
+          final fullMonthlyRequired = perCutoffAmount * 2;
+
+          if (totalThisMonth >= perCutoffAmount && fullMonthlyRequired > 0) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: AppColors.surface,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 8),
+                    Container(
+                      width: 56, height: 56,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(30),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.emoji_events, color: AppColors.primary, size: 28),
+                    ),
+                    const SizedBox(height: 16),
+                    const Text("YOU'RE ON TRACK!",
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'You\'ve met your contribution for this cutoff period.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Contributed: ${CurrencyFormatter.format(totalThisMonth)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('Close'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              showModalBottomSheet(
+                                context: context, isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => const MemberPaymentModal(defaultAdvance: true),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            child: const Text('Pay in Advance'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          } else {
+            showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const MemberPaymentModal(),
+            );
+          }
         },
         icon: const Icon(Icons.add),
         label: const Text('Pay Contribution'),

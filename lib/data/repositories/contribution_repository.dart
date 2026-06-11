@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/contribution.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class ContributionRepository {
+  static const int _defaultPageSize = 100;
+
   Future<String> createContribution(Contribution contribution) async {
     final docRef = await FirebaseService.firestore
         .collection('contributions')
@@ -9,22 +13,30 @@ class ContributionRepository {
     return docRef.id;
   }
 
-  Future<List<Contribution>> getMemberContributions(String memberId) async {
-    final snapshot = await FirebaseService.firestore
+  Future<List<Contribution>> getMemberContributions(String memberId, {int? limit, DocumentSnapshot? startAfter}) async {
+    var query = FirebaseService.firestore
         .collection('contributions')
         .where('memberId', isEqualTo: memberId)
-        .orderBy('date', descending: true)
-        .get();
+        .orderBy('date', descending: true);
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    query = query.limit(limit ?? _defaultPageSize);
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => Contribution.fromMap({...doc.data(), 'id': doc.id}))
         .toList();
   }
 
-  Future<List<Contribution>> getAllContributions() async {
-    final snapshot = await FirebaseService.firestore
+  Future<List<Contribution>> getAllContributions({int? limit, DocumentSnapshot? startAfter}) async {
+    var query = FirebaseService.firestore
         .collection('contributions')
-        .orderBy('date', descending: true)
-        .get();
+        .orderBy('date', descending: true);
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    query = query.limit(limit ?? _defaultPageSize);
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => Contribution.fromMap({...doc.data(), 'id': doc.id}))
         .toList();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -7,7 +8,6 @@ import '../../data/models/loan.dart';
 import '../../data/repositories/loan_repository.dart';
 import '../../data/models/payment_request.dart' show PaymentType;
 import '../../providers/auth_provider.dart';
-import 'member_pay_screen.dart';
 
 final memberLoansProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, memberId) {
   final repo = LoanRepository();
@@ -146,9 +146,10 @@ class MemberLoansScreen extends ConsumerWidget {
                                     width: double.infinity,
                                     child: ElevatedButton(
                                       onPressed: () {
-                                        Navigator.push(context, MaterialPageRoute(
-                                          builder: (_) => MemberPayScreen(loanId: loan.id, paymentType: PaymentType.loan),
-                                        ));
+                                        context.push('/member-pay', extra: {
+                                          'loanId': loan.id,
+                                          'paymentType': PaymentType.loan.name,
+                                        });
                                       },
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppColors.warning, foregroundColor: Colors.white,

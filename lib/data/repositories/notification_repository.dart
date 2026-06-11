@@ -41,6 +41,45 @@ class NotificationRepository {
     await _notifyUsers(adminIds, title, body, type ?? '', data);
   }
 
+  static Future<void> notifyByIds(
+    List<String> userIds,
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    await _notifyUsers(userIds, title, body, type ?? '', data);
+  }
+
+  static Future<void> notifyAll(
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    final allUsersSnapshot = await FirebaseService.firestore
+        .collection('users')
+        .get();
+    if (allUsersSnapshot.docs.isEmpty) return;
+    final allIds = allUsersSnapshot.docs.map((d) => d.id).toList();
+    await _notifyUsers(allIds, title, body, type ?? '', data);
+  }
+
+  static Future<void> notifyAllMembers(
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    final memberSnapshot = await FirebaseService.firestore
+        .collection('users')
+        .where('role', isEqualTo: 'member')
+        .get();
+    if (memberSnapshot.docs.isEmpty) return;
+    final memberIds = memberSnapshot.docs.map((d) => d.id).toList();
+    await _notifyUsers(memberIds, title, body, type ?? '', data);
+  }
+
   static Future<void> notifyMember(
     String memberId,
     String title,

@@ -28,6 +28,7 @@ interface Contribution {
 
 interface MemberData {
   id: string;
+  memberId: string;
   name: string;
   headsCount: number;
   amountPerHead: number;
@@ -46,17 +47,22 @@ const Contributions: React.FC = () => {
 
   useEffect(() => {
     if (!memberId) return;
+    console.log("[Contributions] memberId:", memberId);
     const unsubs: Array<() => void> = [];
 
     unsubs.push(onSnapshot(
       doc(db, "members", memberId),
       (snap) => {
         if (snap.exists()) {
+          const data = snap.data() as Record<string, unknown>;
+          console.log("[Contributions] member doc loaded, id:", snap.id, "memberId field:", data.memberId);
           setMember({ id: snap.id, ...snap.data() } as MemberData);
+        } else {
+          console.error("[Contributions] member doc NOT FOUND");
         }
         setLoading(false);
       },
-      (err) => { setError(err.message); setLoading(false); }
+      (err) => { console.error("[Contributions] member doc error:", err); setError(err.message); setLoading(false); }
     ));
 
     return () => unsubs.forEach(u => u());
@@ -64,13 +70,16 @@ const Contributions: React.FC = () => {
 
   useEffect(() => {
     if (!member?.id) return;
+    console.log("[Contributions] querying contributions for:", member.id);
     const unsubs: Array<() => void> = [];
 
     unsubs.push(onSnapshot(
       query(collection(db, "contributions"), where("memberId", "==", member.id), orderBy("date", "desc")),
       (snap) => {
+        console.log("[Contributions] contributions count:", snap.docs.length);
         setContributions(snap.docs.map(d => ({ id: d.id, ...d.data() } as Contribution)));
-      }
+      },
+      (err) => { console.error("[Contributions] contributions error:", err); }
     ));
 
     return () => unsubs.forEach(u => u());

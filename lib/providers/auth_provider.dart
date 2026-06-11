@@ -8,6 +8,7 @@ import '../data/models/user.dart';
 import '../data/models/member.dart';
 import '../core/firebase/firebase_service.dart';
 import '../core/services/notification_service.dart';
+import '../core/services/notification_watcher.dart';
 import '../core/utils/member_id_generator.dart';
 import 'members_provider.dart';
 import 'settings_provider.dart';
@@ -26,6 +27,7 @@ class CurrentUserNotifier extends ChangeNotifier {
   StreamSubscription<DocumentSnapshot>? _memberDocSub;
   StreamSubscription<firebase_auth.User?>? _authSub;
   StreamSubscription<String>? _tokenSub;
+  final NotificationWatcher _notificationWatcher = NotificationWatcher();
   bool _disposed = false;
 
   User? get state => _user;
@@ -40,7 +42,7 @@ class CurrentUserNotifier extends ChangeNotifier {
 
   List<String> get _adminEmails {
     final settings = ref.read(settingsProvider);
-    return settings.asData?.value.adminEmails ?? ['act.drapor@gmail.com', 'daymrens@gmail.com'];
+    return settings.asData?.value.adminEmails ?? [];
   }
 
   void _initAuthListener() {
@@ -59,6 +61,13 @@ class CurrentUserNotifier extends ChangeNotifier {
     if (firebaseUser != null) {
       final repo = ref.read(userRepositoryProvider);
       _user = await repo.getUserById(firebaseUser.uid);
+
+      if (!firebaseUser.emailVerified && _user == null) {
+        _user = null;
+        _isRecognized = false;
+        if (!_disposed) notifyListeners();
+        return;
+      }
 
       if (_user == null && firebaseUser.email != null) {
         if (_adminEmails.contains(firebaseUser.email)) {
@@ -109,6 +118,9 @@ class CurrentUserNotifier extends ChangeNotifier {
 
       if (_user != null) {
         await _registerFcmToken();
+        _notificationWatcher.start(_user!.id!);
+      } else {
+        _notificationWatcher.dispose();
       }
     } else {
       _user = null;
@@ -235,7 +247,9 @@ class CurrentUserNotifier extends ChangeNotifier {
   }
 
   Future<bool> joinWithGroupCode(String code) async {
-    if (code.toUpperCase() != 'LENDWUS') return false;
+    final settings = ref.read(settingsProvider);
+    final expectedCode = settings.asData?.value.groupCode ?? 'LENDWUS';
+    if (code.toUpperCase() != expectedCode.toUpperCase()) return false;
 
     final firebaseUser = FirebaseService.auth.currentUser;
     if (firebaseUser == null || firebaseUser.email == null) return false;
@@ -314,6 +328,7 @@ class CurrentUserNotifier extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _stopMemberWatcher();
+    _notificationWatcher.dispose();
     _tokenSub?.cancel();
     _tokenSub = null;
     _authSub?.cancel();

@@ -15,6 +15,8 @@ import DataManagement from './pages/admin/DataManagement';
 import Notifications from './pages/admin/Notifications';
 import Activity from './pages/admin/Activity';
 import GlobalSearch from './pages/admin/GlobalSearch';
+import BulkLoanProcessing from './pages/admin/BulkLoanProcessing';
+import SendNotification from './pages/admin/SendNotification';
 import MemberDashboard from './pages/member/Dashboard';
 import MemberContributions from './pages/member/Contributions';
 import MemberLoans from './pages/member/Loans';
@@ -39,6 +41,7 @@ import {
   X,
   Search
 } from 'lucide-react';
+import { useWebNotifications } from './hooks/useWebNotifications';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -62,6 +65,8 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { path: '/admin/activity', label: 'Activity', icon: '📋' },
     { path: '/admin/reports', label: 'Reports', icon: '📈' },
     { path: '/admin/notifications', label: 'Notifications', icon: '🔔' },
+    { path: '/admin/bulk-loans', label: 'Bulk Loans', icon: '📤' },
+    { path: '/admin/send-notification', label: 'Notify', icon: '📢' },
     { path: '/admin/data', label: 'Data Mgmt', icon: '🗄️' },
     { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
   ];
@@ -102,6 +107,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       <main className="admin-main">
+        <NotificationBanner userId={user?.uid} />
         <div className="admin-topbar">
           <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
             <Menu size={24} />
@@ -509,6 +515,7 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       </aside>
       {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
       <main className="admin-main">
+        <NotificationBanner userId={user?.uid} />
         <div className="admin-topbar">
           <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
             <Menu size={24} />
@@ -517,6 +524,20 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         </div>
         {children}
       </main>
+    </div>
+  );
+};
+
+const NotificationBanner: React.FC<{ userId: string | undefined }> = ({ userId }) => {
+  const { showPrompt, requestPermission, dismiss } = useWebNotifications(userId);
+  if (!showPrompt) return null;
+  return (
+    <div className="notif-prompt">
+      <span>Get notified of new updates and approvals</span>
+      <div className="notif-prompt-actions">
+        <button className="btn btn-sm btn-primary" onClick={requestPermission}>Allow</button>
+        <button className="btn btn-sm btn-outline" onClick={dismiss}>Later</button>
+      </div>
     </div>
   );
 };
@@ -536,6 +557,8 @@ const App: React.FC = () => {
       <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/data" element={<ProtectedRoute><AdminLayout><DataManagement /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/notifications" element={<ProtectedRoute><AdminLayout><Notifications /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/bulk-loans" element={<ProtectedRoute><AdminLayout><BulkLoanProcessing /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/send-notification" element={<ProtectedRoute><AdminLayout><SendNotification /></AdminLayout></ProtectedRoute>} />
       <Route path="/ios" element={<Navigate to="/login" replace />} />
       <Route path="/member/login" element={<Navigate to="/login" replace />} />
       <Route path="/member/unrecognized" element={<MemberUnrecognized />} />

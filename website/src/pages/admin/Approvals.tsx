@@ -124,38 +124,33 @@ const PaymentsTab: React.FC = () => {
   const handleApprove = async (req: PaymentRequest) => {
     try {
       const requestRef = doc(db, "payment_requests", req.id);
-      let approved = false;
-
-      await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(requestRef);
-        if (!snap.exists) throw new Error("Request not found");
-        const data = snap.data()!;
-        if (data.status !== "pending") throw new Error("Request already processed");
-
-        transaction.update(requestRef, {
-          status: "approved",
-          approvedDate: Timestamp.now(),
-        });
-        approved = true;
-      });
-
-      if (!approved) return;
-
       const memberDocId = await resolveMemberDocId(req.memberId);
+      const now = Timestamp.now();
+      const d = now.toDate();
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
 
       if (req.type === "contribution") {
-        const now = Timestamp.now();
-        const d = now.toDate();
-        const month = d.getMonth() + 1;
-        const year = d.getFullYear();
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(requestRef);
+          if (!snap.exists) throw new Error("Request not found");
+          const data = snap.data()!;
+          if (data.status !== "pending") throw new Error("Request already processed");
 
-        await addDoc(collection(db, "contributions"), {
-          memberId: memberDocId,
-          amount: req.amount,
-          date: now,
-          month,
-          year,
-          createdBy: "member",
+          transaction.update(requestRef, {
+            status: "approved",
+            approvedDate: now,
+          });
+
+          const contribRef = doc(collection(db, "contributions"));
+          transaction.set(contribRef, {
+            memberId: memberDocId,
+            amount: req.amount,
+            date: now,
+            month,
+            year,
+            createdBy: "member",
+          });
         });
 
         const contribsSnap = await getDocs(query(
@@ -198,10 +193,24 @@ const PaymentsTab: React.FC = () => {
           }
         }
       } else if (req.type === "loan" && req.loanId) {
-        await addDoc(collection(db, "repayments"), {
-          loanId: req.loanId,
-          amountPaid: req.amount,
-          date: Timestamp.now(),
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(requestRef);
+          if (!snap.exists) throw new Error("Request not found");
+          const data = snap.data()!;
+          if (data.status !== "pending") throw new Error("Request already processed");
+
+          transaction.update(requestRef, {
+            status: "approved",
+            approvedDate: now,
+          });
+
+          const repayRef = doc(collection(db, "repayments"));
+          transaction.set(repayRef, {
+            loanId: req.loanId,
+            memberId: req.memberId,
+            amountPaid: req.amount,
+            date: now,
+          });
         });
 
         const loanDoc = await getDoc(doc(db, "loans", req.loanId));
@@ -340,16 +349,6 @@ const LoansTab: React.FC = () => {
 
         const memberId = data.memberId;
 
-        // Check for existing active loans
-        const activeLoansQ = query(
-          collection(db, "loans"),
-          where("memberId", "==", memberId),
-          where("isFullyRepaid", "==", false),
-          limit(1)
-        );
-        const activeLoansSnap = await getDocs(activeLoansQ);
-        if (!activeLoansSnap.empty) throw new Error("Member already has an active loan");
-
         // Create Loan doc
         const loanRef = doc(collection(db, "loans"));
         const interestRate = ((data.interestRate as number) || 0) / 100;
@@ -358,6 +357,23 @@ const LoansTab: React.FC = () => {
           : data.dueDate?.toDate
             ? Timestamp.fromDate(data.dueDate.toDate())
             : Timestamp.now();
+
+        // Check for existing active loans within the transaction
+        // by reading any known member loan docs
+        const existingLoanSnap = await getDocs(query(
+          collection(db, "loans"),
+          where("memberId", "==", memberId),
+          where("isFullyRepaid", "==", false),
+          limit(1)
+        ));
+        for (const existingDoc of existingLoanSnap.docs) {
+          const existingRef = doc(db, "loans", existingDoc.id);
+          const refreshed = await transaction.get(existingRef);
+          const loanData = refreshed.data();
+          if (loanData && loanData.isFullyRepaid === false) {
+            throw new Error("Member already has an active loan");
+          }
+        }
 
         transaction.set(loanRef, {
           memberId: memberId,
@@ -451,6 +467,7 @@ const HeadsTab: React.FC = () => {
   const [requests, setRequests] = useState<HeadChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -465,7 +482,33 @@ const HeadsTab: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, memberId: string) => {
+    try {
+      const now = new Date();
+      const isJanuary = now.getMonth() === 0;
+
+      const contribSnap = await getDocs(
+        query(collection(db, "contributions"), where("memberId", "==", memberId))
+      );
+      const paymentSnap = await getDocs(
+        query(collection(db, "payment_requests"), where("memberId", "==", memberId))
+      );
+      const hasApprovedPayment = paymentSnap.docs.some(
+        d => d.data().status === "approved" && d.data().type === "contribution"
+      );
+
+      if ((!contribSnap.empty || hasApprovedPayment) && !isJanuary) {
+        setValidationError(
+          "This member has existing contributions. Head changes are only allowed in January (start of the year reset)."
+        );
+        return;
+      }
+    } catch (err) {
+      console.error("Head change validation error:", err);
+      setValidationError("Could not verify contribution history. Please try again.");
+      return;
+    }
+
     try {
       await updateDoc(doc(db, "head_change_requests", id), {
         status: "approved",
@@ -538,12 +581,33 @@ const HeadsTab: React.FC = () => {
                 <button className="btn btn-outline btn-sm" style={{ color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleReject(r.id)}>
                   Reject
                 </button>
-                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id)}>
+                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id, r.memberId)}>
                   Approve
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {validationError && (
+        <div className="modal-overlay" onClick={() => setValidationError(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="modal-header">
+              <h2 style={{ color: "#f59e0b" }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, verticalAlign: "middle" }}>
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+                Cannot Approve
+              </h2>
+            </div>
+            <div style={{ padding: "8px 24px 24px", color: "#8b949e", lineHeight: 1.6, fontSize: 14, whiteSpace: "pre-line" }}>
+              {validationError}
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={() => setValidationError(null)}>OK</button>
+            </div>
+          </div>
         </div>
       )}
     </>

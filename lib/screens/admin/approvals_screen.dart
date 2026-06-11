@@ -7,8 +7,10 @@ import '../../data/models/loan_request.dart';
 import '../../data/models/head_change_request.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/theme/app_colors.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/firebase/firebase_service.dart';
 
 final pendingPaymentsProvider = StreamProvider.autoDispose<List<PaymentRequest>>((ref) {
   return ref.watch(paymentRequestRepositoryProvider).watchPendingPaymentRequests();
@@ -827,6 +829,57 @@ class _HeadChangeApprovalCardState extends ConsumerState<_HeadChangeApprovalCard
   Future<void> _handleApprove(BuildContext context) async {
     if (_busy) return;
     setState(() => _busy = true);
+
+    // Validate head change rules
+    final now = DateTime.now();
+    final isJanuary = now.month == 1;
+
+    final contribSnapshot = await FirebaseService.firestore
+        .collection('contributions')
+        .where('memberId', isEqualTo: request.memberId)
+        .get();
+
+    final paymentSnapshot = await FirebaseService.firestore
+        .collection('payment_requests')
+        .where('memberId', isEqualTo: request.memberId)
+        .get();
+
+    final hasContributions = contribSnapshot.docs.isNotEmpty ||
+        paymentSnapshot.docs.any((d) {
+          final data = d.data();
+          return data['status'] == 'approved' && data['type'] == 'contribution';
+        });
+
+    if (hasContributions && !isJanuary) {
+      setState(() => _busy = false);
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Row(
+            children: [
+              Icon(Icons.info_outline, color: AppColors.warning),
+              SizedBox(width: 8),
+              Text('Cannot Approve', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: const Text(
+            'This member has existing contributions. Head changes are only allowed in January (start of the year reset).',
+            style: TextStyle(color: AppColors.textMuted, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK', style: TextStyle(color: AppColors.primary)),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final repo = ref.read(headChangeRequestRepositoryProvider);
     final user = ref.read(currentUserProvider).state;
     final approved = await repo.approveHeadChangeRequest(

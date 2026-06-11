@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
@@ -18,9 +19,7 @@ import '../../providers/members_provider.dart';
 import '../modals/member_payment_modal.dart';
 import '../modals/member_loan_request_modal.dart';
 import '../modals/member_head_change_modal.dart';
-import 'member_pay_screen.dart';
 import '../../providers/notification_provider.dart';
-import '../notifications/notifications_screen.dart';
 
 final memberContributionsStreamProvider = StreamProvider.family<List<Contribution>, String>((ref, memberId) {
   return ref.watch(contributionRepositoryProvider).watchMemberContributions(memberId);
@@ -72,9 +71,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined),
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => const NotificationsScreen(),
-                      ));
+                      context.push('/notifications');
                     },
                     tooltip: 'Notifications',
                   ),
@@ -165,11 +162,96 @@ class MemberDashboardScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: _quickAction(context, Icons.add_circle, 'Pay Contribution', AppColors.primary, () {
-                    showModalBottomSheet(
-                      context: context, isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const MemberPaymentModal(),
-                    );
+                    final now = DateTime.now();
+                    final allContribs = ref.read(memberContributionsStreamProvider(memberId)).asData?.value ?? [];
+                    final thisMonth = allContribs.where((c) =>
+                      c.date.month == now.month && c.date.year == now.year
+                    ).toList();
+                    final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
+                    final member = ref.read(memberByIdProvider(memberId)).valueOrNull;
+                    final perHeadAmount = member?.amountPerHead ?? 0;
+                    final headCount = member?.headsCount ?? 1;
+                    final perCutoffAmount = perHeadAmount * headCount;
+                    final fullMonthlyRequired = perCutoffAmount * 2;
+
+                    if (monthlyTotal >= perCutoffAmount && fullMonthlyRequired > 0) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          backgroundColor: AppColors.surface,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(height: 8),
+                              Container(
+                                width: 56, height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withAlpha(30),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.emoji_events, color: AppColors.primary, size: 28),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text("YOU'RE ON TRACK!",
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'You\'ve met your contribution for this cutoff period.',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Contributed: ${CurrencyFormatter.format(monthlyTotal)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => Navigator.pop(ctx),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      child: const Text('Close'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                      child: ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.pop(ctx);
+                                        showModalBottomSheet(
+                                          context: context, isScrollControlled: true,
+                                          backgroundColor: Colors.transparent,
+                                          builder: (_) => const MemberPaymentModal(defaultAdvance: true),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      ),
+                                      child: const Text('Pay in Advance'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else {
+                      showModalBottomSheet(
+                        context: context, isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const MemberPaymentModal(),
+                      );
+                    }
                   }),
                 ),
                 const SizedBox(width: 8),
@@ -539,9 +621,10 @@ class MemberDashboardScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => MemberPayScreen(loanId: loan.id, paymentType: PaymentType.loan),
-                      ));
+                      context.push('/member-pay', extra: {
+                        'loanId': loan.id,
+                        'paymentType': PaymentType.loan.name,
+                      });
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.warning, foregroundColor: Colors.white,

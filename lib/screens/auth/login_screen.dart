@@ -202,7 +202,7 @@ class _LoginForm extends ConsumerWidget {
             keyboardType: TextInputType.emailAddress,
             validator: (value) {
               if (value == null || value.isEmpty) return 'Please enter email';
-              if (!value.contains('@')) return 'Please enter a valid email';
+              if (!RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value)) return 'Please enter a valid email';
               return null;
             },
             textInputAction: TextInputAction.next,

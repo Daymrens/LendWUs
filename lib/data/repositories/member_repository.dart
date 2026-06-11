@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/member.dart';
 import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
@@ -5,11 +7,17 @@ import '../../core/utils/member_id_generator.dart';
 
 class MemberRepository {
   final LoanRepository _loanRepo;
+  static const int _defaultPageSize = 100;
 
   MemberRepository({LoanRepository? loanRepo}) : _loanRepo = loanRepo ?? LoanRepository();
 
-  Future<List<Member>> getAllMembers() async {
-    final snapshot = await FirebaseService.firestore.collection('members').get();
+  Future<List<Member>> getAllMembers({int? limit, DocumentSnapshot? startAfter}) async {
+    Query<Map<String, dynamic>> query = FirebaseService.firestore.collection('members');
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    query = query.limit(limit ?? _defaultPageSize);
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => Member.fromMap({...doc.data(), 'id': doc.id}))
         .toList();

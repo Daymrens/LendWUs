@@ -1,8 +1,7 @@
 import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:local_auth/local_auth.dart';
 import '../../core/firebase/firebase_service.dart';
-import 'biometric_service.dart';
+import 'biometric_service_stub.dart' as bio;
 
 class SecurityService {
   static String get _userId {
@@ -11,20 +10,13 @@ class SecurityService {
     return user.uid;
   }
 
-  static Future<bool> isBiometricAvailable() => BiometricService.isAvailable();
+  static Future<bool> isBiometricAvailable() => bio.isAvailable();
 
-  static Future<bool> authenticateWithBiometrics() => BiometricService.authenticate();
+  static Future<bool> authenticateWithBiometrics() => bio.authenticate();
 
   static Future<bool> authenticateWithPasscode() async {
     try {
-      final localAuth = LocalAuthentication();
-      return await localAuth.authenticate(
-        localizedReason: 'Enter your device passcode',
-        options: const AuthenticationOptions(
-          biometricOnly: false,
-          stickyAuth: true,
-        ),
-      );
+      return await bio.authenticateWithPasscode();
     } catch (_) {
       return false;
     }
@@ -62,7 +54,7 @@ class SecurityService {
   }
 
   static Future<void> enableBiometricAuth() async {
-    await BiometricService.setEnabled(true);
+    await bio.setEnabled(true);
     final uid = _userId;
     await FirebaseService.firestore.collection('user_settings').doc(uid).set({
       'biometric_enabled': true,
@@ -71,7 +63,7 @@ class SecurityService {
   }
 
   static Future<void> disableBiometricAuth() async {
-    await BiometricService.setEnabled(false);
+    await bio.setEnabled(false);
     final uid = _userId;
     await FirebaseService.firestore.collection('user_settings').doc(uid).set({
       'biometric_enabled': false,

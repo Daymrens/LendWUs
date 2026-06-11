@@ -5,6 +5,9 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  doc,
+  getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useMemberAuth } from "../../context/MemberAuthContext";
@@ -41,10 +44,8 @@ const Loans: React.FC = () => {
 
   useEffect(() => {
     if (!memberId) return;
-    import("firebase/firestore").then(({ doc, getDoc }) => {
-      getDoc(doc(db, "members", memberId)).then(snap => {
-        if (snap.exists()) setMemberDocId(snap.id);
-      });
+    getDoc(doc(db, "members", memberId)).then(snap => {
+      if (snap.exists()) setMemberDocId(snap.id);
     });
   }, [memberId]);
 
@@ -57,14 +58,11 @@ const Loans: React.FC = () => {
         const withBalances = await Promise.all(loanList.map(async (loan) => {
           if (loan.isFullyRepaid) return { ...loan, remainingBalance: 0 };
           const totalDue = loan.principal + (loan.principal * (loan.interestRate || 0));
-          const repaySnap = await import("firebase/firestore").then(async ({ getDocs, query, collection, where }) => {
-            const q = query(collection(db, "repayments"), where("loanId", "==", loan.id));
-            const s = await getDocs(q);
-            let repaid = 0;
-            s.docs.forEach(d => { repaid += Number(d.data().amountPaid) || 0; });
-            return repaid;
-          });
-          return { ...loan, remainingBalance: Math.max(0, totalDue - repaySnap) };
+          const repayQ = query(collection(db, "repayments"), where("loanId", "==", loan.id));
+          const repaySnap = await getDocs(repayQ);
+          let repaid = 0;
+          repaySnap.docs.forEach(d => { repaid += Number(d.data().amountPaid) || 0; });
+          return { ...loan, remainingBalance: Math.max(0, totalDue - repaid) };
         }));
         setLoans(withBalances);
         setLoading(false);

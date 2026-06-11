@@ -207,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isRecognized, setIsRecognized] = useState(false);
 
   const unsubMemberWatcherRef = useRef<(() => void) | null>(null);
+  const resolveLockRef = useRef<Promise<void> | null>(null);
 
   const stopMemberWatcher = useCallback(() => {
     unsubMemberWatcherRef.current?.();
@@ -246,26 +247,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Skip if login/signInWithGoogle is handling this (they set user directly)
-      // Only process if user is null (page refresh scenario)
+      // Mutex: prevent concurrent resolveUser calls on rapid auth state changes
+      while (resolveLockRef.current) {
+        await resolveLockRef.current;
+      }
       if (user) {
         setLoading(false);
         return;
       }
 
-      try {
-        const { appUser, recognized, error: resolveError } = await resolveUser(fbUser);
-        setUser(appUser);
-        setIsRecognized(recognized);
-        setError(resolveError || null);
-        if (appUser?.role === "member" && appUser.memberId) {
-          startMemberWatcher(appUser.memberId);
+      const doResolve = async () => {
+        try {
+          const { appUser, recognized, error: resolveError } = await resolveUser(fbUser);
+          setUser(appUser);
+          setIsRecognized(recognized);
+          setError(resolveError || null);
+          if (appUser?.role === "member" && appUser.memberId) {
+            startMemberWatcher(appUser.memberId);
+          }
+        } catch (err: unknown) {
+          setError(err instanceof Error ? err.message : "Failed to load user data");
+          setUser(null);
+          setIsRecognized(false);
         }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to load user data");
-        setUser(null);
-        setIsRecognized(false);
-      }
+      };
+
+      const lock = doResolve();
+      resolveLockRef.current = lock;
+      try { await lock; } finally { resolveLockRef.current = null; }
       setLoading(false);
     });
 

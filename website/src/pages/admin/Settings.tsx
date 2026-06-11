@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db } from "../../firebase";
 
 interface AppSettings {
@@ -100,16 +101,27 @@ const Settings: React.FC = () => {
     set("adminEmails", settings.adminEmails.filter(e => e !== email));
   };
 
-  const handleQRImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleQRImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        set("qrImageUrl", reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    try {
+      setMessage("");
+      const storage = getStorage();
+      const storageRef = ref(storage, `qr_codes/${file.name}`);
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(snapshot.ref);
+      set("qrImageUrl", downloadUrl);
+      setMessage("QR code uploaded to storage");
+    } catch {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === "string") {
+          set("qrImageUrl", reader.result);
+          setMessage("QR code saved as base64 (Spark plan fallback)");
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading settings...</p></div>;

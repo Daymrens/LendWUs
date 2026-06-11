@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   collection,
   getDocs,
@@ -40,13 +40,17 @@ const Members: React.FC = () => {
   const [paymentStatuses, setPaymentStatuses] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const tabs = ["All", "Active", "Inactive"];
+  const backfillDone = useRef(false);
 
   useEffect(() => {
     loadMembers();
   }, []);
 
   useEffect(() => {
-    backfillMissingMemberIds(db).catch(() => {});
+    if (!backfillDone.current) {
+      backfillDone.current = true;
+      backfillMissingMemberIds(db).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -144,8 +148,30 @@ const Members: React.FC = () => {
     try {
       const batch = writeBatch(db);
       batch.delete(doc(db, "members", id));
+
       const userSnap = await getDocs(query(collection(db, "users"), where("memberId", "==", id)));
       userSnap.docs.forEach(d => batch.delete(doc(db, "users", d.id)));
+
+      const [contribSnap, loansSnap, payReqSnap, loanReqSnap, headSnap] = await Promise.all([
+        getDocs(query(collection(db, "contributions"), where("memberId", "==", id))),
+        getDocs(query(collection(db, "loans"), where("memberId", "==", id))),
+        getDocs(query(collection(db, "payment_requests"), where("memberId", "==", id))),
+        getDocs(query(collection(db, "loan_requests"), where("memberId", "==", id))),
+        getDocs(query(collection(db, "head_change_requests"), where("memberId", "==", id))),
+      ]);
+
+      contribSnap.docs.forEach(d => batch.delete(doc(db, "contributions", d.id)));
+      payReqSnap.docs.forEach(d => batch.delete(doc(db, "payment_requests", d.id)));
+      loanReqSnap.docs.forEach(d => batch.delete(doc(db, "loan_requests", d.id)));
+      headSnap.docs.forEach(d => batch.delete(doc(db, "head_change_requests", d.id)));
+
+      const loanIds = loansSnap.docs.map(d => d.id);
+      for (const loanId of loanIds) {
+        const repaySnap = await getDocs(query(collection(db, "repayments"), where("loanId", "==", loanId)));
+        repaySnap.docs.forEach(d => batch.delete(doc(db, "repayments", d.id)));
+        batch.delete(doc(db, "loans", loanId));
+      }
+
       await batch.commit();
       loadMembers();
     } catch (err: unknown) {

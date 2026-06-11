@@ -58,6 +58,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
       final repo = ref.read(fundRepositoryProvider);
       await repo.addContribution(contribution);
       ref.invalidate(totalFundProvider);
+      ref.invalidate(membersProvider);
 
       if (mounted) Navigator.pop(context);
     } catch (e) {

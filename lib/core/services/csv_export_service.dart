@@ -48,13 +48,12 @@ class CsvExportService {
   }
 
   Future<void> exportAll() async {
-    await exportContributions();
-    await Future.delayed(const Duration(milliseconds: 300));
-    await exportLoans();
-    await Future.delayed(const Duration(milliseconds: 300));
-    await exportMembers();
-    await Future.delayed(const Duration(milliseconds: 300));
-    await exportPaymentRequests();
+    await Future.wait([
+      exportContributions(),
+      exportLoans(),
+      exportMembers(),
+      exportPaymentRequests(),
+    ]);
   }
 
   Future<void> _shareCsv(String name, List<List<String>> rows) async {

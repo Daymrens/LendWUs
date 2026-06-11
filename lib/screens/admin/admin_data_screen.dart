@@ -9,9 +9,8 @@ import '../../data/models/repayment.dart';
 import '../../data/models/member.dart';
 import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
-import '../../providers/members_provider.dart';
 import '../../providers/loans_provider.dart';
-import '../../providers/fund_provider.dart';
+import '../../providers/members_provider.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/member_id_generator.dart';
 
@@ -202,297 +201,213 @@ class _AdminDataScreenState extends ConsumerState<AdminDataScreen>
   }
 }
 
-class _ContributionsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_ContributionsTab> createState() => _ContributionsTabState();
-}
+final _contributionsListProvider = FutureProvider<List<Contribution>>((ref) {
+  return ref.watch(contributionRepositoryProvider).getAllContributions();
+});
 
-class _ContributionsTabState extends ConsumerState<_ContributionsTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _ContributionsTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<Contribution>>(
-        future: ref.read(fundRepositoryProvider).getAllContributions(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final contributionsAsync = ref.watch(_contributionsListProvider);
+    return contributionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading contributions')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No contributions'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _DataTile(
+              title: CurrencyFormatter.format(item.amount),
+              subtitle: '${item.date.day}/${item.date.month}/${item.date.year}',
+              trailing: item.memberId,
+              onEdit: () => _editContribution(context, ref, item),
+              onDelete: () => _deleteContribution(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No contributions'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _DataTile(
-                title: CurrencyFormatter.format(item.amount),
-                subtitle: '${item.date.day}/${item.date.month}/${item.date.year}',
-                trailing: item.memberId,
-                onEdit: () => _editContribution(context, ref, item),
-                onDelete: () => _deleteContribution(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }
 
-class _LoansTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_LoansTab> createState() => _LoansTabState();
-}
+final _loansListProvider = FutureProvider<List<Loan>>((ref) {
+  return ref.watch(loanRepositoryProvider).getAllLoans();
+});
 
-class _LoansTabState extends ConsumerState<_LoansTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _LoansTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<Loan>>(
-        future: ref.read(loanRepositoryProvider).getAllLoans(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loansAsync = ref.watch(_loansListProvider);
+    return loansAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading loans')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No loans'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final status = item.isFullyRepaid ? 'Paid' : 'Active';
+            return _DataTile(
+              title: '${CurrencyFormatter.format(item.principal)} ($status)',
+              subtitle: 'Issued: ${item.issuedDate.day}/${item.issuedDate.month}/${item.issuedDate.year}',
+              trailing: item.memberId,
+              onEdit: () => _editLoan(context, ref, item),
+              onDelete: () => _deleteLoan(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No loans'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final status = item.isFullyRepaid ? 'Paid' : 'Active';
-              return _DataTile(
-                title: '${CurrencyFormatter.format(item.principal)} ($status)',
-                subtitle: 'Issued: ${item.issuedDate.day}/${item.issuedDate.month}/${item.issuedDate.year}',
-                trailing: item.memberId,
-                onEdit: () => _editLoan(context, ref, item),
-                onDelete: () => _deleteLoan(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }
 
-class _RepaymentsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_RepaymentsTab> createState() => _RepaymentsTabState();
-}
+final _repaymentsListProvider = FutureProvider<List<Repayment>>((ref) {
+  return ref.watch(loanRepositoryProvider).getAllRepayments();
+});
 
-class _RepaymentsTabState extends ConsumerState<_RepaymentsTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _RepaymentsTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<Repayment>>(
-        future: ref.read(loanRepositoryProvider).getAllRepayments(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repaymentsAsync = ref.watch(_repaymentsListProvider);
+    return repaymentsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading repayments')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No repayments'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _DataTile(
+              title: CurrencyFormatter.format(item.amountPaid),
+              subtitle: '${item.date.day}/${item.date.month}/${item.date.year}',
+              trailing: 'Loan: ${item.loanId.substring(0, 8)}...',
+              onEdit: () => _editRepayment(context, ref, item),
+              onDelete: () => _deleteRepayment(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No repayments'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _DataTile(
-                title: CurrencyFormatter.format(item.amountPaid),
-                subtitle: '${item.date.day}/${item.date.month}/${item.date.year}',
-                trailing: 'Loan: ${item.loanId.substring(0, 8)}...',
-                onEdit: () => _editRepayment(context, ref, item),
-                onDelete: () => _deleteRepayment(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }
 
-class _MembersTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_MembersTab> createState() => _MembersTabState();
-}
+final _membersListProvider = FutureProvider<List<Member>>((ref) {
+  return ref.watch(memberRepositoryProvider).getAllMembers();
+});
 
-class _MembersTabState extends ConsumerState<_MembersTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _MembersTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<Member>>(
-        future: ref.read(memberRepositoryProvider).getAllMembers(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final membersAsync = ref.watch(_membersListProvider);
+    return membersAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading members')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No members'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _DataTile(
+              title: item.name,
+              subtitle: 'Heads: ${item.headsCount} • ${CurrencyFormatter.format(item.amountPerHead)}/head',
+              trailing: item.isActive ? 'Active' : 'Inactive',
+              onEdit: () => _editMember(context, ref, item),
+              onDelete: () => _deleteMember(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No members'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _DataTile(
-                title: item.name,
-                subtitle: 'Heads: ${item.headsCount} • ${CurrencyFormatter.format(item.amountPerHead)}/head',
-                trailing: item.isActive ? 'Active' : 'Inactive',
-                onEdit: () => _editMember(context, ref, item),
-                onDelete: () => _deleteMember(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }
 
-class _PaymentRequestsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_PaymentRequestsTab> createState() => _PaymentRequestsTabState();
-}
+final _paymentRequestsListProvider = FutureProvider<List<PaymentRequest>>((ref) {
+  return ref.watch(paymentRequestRepositoryProvider).getAllPaymentRequests();
+});
 
-class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _PaymentRequestsTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<PaymentRequest>>(
-        future: ref.read(paymentRequestRepositoryProvider).getAllPaymentRequests(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requestsAsync = ref.watch(_paymentRequestsListProvider);
+    return requestsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading payment requests')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No payment requests'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _DataTile(
+              title: '${CurrencyFormatter.format(item.amount)} • ${item.type.name}',
+              subtitle: '${item.memberId}  •  ${item.status.name}',
+              trailing: item.requestDate.day.toString(),
+              onEdit: null,
+              onDelete: () => _deletePaymentRequest(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No payment requests'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _DataTile(
-                title: '${CurrencyFormatter.format(item.amount)} • ${item.type.name}',
-                subtitle: '${item.memberId}  •  ${item.status.name}',
-                trailing: item.requestDate.day.toString(),
-                onEdit: null,
-                onDelete: () => _deletePaymentRequest(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }
 
-class _LoanRequestsTab extends ConsumerStatefulWidget {
-  @override
-  ConsumerState<_LoanRequestsTab> createState() => _LoanRequestsTabState();
-}
+final _loanRequestsListProvider = FutureProvider<List<LoanRequest>>((ref) {
+  return ref.watch(loanRequestRepositoryProvider).getAllLoanRequests();
+});
 
-class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
-  Future<void> _refresh() async => setState(() {});
-
+class _LoanRequestsTab extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _refresh,
-      child: FutureBuilder<List<LoanRequest>>(
-        future: ref.read(loanRequestRepositoryProvider).getAllLoanRequests(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: CircularProgressIndicator())],
+  Widget build(BuildContext context, WidgetRef ref) {
+    final requestsAsync = ref.watch(_loanRequestsListProvider);
+    return requestsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Error loading loan requests')),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(child: Text('No loan requests'));
+        }
+        return ListView.builder(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _DataTile(
+              title: '${CurrencyFormatter.format(item.amount)} • ${item.memberName}',
+              subtitle: 'Status: ${item.status.name}',
+              trailing: item.memberId,
+              onEdit: null,
+              onDelete: () => _deleteLoanRequest(context, ref, item),
             );
-          }
-          final items = snapshot.data!;
-          if (items.isEmpty) {
-            return ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [Center(child: Text('No loan requests'))],
-            );
-          }
-          return ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return _DataTile(
-                title: '${CurrencyFormatter.format(item.amount)} • ${item.memberName}',
-                subtitle: 'Status: ${item.status.name}',
-                trailing: item.memberId,
-                onEdit: null,
-                onDelete: () => _deleteLoanRequest(context, ref, item),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }

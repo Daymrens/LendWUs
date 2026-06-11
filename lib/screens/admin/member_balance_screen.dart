@@ -3,17 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../data/repositories/member_repository.dart';
-import '../../data/repositories/payment_request_repository.dart';
+import '../../core/firebase/firebase_service.dart';
 
 final memberBalanceProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {
   final memberRepo = MemberRepository();
-  final paymentRepo = PaymentRequestRepository();
   final members = await memberRepo.getAllMembers();
 
   final results = <Map<String, dynamic>>[];
   for (final member in members) {
-    final payments = await paymentRepo.getPaymentRequestsByMember(member.id!);
-    final totalPaid = payments.fold<double>(0.0, (sum, p) => sum + p.amount);
+    final mid = member.id ?? '';
+    if (mid.isEmpty) continue;
+
+    final paymentSnap = await FirebaseService.firestore
+        .collection('payment_requests')
+        .where('memberId', isEqualTo: mid)
+        .get();
+
+    final totalPaid = paymentSnap.docs.fold<double>(0.0, (sum, d) {
+      final amount = (d.data()['amount'] as num?)?.toDouble() ?? 0.0;
+      return sum + amount;
+    });
+
     results.add({
       'member': member,
       'totalPaid': totalPaid,

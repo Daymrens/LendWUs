@@ -207,7 +207,7 @@ const Dashboard: React.FC = () => {
   const exportDashboard = () => {
     if (!data) return;
     downloadCSV([
-      { metric: "Total Fund", value: data.fundBalance },
+      { metric: "Total Fund", value: data.totalContributions + data.totalInterest },
       { metric: "Active Members", value: data.activeMembers },
       { metric: "Total Members", value: data.totalMembers },
       { metric: "Total Contributions", value: data.totalContributions },
@@ -289,7 +289,7 @@ const Dashboard: React.FC = () => {
       )}
 
       <div className="stat-grid">
-        <div className="stat-card gradient"><div className="stat-label">Total Fund</div><div className="stat-value">₱{fmt(data.fundBalance)}</div></div>
+        <div className="stat-card gradient"><div className="stat-label">Total Fund</div><div className="stat-value">₱{fmt(data.totalContributions + data.totalInterest)}</div></div>
         <div className="stat-card"><div className="stat-label">Active Members</div><div className="stat-value">{data.activeMembers}</div><div className="stat-sub">of {data.totalMembers} total</div></div>
         <div className="stat-card"><div className="stat-label">Active Loans</div><div className="stat-value">{data.activeLoans}</div><div className="stat-sub">{data.overdueLoans} overdue</div></div>
         <div className="stat-card"><div className="stat-label">Interest Earned</div><div className="stat-value">₱{fmt(data.totalInterest)}</div></div>

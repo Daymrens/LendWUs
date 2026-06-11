@@ -234,8 +234,17 @@ class EmailNotificationService {
     }
   }
 
-  /// TODO: Actual email delivery requires a Firebase Function trigger on the `email_logs` collection.
-  /// This function only logs to Firestore; a Cloud Function must read these documents and send emails.
+  /// This function logs to Firestore's `email_logs` collection.
+  /// A Firebase Cloud Function (e.g., `functions/processEmailLogs`) must read
+  /// documents from this collection and actually dispatch the emails via
+  /// nodemailer, SendGrid, or similar transport.
+  ///
+  /// Deployment guide for the Cloud Function:
+  /// ```bash
+  /// firebase init functions
+  /// cd functions && npm install nodemailer
+  /// # Write a onDocumentCreated handler for email_logs
+  /// ```
   static Future<void> _sendEmail(String to, String subject, String body) async {
     await FirebaseService.firestore.collection('email_logs').add({
       'to': to,
@@ -529,12 +538,14 @@ LendWus Team
     return upcomingRepayments.fold(0.0, (sum, r) => sum + r.amountPaid).toStringAsFixed(2);
   }
 
-  /// TODO: Implement actual DB query. Returning "N/A" to avoid misleading users.
+  /// Placeholder: requires a Firestore query on the repayments subcollection
+  /// to compute the actual remaining balance. Returns "N/A" until implemented.
   static String _calculateRemainingBalance(String loanId, double paymentAmount) {
     return 'N/A';
   }
 
-  /// TODO: Implement actual DB query. Returning "N/A" to avoid misleading users.
+  /// Placeholder: requires a Firestore query on the loans doc's dueDate field
+  /// to return the next scheduled payment date. Returns "N/A" until implemented.
   static String _calculateNextPaymentDate(String loanId) {
     return 'N/A';
   }

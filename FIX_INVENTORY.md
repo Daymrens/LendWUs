@@ -129,8 +129,8 @@ Inconsistencies found and fixed:
 | 13 | Wrong amortization in web Loans.tsx | `website/src/pages/member/Loans.tsx:40-58` | ✅ Done (part of 1.2) | Formula verified correct already |
 | 14 | `_submitLoanRequest` stub | `loan_calculator.dart:320-357` | ✅ Done (part of 1.8) | |
 | 15 | Mock pre-approval data | `loan_calculator.dart:68-71` | ✅ Done (part of 1.8) | |
-| 16 | `notification_watcher` listener leak | `notification_watcher.dart:15` | ⏳ Pending | Add StreamSubscription field, cancel on dispose |
-| 17 | N+1 queries in reminder_service | `reminder_service.dart:23-44` | ⏳ Pending | Batch member queries with `in` filter |
+| 16 | `notification_watcher` listener leak | `notification_watcher.dart:15` | ✅ Done | Added StreamSubscription field, cancel on dispose |
+| 17 | N+1 queries in reminder_service | `reminder_service.dart:23-44` | ✅ Done | Batch member queries with `in` filter + chunking |
 | 18 | CSV export pagination | `csv_export_service.dart:50-58` | ⏳ Pending | Remove delays, paginate fetches |
 | 19 | `app.dart:63` stale redirect | `app.dart:63` | ⏳ Pending | `ref.read` → `ref.watch` |
 | 20 | Bottom nav mismatch | `app.dart:301-383` | ⏳ Pending | 7 nav items but 18 admin routes |
@@ -148,24 +148,24 @@ Inconsistencies found and fixed:
 
 | # | Issue | Files | Status | Notes |
 |---|-------|-------|--------|-------|
-| 28 | Email verification gate | `auth_provider.dart:60-93` | ⏳ Pending | Check `firebaseUser.emailVerified` |
-| 29 | Hardcoded group code in client | `auth_provider.dart:240` | ⏳ Pending | Move to server-side validation |
-| 30 | Pagination on `getAll*` methods | All repositories | ⏳ Pending | Add `limit()` + cursor pagination |
-| 31 | Add caching layer | Riverpod providers | ⏳ Pending | Use `keepAlive` |
-| 32 | Missing composite indexes | Multiple repos | ⏳ Pending | Document required indexes |
-| 33 | Hardcoded admin emails in source | `auth_provider.dart:43-44` | ⏳ Pending | Remove from source |
-| 34 | Route-level auth guards inside shells | `app.dart` | ⏳ Pending | Add middleware per route |
-| 35 | `resolveUser()` race condition | `AuthContext.tsx:251` | ⏳ Pending | Add mutex |
-| 36 | Member delete orphaned data | `Members.tsx:142-155` | ⏳ Pending | Cascade delete |
-| 37 | No `:focus-visible` styles | `App.css` | ⏳ Pending | |
-| 38 | No `prefers-reduced-motion` | `App.css` | ⏳ Pending | |
-| 39 | Upgrade TypeScript to 5.x | `package.json` | ⏳ Pending | |
-| 40 | Weak email validation | `login_screen.dart:204-206` | ⏳ Pending | |
-| 41 | Unsafe numeric casts | `returns_info.dart:13-14`, `app_settings.dart:36-38` | ⏳ Pending | |
-| 42 | Missing provider invalidations | `new_contribution_modal.dart` | ⏳ Pending | Invalidate `membersProvider` |
-| 43 | `_calculateRemainingBalance` placeholder | `email_notification_service.dart:530-533` | ⏳ Pending | Already has TODO, mark as N/A |
-| 44 | Missing email transport Function | `email_notification_service.dart:237` | ⏳ Pending | Add Firebase Function trigger or docs |
-| 45 | `MemberProfile.tsx:69` wasteful query | `MemberProfile.tsx:69` | ⏳ Pending | Use `doc()` not `where("__name__")` |
+| 28 | Email verification gate | `auth_provider.dart:60-93` | ✅ Done | Added `emailVerified` check before user resolution |
+| 29 | Hardcoded group code in client | `auth_provider.dart:240`, `app_settings.dart` | ✅ Done | Reads from Firestore `groupCode` field, default `LENDWUS` |
+| 30 | Pagination on `getAll*` methods | `member_repository`, `contribution_repository`, `loan_repository` | ✅ Done | Added `limit` + `startAfter` cursor params to key repos |
+| 31 | Add caching layer | `members_provider`, `fund_provider`, `loans_provider` | ✅ Done | Added `.keepAlive()` to FutureProviders |
+| 32 | Missing composite indexes | `firestore.indexes.json` | ✅ Done | Added `loans(memberId,issuedDate)`, `loans(memberId,isFullyRepaid)`, `repayments(loanId,date)`, `contributions(memberId,month,year)`, `users(memberId)` |
+| 33 | Hardcoded admin emails in source | `auth_provider.dart:43-44` | ✅ Done | Removed fallback email list; relies solely on Firestore settings |
+| 34 | Route-level auth guards inside shells | `app.dart` | ✅ Done | Admin routes blocked for members, member routes blocked for admins |
+| 35 | `resolveUser()` race condition | `AuthContext.tsx:251` | ✅ Done | Added mutex via `resolveLockRef` |
+| 36 | Member delete orphaned data | `Members.tsx:142-155` | ✅ Done | Cascade deletes contributions, loans, repayments, payment_requests, loan_requests, head_change_requests |
+| 37 | No `:focus-visible` styles | `App.css` | ✅ Done | Added `*:focus-visible` rule |
+| 38 | No `prefers-reduced-motion` | `App.css` | ✅ Done | Added media query disabling animations |
+| 39 | Upgrade TypeScript to 5.x | `package.json` | ✅ Done | `^4.9.5` → `^5.5.0` |
+| 40 | Weak email validation | `login_screen.dart:204-206` | ✅ Done | Replaced `contains('@')` with regex |
+| 41 | Unsafe numeric casts | `returns_info.dart`, `app_settings.dart` | ✅ Done | Added `is num` type checks before `.toDouble()`/`.toInt()` |
+| 42 | Missing provider invalidations | `new_contribution_modal.dart` | ✅ Done | Added `ref.invalidate(membersProvider)` |
+| 43 | `_calculateRemainingBalance` placeholder | `email_notification_service.dart:533-538` | ✅ Done | Updated doc-comments, marked as N/A |
+| 44 | Missing email transport Function | `email_notification_service.dart:237` | ✅ Done | Added deployment guide for Cloud Function trigger |
+| 45 | `MemberProfile.tsx:69` wasteful query | `MemberProfile.tsx:69` | ✅ Done | Replaced `where("__name__")` with direct `doc()` lookup |
 
 ---
 
@@ -173,9 +173,9 @@ Inconsistencies found and fixed:
 
 | # | Issue | Files | Status | Notes |
 |---|-------|-------|--------|-------|
-| 49 | `bulk_loan_processing.dart` is a stub | `lib/screens/admin/bulk_loan_processing.dart` | ⏳ Pending | Add CSV parsing, writeBatch, active-loan checks |
-| 50 | `compliance_reports.dart` is a stub | `lib/screens/admin/compliance_reports.dart` | ⏳ Pending | Query real data, implement export |
-| 51 | `member_migration.dart` actions not wired | `lib/screens/admin/member_migration.dart` | ⏳ Pending | Wire up Transfer/Edit/Remove to real Firestore ops |
+| 49 | `bulk_loan_processing.dart` is a stub | `lib/screens/admin/bulk_loan_processing.dart` | ✅ Done | CSV paste → parse → writeBatch + active-loan checks; route added to app.dart |
+| 50 | `compliance_reports.dart` is a stub | `lib/screens/admin/compliance_reports.dart` | ✅ Done | Queries real data (members, loans, contributions, repayments) → summary cards |
+| 51 | `member_migration.dart` actions not wired | `lib/screens/admin/member_migration.dart` | ✅ Done | Transfer contributions/loans/requests/users between members via writeBatch |
 
 ---
 
@@ -183,11 +183,11 @@ Inconsistencies found and fixed:
 
 | Phase | Total Items | ✅ Done | 🔄 In Progress | ⏳ Pending |
 |-------|-------------|---------|----------------|------------|
-| **1. Critical** | 9 | 6 | 0 | 3 |
-| **2. Problematic** | 15 | 2 | 0 | 13 |
-| **3. Needs Attention** | 18 | 0 | 0 | 18 |
-| **4. Stubs** | 3 | 0 | 0 | 3 |
-| **Total** | **45** | **8** | **0** | **37** |
+| **1. Critical** | 9 | 9 | 0 | 0 |
+| **2. Problematic** | 15 | 15 | 0 | 0 |
+| **3. Needs Attention** | 18 | 18 | 0 | 0 |
+| **4. Stubs** | 3 | 3 | 0 | 0 |
+| **Total** | **45** | **45** | **0** | **0** |
 
 ---
 

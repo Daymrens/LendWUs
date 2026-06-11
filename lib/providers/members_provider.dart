@@ -20,6 +20,8 @@ final paymentRequestRepositoryProvider = Provider((ref) => PaymentRequestReposit
 final loanRequestRepositoryProvider = Provider((ref) => LoanRequestRepository());
 final headChangeRequestRepositoryProvider = Provider((ref) => HeadChangeRequestRepository());
 
+final currentUserRepositoryProvider = Provider((ref) => UserRepository());
+
 final membersProvider = FutureProvider<List<Member>>((ref) async {
   final repo = ref.watch(memberRepositoryProvider);
   return await repo.getAllMembers();

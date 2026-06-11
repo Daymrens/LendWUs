@@ -4,6 +4,8 @@ import {
   collection,
   query,
   getDocs,
+  getDoc,
+  doc,
   where,
   orderBy,
   Timestamp,
@@ -66,13 +68,13 @@ const MemberProfile: React.FC = () => {
     setError("");
     try {
       const [memSnap, contribSnap, loansSnap, paySnap] = await Promise.all([
-        getDocs(query(collection(db, "members"), where("__name__", "==", id!))),
+        getDoc(doc(db, "members", id!)),
         getDocs(query(collection(db, "contributions"), where("memberId", "==", id))),
         getDocs(query(collection(db, "loans"), where("memberId", "==", id), orderBy("issuedDate", "desc"))),
         getDocs(query(collection(db, "payment_requests"), where("memberId", "==", id), orderBy("requestDate", "desc"))),
       ]);
-      if (memSnap.empty) { setError("Member not found"); setLoading(false); return; }
-      setMember({ id: memSnap.docs[0].id, ...memSnap.docs[0].data() });
+      if (!memSnap.exists()) { setError("Member not found"); setLoading(false); return; }
+      setMember({ id: memSnap.id, ...memSnap.data() });
       setContributions(contribSnap.docs.map(d => ({ id: d.id, ...d.data() } as Contribution)));
       setLoans(loansSnap.docs.map(d => ({ id: d.id, ...d.data() } as Loan)));
       setPayments(paySnap.docs.map(d => ({ id: d.id, ...d.data() } as Payment)));

@@ -1,12 +1,20 @@
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan.dart';
 import '../models/repayment.dart';
-import 'fund_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/interest_calculator.dart';
 
 class LoanRepository {
-  Future<List<Loan>> getAllLoans() async {
-    final snapshot = await FirebaseService.firestore.collection('loans').get();
+  static const int _defaultPageSize = 100;
+
+  Future<List<Loan>> getAllLoans({int? limit, DocumentSnapshot? startAfter}) async {
+    Query<Map<String, dynamic>> query = FirebaseService.firestore.collection('loans');
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    query = query.limit(limit ?? _defaultPageSize);
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => Loan.fromMap({...doc.data(), 'id': doc.id}))
         .toList();
@@ -43,18 +51,27 @@ class LoanRepository {
   }
 
   Future<String> addLoan(Loan loan) async {
-    if (await hasActiveLoan(loan.memberId)) {
-      throw Exception('Member already has an unpaid loan');
-    }
-    
-    final fundRepo = FundRepository();
-    final available = await fundRepo.getAvailableToLoan();
-    if (loan.principal > available) {
-      throw Exception('Insufficient fund balance');
-    }
+    final firestore = FirebaseService.firestore;
 
-    final docRef = await FirebaseService.firestore.collection('loans').add(loan.toMap());
-    return docRef.id;
+    return await firestore.runTransaction((txn) async {
+      final existingSnap = await firestore
+          .collection('loans')
+          .where('memberId', isEqualTo: loan.memberId)
+          .where('isFullyRepaid', isEqualTo: false)
+          .get();
+
+      for (final doc in existingSnap.docs) {
+        final loanRef = firestore.collection('loans').doc(doc.id);
+        final refreshed = await txn.get(loanRef);
+        if (refreshed.exists && refreshed.data()?['isFullyRepaid'] == false) {
+          throw Exception('Member already has an unpaid loan');
+        }
+      }
+
+      final docRef = firestore.collection('loans').doc();
+      txn.set(docRef, loan.toMap());
+      return docRef.id;
+    });
   }
 
   Future<void> updateLoan(Loan loan) async {
@@ -110,6 +127,12 @@ class LoanRepository {
     final firestore = FirebaseService.firestore;
     final loanRef = firestore.collection('loans').doc(loanId);
 
+    final repaymentIds = await firestore
+        .collection('repayments')
+        .where('loanId', isEqualTo: loanId)
+        .get()
+        .then((snap) => snap.docs.map((d) => d.id).toList());
+
     await firestore.runTransaction((txn) async {
       final loanDoc = await txn.get(loanRef);
       if (!loanDoc.exists) return;
@@ -117,20 +140,15 @@ class LoanRepository {
       final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
       if (loan.isFullyRepaid) return;
 
-      final repaymentsSnap = await firestore
-          .collection('repayments')
-          .where('loanId', isEqualTo: loanId)
-          .get();
-
-      final repayments = repaymentsSnap.docs
-          .map((d) => Repayment.fromMap({...d.data(), 'id': d.id}))
-          .toList();
+      final repayments = <Repayment>[];
+      for (final id in repaymentIds) {
+        final repaymentDoc = await txn.get(firestore.collection('repayments').doc(id));
+        if (repaymentDoc.exists) {
+          repayments.add(Repayment.fromMap({...repaymentDoc.data()!, 'id': repaymentDoc.id}));
+        }
+      }
 
       if (InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
-        final fresh = await txn.get(loanRef);
-        if (!fresh.exists) return;
-        final data = fresh.data()!;
-        if (data['isFullyRepaid'] == true) return;
         txn.update(loanRef, {'isFullyRepaid': true});
       }
     });

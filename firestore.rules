@@ -23,6 +23,20 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.memberId == memberId;
     }
 
+    function isMemberByLinkedEmail(memberId) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/members/$(memberId)) &&
+        get(/databases/$(database)/documents/members/$(memberId)).data.linkedEmail == request.auth.token.email;
+    }
+
+    function canReadMemberData(memberId) {
+      return isAuth() && (
+        isAdmin() ||
+        isMemberOf(memberId) ||
+        isMemberByLinkedEmail(memberId)
+      );
+    }
+
     function isOwner(userId) {
       return isAuth() && request.auth.uid == userId;
     }
@@ -46,28 +60,28 @@ service cloud.firestore {
     // ─── contributions ──────────────────────────────────────
     match /contributions/{contributionId} {
       allow create: if isAdmin();
-      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      allow read: if canReadMemberData(resource.data.memberId);
       allow update, delete: if isAdmin();
     }
 
     // ─── payment_requests ───────────────────────────────────
     match /payment_requests/{requestId} {
       allow create: if isAuth() && (isMemberOf(request.resource.data.memberId) || isAdmin());
-      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      allow read: if canReadMemberData(resource.data.memberId);
       allow update, delete: if isAdmin();
     }
 
     // ─── loan_requests ──────────────────────────────────────
     match /loan_requests/{requestId} {
       allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
-      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      allow read: if canReadMemberData(resource.data.memberId);
       allow update, delete: if isAdmin();
     }
 
     // ─── loans ──────────────────────────────────────────────
     match /loans/{loanId} {
       allow create: if isAdmin();
-      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      allow read: if canReadMemberData(resource.data.memberId);
       allow update, delete: if isAdmin();
     }
 
@@ -77,7 +91,7 @@ service cloud.firestore {
       allow read: if isAuth() && (
         isAdmin() ||
         (exists(/databases/$(database)/documents/loans/$(resource.data.loanId)) &&
-          isMemberOf(get(/databases/$(database)/documents/loans/$(resource.data.loanId)).data.memberId))
+          canReadMemberData(get(/databases/$(database)/documents/loans/$(resource.data.loanId)).data.memberId))
       );
       allow update, delete: if isAdmin();
     }
@@ -91,7 +105,7 @@ service cloud.firestore {
     // ─── head_change_requests ──────────────────────────────
     match /head_change_requests/{requestId} {
       allow create: if isAuth() && isMemberOf(request.resource.data.memberId);
-      allow read: if isAuth() && (isMemberOf(resource.data.memberId) || isAdmin());
+      allow read: if canReadMemberData(resource.data.memberId);
       allow update, delete: if isAdmin();
     }
 

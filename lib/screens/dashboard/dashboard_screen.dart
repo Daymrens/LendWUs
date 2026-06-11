@@ -20,7 +20,6 @@ import '../modals/new_contribution_modal.dart';
 import '../modals/issue_loan_modal.dart';
 import '../modals/record_repayment_modal.dart';
 import '../../providers/notification_provider.dart';
-import '../notifications/notifications_screen.dart';
 import '../../core/utils/member_id_generator.dart';
 import '../../core/firebase/firebase_service.dart';
 
@@ -66,9 +65,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   IconButton(
                     icon: const Icon(Icons.notifications_outlined),
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(
-                        builder: (_) => const NotificationsScreen(),
-                      ));
+                      context.push('/notifications');
                     },
                     tooltip: 'Notifications',
                   ),
@@ -160,7 +157,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     children: [
                       StatCard(
                         title: 'Total Fund',
-                        value: CurrencyFormatter.format(summary.fundBalance),
+                        value: CurrencyFormatter.format(summary.totalContributions + summary.totalInterestEarned),
                         isGradient: true,
                         icon: Icons.account_balance,
                         iconColor: AppColors.primary,

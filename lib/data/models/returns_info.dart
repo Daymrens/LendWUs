@@ -10,8 +10,8 @@ class ReturnsInfo {
   });
 
   factory ReturnsInfo.fromMap(Map<String, dynamic> map) {
-    final totalReturns = (map['totalReturns'] ?? 0.0).toDouble();
-    final totalHeads = (map['totalHeads'] ?? 1).toInt();
+    final totalReturns = (map['totalReturns'] is num ? (map['totalReturns'] as num).toDouble() : 0.0);
+    final totalHeads = (map['totalHeads'] is num ? (map['totalHeads'] as num).toInt() : 1);
     return ReturnsInfo(
       totalReturns: totalReturns,
       totalHeads: totalHeads,

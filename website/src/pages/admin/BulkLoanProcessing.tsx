@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { collection, addDoc, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { collection, writeBatch, doc, getDocs, query, where, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 
 interface MemberData {
@@ -50,6 +50,7 @@ const BulkLoanProcessing: React.FC = () => {
 
   const submitAll = async () => {
     setSubmitting(true);
+    const batch = writeBatch(db);
     let success = 0;
     let failed = 0;
 
@@ -70,7 +71,8 @@ const BulkLoanProcessing: React.FC = () => {
       }
 
       try {
-        await addDoc(collection(db, "loans"), {
+        const loanRef = doc(collection(db, "loans"));
+        batch.set(loanRef, {
           memberId: entry.memberId,
           principal,
           interestRate: rate / 100,
@@ -83,6 +85,14 @@ const BulkLoanProcessing: React.FC = () => {
         console.error("Failed to create loan for", entry.memberId, err);
         failed++;
       }
+    }
+
+    try {
+      await batch.commit();
+    } catch (err) {
+      console.error("Batch commit failed", err);
+      failed = entries.length;
+      success = 0;
     }
 
     setResult({ success, failed });
