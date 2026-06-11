@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/services/security_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/returns_provider.dart';
 import '../../data/models/contribution.dart';
@@ -55,9 +57,10 @@ class MemberDashboardScreen extends ConsumerWidget {
     final memberAsync = ref.watch(memberByIdProvider(memberId));
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Dashboard'),
+    return _BiometricPromptGate(
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('My Dashboard'),
         actions: [
           Consumer(
             builder: (context, ref, _) {
@@ -760,6 +763,7 @@ class _RecentContributions extends ConsumerWidget {
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -772,3 +776,54 @@ class _RecentContributions extends ConsumerWidget {
     return DateFormat('MMM d').format(d);
   }
 }
+
+class _BiometricPromptGate extends StatefulWidget {
+  final Widget child;
+  const _BiometricPromptGate({required this.child});
+
+  @override
+  State<_BiometricPromptGate> createState() => _BiometricPromptGateState();
+}
+
+class _BiometricPromptGateState extends State<_BiometricPromptGate> {
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometricEnrollment();
+  }
+
+  Future<void> _checkBiometricEnrollment() async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (!mounted) return;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+      final available = await SecurityService.isBiometricAvailable();
+      if (!available || !mounted) return;
+      final enabled = await SecurityService.isBiometricEnabled();
+      if (enabled || !mounted) return;
+
+      final result = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Enable Fingerprint Sign-In?'),
+          content: const Text('Would you like to sign in with your fingerprint next time?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Skip')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Enable')),
+          ],
+        ),
+      );
+
+      if (result == true && mounted) {
+        await SecurityService.enableBiometricAuth();
+      }
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+

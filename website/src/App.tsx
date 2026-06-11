@@ -43,6 +43,27 @@ import {
 } from 'lucide-react';
 import { useWebNotifications } from './hooks/useWebNotifications';
 
+const MaintenanceScreen: React.FC = () => {
+  const [message, setMessage] = useState("The system is currently undergoing maintenance. Please check back later.");
+  useEffect(() => {
+    getDoc(doc(db, 'app_settings', 'fund_settings')).then(snap => {
+      if (snap.exists() && snap.data().maintenanceMessage) {
+        setMessage(snap.data().maintenanceMessage);
+      }
+    }).catch(() => {});
+  }, []);
+  return (
+    <div className="maintenance-container">
+      <div className="maintenance-card">
+        <div className="maintenance-icon">🔧</div>
+        <h1>Under Maintenance</h1>
+        <p>{message}</p>
+        <div className="spinner" style={{ marginTop: 24 }} />
+      </div>
+    </div>
+  );
+};
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
@@ -453,10 +474,21 @@ const LandingPage: React.FC = () => {
 
 const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading, isRecognized } = useAuth();
+  const [maintenance, setMaintenance] = useState<{ on: boolean }>({ on: false });
+
+  useEffect(() => {
+    getDoc(doc(db, 'app_settings', 'fund_settings')).then(snap => {
+      if (snap.exists() && snap.data().isMaintenanceMode === true) {
+        setMaintenance({ on: true });
+      }
+    }).catch(() => {});
+  }, []);
+
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== "member") return <Navigate to="/admin/dashboard" replace />;
   if (!isRecognized) return <Navigate to="/member/unrecognized" replace />;
+  if (maintenance.on) return <MaintenanceScreen />;
   return <>{children}</>;
 };
 
@@ -562,6 +594,7 @@ const App: React.FC = () => {
       <Route path="/ios" element={<Navigate to="/login" replace />} />
       <Route path="/member/login" element={<Navigate to="/login" replace />} />
       <Route path="/member/unrecognized" element={<MemberUnrecognized />} />
+      <Route path="/maintenance" element={<MaintenanceScreen />} />
       <Route path="/member/dashboard" element={<ProtectedMemberRoute><MemberLayout><MemberDashboard /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/loans" element={<ProtectedMemberRoute><MemberLayout><MemberLoans /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/contributions" element={<ProtectedMemberRoute><MemberLayout><MemberContributions /></MemberLayout></ProtectedMemberRoute>} />

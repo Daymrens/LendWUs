@@ -20,6 +20,8 @@ interface AppSettings {
   contactEmail: string;
   contactPhone: string;
   downloadCount: number;
+  isMaintenanceMode: boolean;
+  maintenanceMessage: string;
 }
 
 const currencies = [
@@ -49,6 +51,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   contactEmail: "",
   contactPhone: "",
   downloadCount: 0,
+  isMaintenanceMode: false,
+  maintenanceMessage: "",
 };
 
 const Settings: React.FC = () => {
@@ -325,6 +329,34 @@ const Settings: React.FC = () => {
             placeholder="e.g. +63 991 718 5691"
           />
         </div>
+      </div>
+
+      <div className="settings-section" style={{ border: settings.isMaintenanceMode ? '1px solid #e74c3c' : undefined }}>
+        <h2 style={{ color: settings.isMaintenanceMode ? '#e74c3c' : undefined }}>Maintenance Mode</h2>
+        <p className="form-hint">When enabled, members will see a maintenance screen and cannot use the app. Admins can still access the app normally.</p>
+        <div className="form-group">
+          <label className="switch-label">
+            <input
+              type="checkbox"
+              checked={settings.isMaintenanceMode}
+              onChange={e => set("isMaintenanceMode", e.target.checked)}
+            />
+            <span className="switch-slider"></span>
+            <span style={{ marginLeft: 8 }}>Enable Maintenance Mode</span>
+          </label>
+        </div>
+        {settings.isMaintenanceMode && (
+          <div className="form-group">
+            <label>Maintenance Message</label>
+            <textarea
+              className="send-notif-textarea"
+              value={settings.maintenanceMessage}
+              onChange={e => set("maintenanceMessage", e.target.value)}
+              placeholder="Message shown to members (optional)"
+              rows={3}
+            />
+          </div>
+        )}
       </div>
 
       <div className="settings-section">

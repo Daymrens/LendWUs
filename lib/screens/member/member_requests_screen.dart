@@ -11,6 +11,7 @@ import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
 import '../../data/models/head_change_request.dart';
 import '../modals/member_loan_request_modal.dart';
+import '../../widgets/receipt_image.dart';
 
 final memberPaymentRequestsProvider = StreamProvider.family<List<PaymentRequest>, String>((ref, memberId) {
   final repo = PaymentRequestRepository();
@@ -185,91 +186,103 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
     );
   }
 
+  void _showPaymentDetailSheet(PaymentRequest request) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PaymentDetailSheet(request: request),
+    );
+  }
+
   Widget _buildPaymentCard(PaymentRequest request) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: _statusColor(request.status).withAlpha(30),
-                      child: Icon(_statusIcon(request.status),
-                        color: _statusColor(request.status), size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      CurrencyFormatter.format(request.amount),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                _buildStatusBadge(request.status),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  'Submitted ${_formatDate(request.requestDate)}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-                if (request.type == PaymentType.loan && request.loanId != null) ...[
-                  const SizedBox(width: 12),
-                  const Icon(Icons.account_balance, size: 14, color: AppColors.textMuted),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Loan repayment',
-                    style: TextStyle(color: AppColors.secondary, fontSize: 12, fontWeight: FontWeight.w600),
+    return GestureDetector(
+      onTap: () => _showPaymentDetailSheet(request),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: _statusColor(request.status).withAlpha(30),
+                        child: Icon(_statusIcon(request.status),
+                          color: _statusColor(request.status), size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        CurrencyFormatter.format(request.amount),
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
+                  _buildStatusBadge(request.status),
                 ],
-              ],
-            ),
-            if (request.approvedDate != null) ...[
-              const SizedBox(height: 4),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                  const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
-                    'Processed ${_formatDate(request.approvedDate!)}',
+                    'Submitted ${_formatDate(request.requestDate)}',
                     style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
+                  if (request.type == PaymentType.loan && request.loanId != null) ...[
+                    const SizedBox(width: 12),
+                    const Icon(Icons.account_balance, size: 14, color: AppColors.textMuted),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Loan repayment',
+                      style: TextStyle(color: AppColors.secondary, fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ],
               ),
-            ],
-            if (request.notes != null && request.notes!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
+              if (request.approvedDate != null) ...[
+                const SizedBox(height: 4),
+                Row(
                   children: [
-                    const Icon(Icons.notes, size: 14, color: AppColors.textMuted),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        request.notes!,
-                        style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
-                      ),
+                    const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Processed ${_formatDate(request.approvedDate!)}',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
-              ),
+              ],
+              if (request.notes != null && request.notes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.notes, size: 14, color: AppColors.textMuted),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          request.notes!,
+                          style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -324,6 +337,141 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${d.day}/${d.month}/${d.year}';
+  }
+}
+
+class _PaymentDetailSheet extends StatelessWidget {
+  final PaymentRequest request;
+  const _PaymentDetailSheet({required this.request});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = request;
+    final statusColor = r.status == PaymentStatus.approved
+        ? AppColors.success
+        : r.status == PaymentStatus.rejected
+            ? AppColors.error
+            : AppColors.warning;
+    final statusIcon = r.status == PaymentStatus.approved
+        ? Icons.check_circle
+        : r.status == PaymentStatus.rejected
+            ? Icons.cancel
+            : Icons.hourglass_empty;
+    final statusLabel = r.status == PaymentStatus.approved
+        ? 'Approved'
+        : r.status == PaymentStatus.rejected
+            ? 'Rejected'
+            : 'Pending Review';
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withAlpha(80),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              children: [
+                Icon(statusIcon, size: 48, color: statusColor),
+                const SizedBox(height: 8),
+                Text(statusLabel,
+                  style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold, color: statusColor,
+                  )),
+                const SizedBox(height: 4),
+                Text(
+                  CurrencyFormatter.format(r.amount),
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  r.type == PaymentType.loan ? 'Loan Repayment' : 'Contribution Payment',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _detailRow(context, 'Submitted', DateFormatter.format(r.requestDate)),
+          if (r.approvedDate != null)
+            _detailRow(context, 'Processed', DateFormatter.format(r.approvedDate!)),
+          if (r.type == PaymentType.loan && r.loanId != null)
+            _detailRow(context, 'Loan ID', r.loanId!, valueStyle: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+          if (r.notes != null && r.notes!.isNotEmpty)
+            _detailRow(context, 'Notes', r.notes!),
+          if (r.rejectReason != null && r.status == PaymentStatus.rejected)
+            _detailRow(context, 'Rejection Reason', r.rejectReason!,
+              labelStyle: const TextStyle(color: AppColors.error),
+              valueStyle: const TextStyle(color: AppColors.error),
+            ),
+          if (r.receiptUrl != null || r.receiptPath != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.surfaceAlt),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    color: AppColors.surfaceAlt,
+                    child: const Text('RECEIPT',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 1)),
+                  ),
+                  ReceiptImage(
+                    receiptUrl: r.receiptUrl,
+                    receiptPath: r.receiptPath,
+                    fit: BoxFit.contain,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value, {TextStyle? labelStyle, TextStyle? valueStyle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+              style: labelStyle ?? const TextStyle(
+                color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
+              )),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(value,
+              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -437,105 +585,116 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
     );
   }
 
+  void _showLoanDetailSheet(LoanRequest request) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LoanDetailSheet(request: request),
+    );
+  }
+
   Widget _buildLoanCard(LoanRequest request) {
     final isOverdue = request.dueDate.isBefore(DateTime.now()) && request.status == LoanRequestStatus.disbursed;
     final daysDiff = DateTime.now().difference(request.dueDate).inDays;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 16,
-                      backgroundColor: _statusColor(request.status).withAlpha(30),
-                      child: Icon(_statusIcon(request.status),
-                        color: _statusColor(request.status), size: 18),
-                    ),
-                    const SizedBox(width: 10),
-                    Flexible(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              CurrencyFormatter.format(request.amount),
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                          ),
-                          Text(
-                            '${request.interestRate}% interest',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                          ),
-                        ],
+    return GestureDetector(
+      onTap: () => _showLoanDetailSheet(request),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: _statusColor(request.status).withAlpha(30),
+                        child: Icon(_statusIcon(request.status),
+                          color: _statusColor(request.status), size: 18),
                       ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                CurrencyFormatter.format(request.amount),
+                                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            Text(
+                              '${request.interestRate}% interest',
+                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  _buildStatusBadge(request.status),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(Icons.calendar_today, size: 14, color: isOverdue ? AppColors.error : AppColors.textMuted),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Due: ${DateFormatter.format(request.dueDate)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isOverdue ? AppColors.error : AppColors.textPrimary,
+                      fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
+                  if (isOverdue) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withAlpha(30),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('$daysDiff days overdue',
+                        style: const TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),
                   ],
-                ),
-                _buildStatusBadge(request.status),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 14, color: isOverdue ? AppColors.error : AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  'Due: ${DateFormatter.format(request.dueDate)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isOverdue ? AppColors.error : AppColors.textPrimary,
-                    fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                ),
-                if (isOverdue) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withAlpha(30),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('$daysDiff days overdue',
-                      style: const TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold)),
-                  ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  'Requested ${_formatDate(request.requestedAt)}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                ),
-              ],
-            ),
-            if (request.processedAt != null) ...[
+              ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                  const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
-                    'Processed ${_formatDate(request.processedAt!)}',
+                    'Requested ${_formatDate(request.requestedAt)}',
                     style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
-            ],
-            if (request.notes != null && request.notes!.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              if (request.processedAt != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline, size: 14, color: AppColors.success),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Processed ${_formatDate(request.processedAt!)}',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ],
+              if (request.notes != null && request.notes!.isNotEmpty) ...[
+                const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
@@ -558,6 +717,7 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
@@ -721,11 +881,22 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
     );
   }
 
+  void _showHeadChangeDetailSheet(HeadChangeRequest request) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _HeadChangeDetailSheet(request: request),
+    );
+  }
+
   Widget _buildHeadChangeCard(HeadChangeRequest request) {
     final color = _statusColor(request.status);
     final icon = _statusIcon(request.status);
 
-    return Card(
+    return GestureDetector(
+      onTap: () => _showHeadChangeDetailSheet(request),
+      child: Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -823,6 +994,7 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
           ],
         ),
       ),
+      ),
     );
   }
 
@@ -875,6 +1047,261 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${d.day}/${d.month}/${d.year}';
+  }
+}
+
+class _LoanDetailSheet extends StatelessWidget {
+  final LoanRequest request;
+  const _LoanDetailSheet({required this.request});
+
+  Color _statusColor(LoanRequestStatus s) {
+    switch (s) {
+      case LoanRequestStatus.pending: return AppColors.warning;
+      case LoanRequestStatus.approved: return AppColors.info;
+      case LoanRequestStatus.rejected: return AppColors.error;
+      case LoanRequestStatus.disbursed: return AppColors.success;
+    }
+  }
+
+  IconData _statusIcon(LoanRequestStatus s) {
+    switch (s) {
+      case LoanRequestStatus.pending: return Icons.hourglass_empty;
+      case LoanRequestStatus.approved: return Icons.thumb_up;
+      case LoanRequestStatus.rejected: return Icons.cancel;
+      case LoanRequestStatus.disbursed: return Icons.account_balance;
+    }
+  }
+
+  String _statusLabel(LoanRequestStatus s) {
+    switch (s) {
+      case LoanRequestStatus.pending: return 'Pending Review';
+      case LoanRequestStatus.approved: return 'Approved';
+      case LoanRequestStatus.rejected: return 'Rejected';
+      case LoanRequestStatus.disbursed: return 'Disbursed';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = request;
+    final statusColor = _statusColor(r.status);
+    final statusIcon = _statusIcon(r.status);
+    final statusLabel = _statusLabel(r.status);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withAlpha(80),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              children: [
+                Icon(statusIcon, size: 48, color: statusColor),
+                const SizedBox(height: 8),
+                Text(statusLabel,
+                  style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold, color: statusColor,
+                  )),
+                const SizedBox(height: 4),
+                Text(
+                  CurrencyFormatter.format(r.amount),
+                  style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${r.interestRate}% interest',
+                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _detailRow(context, 'Submitted', DateFormatter.format(r.requestedAt)),
+          if (r.processedAt != null)
+            _detailRow(context, 'Processed', DateFormatter.format(r.processedAt!)),
+          _detailRow(context, 'Due Date', DateFormatter.format(r.dueDate)),
+          if (r.loanId != null)
+            _detailRow(context, 'Loan ID', r.loanId!),
+          if (r.notes != null && r.notes!.isNotEmpty)
+            _detailRow(context, 'Notes', r.notes!),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value, {TextStyle? labelStyle, TextStyle? valueStyle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+              style: labelStyle ?? const TextStyle(
+                color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
+              )),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(value,
+              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeadChangeDetailSheet extends StatelessWidget {
+  final HeadChangeRequest request;
+  const _HeadChangeDetailSheet({required this.request});
+
+  Color _statusColor(HeadChangeStatus s) {
+    switch (s) {
+      case HeadChangeStatus.pending: return AppColors.warning;
+      case HeadChangeStatus.approved: return AppColors.success;
+      case HeadChangeStatus.rejected: return AppColors.error;
+    }
+  }
+
+  IconData _statusIcon(HeadChangeStatus s) {
+    switch (s) {
+      case HeadChangeStatus.pending: return Icons.hourglass_empty;
+      case HeadChangeStatus.approved: return Icons.check_circle;
+      case HeadChangeStatus.rejected: return Icons.cancel;
+    }
+  }
+
+  String _statusLabel(HeadChangeStatus s) {
+    switch (s) {
+      case HeadChangeStatus.pending: return 'Pending Review';
+      case HeadChangeStatus.approved: return 'Approved';
+      case HeadChangeStatus.rejected: return 'Rejected';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = request;
+    final statusColor = _statusColor(r.status);
+    final statusIcon = _statusIcon(r.status);
+    final statusLabel = _statusLabel(r.status);
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(24),
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withAlpha(80),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Center(
+            child: Column(
+              children: [
+                Icon(statusIcon, size: 48, color: statusColor),
+                const SizedBox(height: 8),
+                Text(statusLabel,
+                  style: TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold, color: statusColor,
+                  )),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Column(
+                      children: [
+                        Text('${r.currentHeads}',
+                          style: const TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 28,
+                            decoration: TextDecoration.lineThrough,
+                          )),
+                        Text(r.currentHeads == 1 ? 'head' : 'heads',
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(width: 16),
+                    const Icon(Icons.arrow_forward, size: 24, color: AppColors.textMuted),
+                    const SizedBox(width: 16),
+                    Column(
+                      children: [
+                        Text('${r.requestedHeads}',
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(r.requestedHeads == 1 ? 'head' : 'heads',
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          _detailRow(context, 'Submitted', DateFormatter.format(r.requestedAt)),
+          if (r.processedAt != null)
+            _detailRow(context, 'Processed', DateFormatter.format(r.processedAt!)),
+          if (r.reason != null && r.reason!.isNotEmpty)
+            _detailRow(context, 'Reason', r.reason!),
+          if (r.notes != null && r.notes!.isNotEmpty)
+            _detailRow(context, 'Notes', r.notes!),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  Widget _detailRow(BuildContext context, String label, String value, {TextStyle? labelStyle, TextStyle? valueStyle}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(label,
+              style: labelStyle ?? const TextStyle(
+                color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
+              )),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(value,
+              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

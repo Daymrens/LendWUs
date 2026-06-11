@@ -31,6 +31,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   String _selectedCurrencyCode = 'PHP';
   String _selectedCurrencySymbol = '\u20B1';
   List<String> _adminEmails = [];
+  bool _isMaintenanceMode = false;
+  late TextEditingController _maintenanceMessageController;
   String _qrImageUrl = '';
   final _imagePicker = ImagePicker();
 
@@ -58,6 +60,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrNameController = TextEditingController();
     _qrNumberController = TextEditingController();
     _paymentTatController = TextEditingController();
+    _maintenanceMessageController = TextEditingController();
   }
 
   @override
@@ -71,6 +74,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrNameController.dispose();
     _qrNumberController.dispose();
     _paymentTatController.dispose();
+    _maintenanceMessageController.dispose();
     super.dispose();
   }
 
@@ -88,6 +92,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrNameController.text = settings.qrAccountName;
     _qrNumberController.text = settings.qrAccountNumber;
     _qrImageUrl = settings.qrImageUrl;
+    _isMaintenanceMode = settings.isMaintenanceMode;
+    _maintenanceMessageController.text = settings.maintenanceMessage;
     _initialized = true;
   }
 
@@ -484,6 +490,47 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                     ),
                   ),
                 ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Maintenance Mode',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        const Text('When enabled, members will see a maintenance screen and cannot use the app. Admins can still access the app normally.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Enable Maintenance Mode'),
+                          value: _isMaintenanceMode,
+                          onChanged: (val) => setState(() => _isMaintenanceMode = val),
+                        ),
+                        if (_isMaintenanceMode) ...[
+                          const Gap(12),
+                          TextFormField(
+                            controller: _maintenanceMessageController,
+                            decoration: const InputDecoration(
+                              labelText: 'Maintenance Message',
+                              border: OutlineInputBorder(),
+                              helperText: 'Message shown to members (optional)',
+                            ),
+                            maxLines: 3,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
                 const Gap(32),
                 SizedBox(
                   width: double.infinity,
@@ -570,6 +617,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       qrAccountName: _qrNameController.text.trim(),
       qrAccountNumber: _qrNumberController.text.trim(),
       qrImageUrl: _qrImageUrl,
+      isMaintenanceMode: _isMaintenanceMode,
+      maintenanceMessage: _maintenanceMessageController.text.trim(),
     );
 
     try {

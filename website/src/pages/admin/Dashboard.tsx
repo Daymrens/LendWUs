@@ -37,6 +37,11 @@ interface DashboardData {
   annualRepayments: number;
   totalHeads: number;
   perHeadShare: number;
+  fundUtilization: number;
+  collectionRate: number;
+  monthlyContributionsCurrent: number;
+  monthlyRequiredCurrent: number;
+  avgContributionPerMember: number;
 }
 
 const COLORS = ["#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899"];
@@ -120,6 +125,20 @@ const Dashboard: React.FC = () => {
     const totalHeads = activeMembersList.reduce((s, m) => s + (Number(m.headsCount) || 1), 0);
     const perHeadShare = totalHeads > 0 ? totalInterest / totalHeads : 0;
 
+    const fundUtilization = totalContributions > 0 ? ((totalLoansIssued - totalRepayments) / totalContributions) * 100 : 0;
+
+    const thisMonth = now.getMonth() + 1;
+    const thisYear = now.getFullYear();
+    const monthlyContributionsCurrent = contributions
+      .filter((c) => {
+        const d = (c.date as Timestamp)?.toDate?.();
+        return d && d.getMonth() + 1 === thisMonth && d.getFullYear() === thisYear;
+      })
+      .reduce((s, c) => s + (Number(c.amount)||0), 0);
+    const monthlyRequiredCurrent = activeMembersList.reduce((s, m) => s + (Number(m.amountPerHead) || Number(m.headsCount) * 500 || 500), 0);
+    const collectionRate = monthlyRequiredCurrent > 0 ? (monthlyContributionsCurrent / monthlyRequiredCurrent) * 100 : 0;
+    const avgContributionPerMember = activeMembers > 0 ? totalContributions / activeMembers : 0;
+
     const recentActivity = [
       ...recentContribs.map((r) => {
         const cd = r.date as Timestamp | undefined;
@@ -177,7 +196,6 @@ const Dashboard: React.FC = () => {
       .map(([id, v]) => ({ name: memberNames[id]||id, contributions: v.contribs, loans: v.loans_ }))
       .sort((a,b) => b.contributions - a.contributions).slice(0, 5);
 
-    const thisYear = now.getFullYear();
     const annualContributions = contributions
       .filter((c) => { const d = (c.date as Timestamp)?.toDate?.(); return d && d.getFullYear() === thisYear; })
       .reduce((s, c) => s + (Number(c.amount)||0), 0);
@@ -189,7 +207,7 @@ const Dashboard: React.FC = () => {
       .reduce((s, p) => s + (Number(p.amount)||0), 0);
     const annualReturns = annualRepayments - annualLoans + annualContributions;
 
-    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments, totalHeads, perHeadShare };
+    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments, totalHeads, perHeadShare, fundUtilization, collectionRate, monthlyContributionsCurrent, monthlyRequiredCurrent, avgContributionPerMember };
   }, [firstLoad, members, contributions, loans, payments, loanReqs, heads, repayments, repaymentsData, recentContribs, recentPayments]);
 
   const refresh = () => setFirstLoad((v) => v);
@@ -217,6 +235,8 @@ const Dashboard: React.FC = () => {
       { metric: "Total Interest", value: data.totalInterest },
       { metric: "Pending Approvals", value: data.pendingPayments + data.pendingLoans + data.pendingHeads },
       { metric: "Annual Returns", value: data.annualReturns },
+      { metric: "Per-Head Share", value: data.perHeadShare },
+      { metric: "Fund Utilization", value: `${data.fundUtilization.toFixed(1)}%` },
     ], "dashboard_summary");
   };
 
@@ -233,7 +253,6 @@ const Dashboard: React.FC = () => {
         payload.createdBy = "admin";
         if (payload.notes === undefined || payload.notes === "") delete payload.notes;
         await addDoc(collection(db, "contributions"), payload);
-        // Also create an approved payment_request so member status reflects correctly
         await addDoc(collection(db, "payment_requests"), {
           memberId: formData.memberId,
           amount: formData.amount,
@@ -272,6 +291,7 @@ const Dashboard: React.FC = () => {
   if (!data) return null;
 
   const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const totalPending = data.pendingPayments + data.pendingLoans + data.pendingHeads;
 
   return (
     <div className="admin-page">
@@ -289,17 +309,93 @@ const Dashboard: React.FC = () => {
       )}
 
       <div className="stat-grid">
-        <div className="stat-card gradient"><div className="stat-label">Total Fund</div><div className="stat-value">₱{fmt(data.totalContributions + data.totalInterest)}</div></div>
-        <div className="stat-card"><div className="stat-label">Active Members</div><div className="stat-value">{data.activeMembers}</div><div className="stat-sub">of {data.totalMembers} total</div></div>
-        <div className="stat-card"><div className="stat-label">Active Loans</div><div className="stat-value">{data.activeLoans}</div><div className="stat-sub">{data.overdueLoans} overdue</div></div>
-        <div className="stat-card"><div className="stat-label">Interest Earned</div><div className="stat-value">₱{fmt(data.totalInterest)}</div></div>
+        <div className="stat-card gradient">
+          <div className="stat-label">Total Fund</div>
+          <div className="stat-value">₱{fmt(data.totalContributions + data.totalInterest)}</div>
+          <div className="stat-sub">₱{fmt(data.fundBalance)} available balance</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Active Members</div>
+          <div className="stat-value">{data.activeMembers}</div>
+          <div className="stat-sub">{data.totalHeads} total heads · of {data.totalMembers} registered</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Loans</div>
+          <div className="stat-value">{data.activeLoans} active</div>
+          <div className="stat-sub">{data.overdueLoans} overdue · {data.totalLoansIssued > 0 ? `₱${fmt(data.totalLoansIssued)} issued` : "No loans yet"}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Interest Earned</div>
+          <div className="stat-value">₱{fmt(data.totalInterest)}</div>
+          <div className="stat-sub">₱{fmt(data.perHeadShare)} per head share</div>
+        </div>
+      </div>
+
+      <div className="fund-health-grid">
+        <div className="fund-health-card">
+          <div className="fund-health-header">
+            <span className="fund-health-title">Fund Utilization</span>
+            <span className={`fund-health-pct ${data.fundUtilization > 70 ? "warning" : data.fundUtilization > 40 ? "accent" : "success"}`}>
+              {data.fundUtilization.toFixed(1)}%
+            </span>
+          </div>
+          <div className="fund-health-bar-track">
+            <div
+              className={`fund-health-bar-fill ${data.fundUtilization > 70 ? "warning" : data.fundUtilization > 40 ? "accent" : "success"}`}
+              style={{ width: `${Math.min(data.fundUtilization, 100)}%` }}
+            />
+          </div>
+          <div className="fund-health-sub">
+            {data.fundUtilization > 70 ? "High utilization — monitor repayments" :
+             data.fundUtilization > 40 ? "Healthy lending activity" :
+             "Low utilization — consider issuing more loans"}
+          </div>
+        </div>
+        <div className="fund-health-card">
+          <div className="fund-health-header">
+            <span className="fund-health-title">Collection Rate (This Month)</span>
+            <span className={`fund-health-pct ${data.collectionRate < 50 ? "error" : data.collectionRate < 80 ? "warning" : "success"}`}>
+              {data.collectionRate.toFixed(1)}%
+            </span>
+          </div>
+          <div className="fund-health-bar-track">
+            <div
+              className={`fund-health-bar-fill ${data.collectionRate < 50 ? "error" : data.collectionRate < 80 ? "warning" : "success"}`}
+              style={{ width: `${Math.min(data.collectionRate, 100)}%` }}
+            />
+          </div>
+          <div className="fund-health-sub">
+            ₱{fmt(data.monthlyContributionsCurrent)} collected of ₱{fmt(data.monthlyRequiredCurrent)} required
+          </div>
+        </div>
+        <div className="fund-health-card">
+          <div className="fund-health-header">
+            <span className="fund-health-title">Per-Head Share</span>
+            <span className="fund-health-pct accent">₱{fmt(data.perHeadShare)}</span>
+          </div>
+          <div className="fund-health-sub" style={{ marginTop: 12 }}>
+            Total interest pool divided across {data.totalHeads} heads
+          </div>
+        </div>
       </div>
 
       <div className="mini-stats">
-        <div className="mini-stat"><span className="mini-stat-label">Total Loans</span><span className="mini-stat-value">₱{fmt(data.totalLoansIssued)}</span></div>
-        <div className="mini-stat warning"><span className="mini-stat-label">Overdue</span><span className="mini-stat-value">{data.overdueLoans}</span></div>
-        <div className="mini-stat warning"><span className="mini-stat-label">Pending</span><span className="mini-stat-value">{data.pendingPayments+data.pendingLoans+data.pendingHeads}</span></div>
-        <div className="mini-stat accent"><span className="mini-stat-label">Balance</span><span className="mini-stat-value">₱{fmt(data.fundBalance)}</span></div>
+        <div className="mini-stat">
+          <span className="mini-stat-label">Total Loans Issued</span>
+          <span className="mini-stat-value">₱{fmt(data.totalLoansIssued)}</span>
+        </div>
+        <div className="mini-stat warning">
+          <span className="mini-stat-label">Overdue</span>
+          <span className="mini-stat-value">{data.overdueLoans}</span>
+        </div>
+        <div className="mini-stat accent">
+          <span className="mini-stat-label">Avg Contribution</span>
+          <span className="mini-stat-value">₱{fmt(data.avgContributionPerMember)}</span>
+        </div>
+        <div className="mini-stat" style={{ borderColor: totalPending > 0 ? "#f59e0b" : undefined }}>
+          <span className="mini-stat-label">Pending Approvals</span>
+          <span className="mini-stat-value" style={{ color: totalPending > 0 ? "#f59e0b" : "#22c55e" }}>{totalPending}</span>
+        </div>
       </div>
 
       <div className="annual-returns">
@@ -318,26 +414,8 @@ const Dashboard: React.FC = () => {
             <span className="annual-return-value" style={{ color: "#3b82f6" }}>₱{fmt(data.annualRepayments)}</span>
           </div>
           <div className="annual-return-item highlight-item">
-            <span className="annual-return-label">Net Annual Returns</span>
+            <span className="annual-return-label">Net Returns</span>
             <span className="annual-return-value" style={{ color: data.annualReturns >= 0 ? "#22c55e" : "#ef4444" }}>₱{fmt(data.annualReturns)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="annual-returns" style={{ borderColor: "#3b82f6" }}>
-        <div className="annual-returns-title">End of Year Returns</div>
-        <div className="annual-returns-grid">
-          <div className="annual-return-item">
-            <span className="annual-return-label">Returns Pool (Interest)</span>
-            <span className="annual-return-value" style={{ color: "#22c55e" }}>₱{fmt(data.totalInterest)}</span>
-          </div>
-          <div className="annual-return-item">
-            <span className="annual-return-label">Total Heads</span>
-            <span className="annual-return-value" style={{ color: "#f59e0b" }}>{data.totalHeads}</span>
-          </div>
-          <div className="annual-return-item highlight-item">
-            <span className="annual-return-label">Per Head Share</span>
-            <span className="annual-return-value" style={{ color: "#3b82f6" }}>₱{fmt(data.perHeadShare)}</span>
           </div>
         </div>
       </div>
@@ -347,12 +425,14 @@ const Dashboard: React.FC = () => {
         <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b" }} onClick={() => setActionModal("loan")}>+ Issue Loan</button>
         <button className="btn btn-outline" style={{ borderColor: "#3b82f6", color: "#3b82f6" }} onClick={() => setActionModal("repayment")}>+ Record Repayment</button>
         <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b", fontWeight: "bold" }} onClick={handleBackfill}>Backfill Member IDs</button>
-        <button className="btn btn-outline" onClick={() => window.location.href="/admin/approvals"}>Pending ({data.pendingPayments+data.pendingLoans+data.pendingHeads})</button>
+        <button className="btn btn-outline" onClick={() => window.location.href="/admin/approvals"}>
+          Pending ({totalPending})
+        </button>
       </div>
 
       <div className="charts-section">
         <div className="tabs" style={{ marginBottom: 16 }}>
-          {["Monthly Trends", "Loan Status", "Top Members"].map((t,i) => (
+          {["Monthly Trends", "Status", "Top Members"].map((t,i) => (
             <button key={t} className={`tab ${i===chartTab?"active":""}`} onClick={()=>setChartTab(i)}>{t}</button>
           ))}
         </div>

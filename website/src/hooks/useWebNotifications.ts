@@ -14,13 +14,14 @@ export function useWebNotifications(userId: string | null | undefined) {
       setPermState("denied");
       return;
     }
-    setPermState(Notification.permission as NotificationPermissionState);
+    const raw = Notification.permission;
+    setPermState(raw === "default" ? "prompt" : raw as NotificationPermissionState);
   }, []);
 
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return;
     const result = await Notification.requestPermission();
-    setPermState(result as NotificationPermissionState);
+    setPermState(result === "default" ? "prompt" : result as NotificationPermissionState);
   }, []);
 
   const dismiss = useCallback(() => setDismissed(true), []);

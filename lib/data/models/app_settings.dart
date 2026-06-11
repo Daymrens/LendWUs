@@ -12,6 +12,8 @@ class AppSettings {
   final String qrAccountNumber;
   final String qrImageUrl;
   final String groupCode;
+  final bool isMaintenanceMode;
+  final String maintenanceMessage;
 
   AppSettings({
     required this.minPaymentPerHead,
@@ -27,6 +29,8 @@ class AppSettings {
     this.qrAccountNumber = '',
     this.qrImageUrl = '',
     this.groupCode = 'LENDWUS',
+    this.isMaintenanceMode = false,
+    this.maintenanceMessage = '',
   });
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
@@ -44,6 +48,8 @@ class AppSettings {
       qrAccountNumber: map['qrAccountNumber'] ?? '',
       qrImageUrl: map['qrImageUrl'] ?? '',
       groupCode: map['groupCode'] ?? 'LENDWUS',
+      isMaintenanceMode: map['isMaintenanceMode'] ?? false,
+      maintenanceMessage: map['maintenanceMessage'] ?? '',
     );
   }
 
@@ -62,6 +68,8 @@ class AppSettings {
       'qrAccountNumber': qrAccountNumber,
       'qrImageUrl': qrImageUrl,
       'groupCode': groupCode,
+      'isMaintenanceMode': isMaintenanceMode,
+      'maintenanceMessage': maintenanceMessage,
     };
   }
 
@@ -79,6 +87,8 @@ class AppSettings {
     String? qrAccountNumber,
     String? qrImageUrl,
     String? groupCode,
+    bool? isMaintenanceMode,
+    String? maintenanceMessage,
   }) {
     return AppSettings(
       minPaymentPerHead: minPaymentPerHead ?? this.minPaymentPerHead,
@@ -94,6 +104,8 @@ class AppSettings {
       qrAccountNumber: qrAccountNumber ?? this.qrAccountNumber,
       qrImageUrl: qrImageUrl ?? this.qrImageUrl,
       groupCode: groupCode ?? this.groupCode,
+      isMaintenanceMode: isMaintenanceMode ?? this.isMaintenanceMode,
+      maintenanceMessage: maintenanceMessage ?? this.maintenanceMessage,
     );
   }
 }

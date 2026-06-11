@@ -3,12 +3,72 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../core/services/security_service.dart';
 
-class PrivacySecurityScreen extends ConsumerWidget {
+class PrivacySecurityScreen extends ConsumerStatefulWidget {
   const PrivacySecurityScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PrivacySecurityScreen> createState() => _PrivacySecurityScreenState();
+}
+
+class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadState();
+  }
+
+  Future<void> _loadState() async {
+    final available = await SecurityService.isBiometricAvailable();
+    final enabled = await SecurityService.isBiometricEnabled();
+    if (mounted) {
+      setState(() {
+        _biometricAvailable = available;
+        _biometricEnabled = enabled;
+      });
+    }
+  }
+
+  Future<void> _toggleBiometric(bool value) async {
+    if (value) {
+      String? errorMsg;
+      final ok = await SecurityService.authenticateWithBiometrics(onError: (e) => errorMsg = e);
+      if (!ok) {
+        if (mounted) _showBiometricStatus(errorMsg);
+        return;
+      }
+      await SecurityService.enableBiometricAuth();
+    } else {
+      await SecurityService.disableBiometricAuth();
+    }
+
+    if (mounted) {
+      setState(() => _biometricEnabled = value);
+    }
+  }
+
+  Future<void> _showBiometricStatus([String? errorMsg]) async {
+    final info = await SecurityService.isBiometricAvailable();
+    final stat = await SecurityService.getBiometricStatus();
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Biometric Status'),
+        content: Text('Available: $info\n\nDetails: $stat\n\n${errorMsg != null ? 'Error: $errorMsg' : ''}'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(currentUserProvider);
     final user = auth.state;
 
@@ -36,6 +96,38 @@ class PrivacySecurityScreen extends ConsumerWidget {
               ],
             ),
           ),
+          if (_biometricAvailable) ...[
+            const Gap(24),
+            Text('Biometric Login', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const Gap(12),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    value: _biometricEnabled,
+                    onChanged: _toggleBiometric,
+                    secondary: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(25),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.fingerprint, size: 18, color: AppColors.primary),
+                    ),
+                    title: const Text('Use Fingerprint', style: TextStyle(fontSize: 13)),
+                    subtitle: Text(
+                      _biometricEnabled ? 'Sign in with your fingerprint' : 'Tap to enable fingerprint sign in',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const Gap(24),
           Text('Account Info', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
           const Gap(12),

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'dart:io';
 import '../../data/models/payment_request.dart';
 import '../../data/models/loan_request.dart';
 import '../../data/models/head_change_request.dart';
@@ -11,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../widgets/receipt_image.dart';
 
 final pendingPaymentsProvider = StreamProvider.autoDispose<List<PaymentRequest>>((ref) {
   return ref.watch(paymentRequestRepositoryProvider).watchPendingPaymentRequests();
@@ -193,19 +192,11 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
                   ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
-                    child: payment.receiptUrl != null
-                        ? CachedNetworkImage(
-                            imageUrl: payment.receiptUrl!,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                            errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey)),
-                          )
-                        : Image.file(
-                            File(payment.receiptPath!),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
+                    child: ReceiptImage(
+                      receiptUrl: payment.receiptUrl,
+                      receiptPath: payment.receiptPath,
+                      fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
@@ -272,29 +263,11 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
                 ],
               ),
             ),
-            if (payment.receiptUrl != null)
-              CachedNetworkImage(
-                imageUrl: payment.receiptUrl!,
-                fit: BoxFit.contain,
-                placeholder: (_, __) => const Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-                errorWidget: (_, __, ___) => const Center(
-                  child: Column(
-                    children: [
-                      Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                      SizedBox(height: 8),
-                      Text('Failed to load receipt', style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
-              )
-            else if (payment.receiptPath != null)
-              Image.file(
-                File(payment.receiptPath!),
-                fit: BoxFit.contain,
-              ),
+            ReceiptImage(
+              receiptUrl: payment.receiptUrl,
+              receiptPath: payment.receiptPath,
+              fit: BoxFit.contain,
+            ),
             const SizedBox(height: 16),
           ],
         ),

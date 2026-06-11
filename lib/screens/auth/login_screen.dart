@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/auth_provider.dart';
 import '../../data/models/user.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/services/security_service.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -443,11 +445,8 @@ class _LoginNotifier extends StateNotifier<_LoginState> {
 
         if (success) {
           final user = ref.read(currentUserProvider).state;
-          if (user?.role == UserRole.admin) {
-            context.go('/');
-          } else {
-            context.go('/member-home');
-          }
+          final route = user?.role == UserRole.admin ? '/' : '/member-home';
+          if (context.mounted) context.go(route);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -476,7 +475,8 @@ class _LoginNotifier extends StateNotifier<_LoginState> {
       final success = await ref.read(currentUserProvider).signInWithGoogle();
       if (context.mounted) {
         state = state.copyWith(isLoading: false);
-        if (!success) {
+        if (success) {
+        } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Google Sign-In failed'),

@@ -26,6 +26,7 @@ interface PaymentRequest {
   notes?: string;
   rejectReason?: string;
   receiptPath?: string;
+  receiptUrl?: string;
 }
 
 interface LoanRequest {
@@ -284,9 +285,9 @@ const PaymentsTab: React.FC = () => {
               </div>
               <p className="approval-date">Submitted: {r.requestDate?.toDate?.()?.toLocaleDateString() || "N/A"}</p>
               {r.notes && <p className="approval-notes">{r.notes}</p>}
-              {r.receiptPath && (
+              {(r.receiptPath || r.receiptUrl) && (
                 <div style={{ margin: "8px 0" }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => setShowReceipt(r.receiptPath!)}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setShowReceipt(r.receiptPath || r.receiptUrl || "")}>
                     View Receipt
                   </button>
                 </div>

@@ -62,6 +62,8 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final pickedFile = await _imagePicker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 70,
+      maxWidth: 1200,
+      maxHeight: 1200,
     );
 
     if (pickedFile != null) {
@@ -73,6 +75,8 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final pickedFile = await _imagePicker.pickImage(
       source: ImageSource.camera,
       imageQuality: 70,
+      maxWidth: 1200,
+      maxHeight: 1200,
     );
 
     if (pickedFile != null) {

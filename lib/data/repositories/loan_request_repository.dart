@@ -82,11 +82,11 @@ class LoanRequestRepository {
     return FirebaseService.firestore
         .collection('loan_requests')
         .where('memberId', isEqualTo: memberId)
-        .orderBy('requestedAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => LoanRequest.fromMap({...doc.data(), 'id': doc.id}))
-            .toList());
+            .toList()
+          ..sort((a, b) => b.requestedAt.compareTo(a.requestedAt)));
   }
 
   Future<bool> approveLoanRequest(String requestId, {String? notes}) async {

@@ -1878,6 +1878,63 @@ h1, h2, h3, h4 {
   box-shadow: 0 0 6px rgba(34,197,94,0.5);
 }
 
+/* Fund Health */
+.fund-health-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.fund-health-card {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 12px;
+  padding: 20px;
+}
+.fund-health-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.fund-health-title {
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fund-health-pct {
+  font-size: 20px;
+  font-weight: 800;
+}
+.fund-health-pct.success { color: #22c55e; }
+.fund-health-pct.warning { color: #f59e0b; }
+.fund-health-pct.accent { color: #3b82f6; }
+.fund-health-pct.error { color: #ef4444; }
+.fund-health-bar-track {
+  width: 100%;
+  height: 6px;
+  background: #0d1117;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.fund-health-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.fund-health-bar-fill.success { background: #22c55e; }
+.fund-health-bar-fill.warning { background: #f59e0b; }
+.fund-health-bar-fill.accent { background: #3b82f6; }
+.fund-health-bar-fill.error { background: #ef4444; }
+.fund-health-sub {
+  color: #8b949e;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
 /* Annual Returns */
 .annual-returns {
   background: #161b22;
@@ -2068,6 +2125,51 @@ h1, h2, h3, h4 {
   100% { background-position: -200% 0; }
 }
 
+/* Notification Templates */
+.notif-templates {
+  max-width: 640px;
+  margin-bottom: 20px;
+}
+.notif-templates-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.notif-templates-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.notif-template-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: #1a2332;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.notif-template-btn:hover {
+  background: #212d40;
+  border-color: var(--primary-light);
+  color: #fff;
+}
+.notif-template-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.notif-template-label {
+  white-space: nowrap;
+}
+
 /* Send Notification */
 .send-notif-card {
   background: #161b22;
@@ -2115,4 +2217,98 @@ h1, h2, h3, h4 {
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+/* Detail Row */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #0d1117;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+}
+.detail-label {
+  color: #8b949e;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.detail-value {
+  color: #c9d1d9;
+  font-size: 13px;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Toggle Switch */
+.switch-label {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 4px;
+}
+.switch-label input[type="checkbox"] {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  appearance: none;
+  background: #30363d;
+  border-radius: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+.switch-label input[type="checkbox"]:checked {
+  background: #e74c3c;
+}
+.switch-label input[type="checkbox"]::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  background: #fff;
+  transition: transform 0.2s;
+}
+.switch-label input[type="checkbox"]:checked::before {
+  transform: translateX(20px);
+}
+
+/* Maintenance Screen */
+.maintenance-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+  padding: 24px;
+}
+.maintenance-card {
+  text-align: center;
+  max-width: 480px;
+  padding: 48px 32px;
+  background: var(--surface);
+  border: 1px solid #e74c3c;
+  border-radius: 16px;
+}
+.maintenance-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+.maintenance-card h1 {
+  font-size: 28px;
+  margin-bottom: 16px;
+  color: #e74c3c;
+}
+.maintenance-card p {
+  color: var(--text-muted);
+  line-height: 1.6;
 }

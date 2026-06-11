@@ -1,24 +1,53 @@
-import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:local_auth/local_auth.dart';
+
+final LocalAuthentication _auth = LocalAuthentication();
 
 Future<bool> isAvailable() async {
-  if (Platform.isAndroid || Platform.isIOS) {
-    return true;
+  try {
+    final canCheck = await _auth.canCheckBiometrics;
+    final supported = await _auth.isDeviceSupported();
+    debugPrint('Biometric: canCheck=$canCheck, supported=$supported');
+    return canCheck || supported;
+  } catch (e) {
+    debugPrint('Biometric isAvailable error: $e');
+    return false;
   }
-  return false;
+}
+
+Future<String?> getError() async {
+  try {
+    final canCheck = await _auth.canCheckBiometrics;
+    final supported = await _auth.isDeviceSupported();
+    return 'canCheck=$canCheck, supported=$supported';
+  } catch (e) {
+    return 'Error checking: $e';
+  }
 }
 
 Future<bool> authenticate() async {
-  if (Platform.isAndroid || Platform.isIOS) {
-    return true;
+  try {
+    final result = await _auth.authenticate(
+      localizedReason: 'Use fingerprint or device passcode to sign in',
+      options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
+    );
+    return result;
+  } catch (e) {
+    debugPrint('Biometric auth error: $e');
+    rethrow;
   }
-  return false;
 }
 
 Future<bool> authenticateWithPasscode() async {
-  if (Platform.isAndroid || Platform.isIOS) {
-    return true;
+  try {
+    return await _auth.authenticate(
+      localizedReason: 'Authenticate to continue',
+      options: const AuthenticationOptions(stickyAuth: true, biometricOnly: false),
+    );
+  } catch (e) {
+    debugPrint('Passcode auth error: $e');
+    rethrow;
   }
-  return false;
 }
 
 Future<void> setEnabled(bool value) async {}

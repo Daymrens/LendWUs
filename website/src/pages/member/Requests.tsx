@@ -21,6 +21,9 @@ interface PaymentRequest {
   approvedDate?: Timestamp;
   notes?: string;
   loanId?: string;
+  receiptPath?: string;
+  receiptUrl?: string;
+  rejectReason?: string;
 }
 
 interface LoanRequest {
@@ -124,11 +127,86 @@ const statusIcon = (status: string) => {
   }
 };
 
+/* Detail Modal */
+const PaymentDetailModal: React.FC<{ request: PaymentRequest; onClose: () => void }> = ({ request: r, onClose }) => {
+  const statusColors: Record<string, { bg: string; color: string; icon: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
+  };
+  const sc = statusColors[r.status] || statusColors.pending;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <div className="modal-header">
+          <h2>Payment Detail</h2>
+          <button className="btn-icon" onClick={onClose}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
+          <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>₱{formatCurrency(r.amount)}</div>
+          {r.type === "loan" && <div style={{ fontSize: 13, color: "#f59e0b", marginTop: 4 }}>Loan Repayment</div>}
+          {r.type === "contribution" && <div style={{ fontSize: 13, color: "#3b82f6", marginTop: 4 }}>Contribution Payment</div>}
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          <div className="detail-row">
+            <span className="detail-label">Submitted</span>
+            <span className="detail-value">{r.requestDate?.toDate?.()?.toLocaleString() || "N/A"}</span>
+          </div>
+          {r.approvedDate && (
+            <div className="detail-row">
+              <span className="detail-label">Processed</span>
+              <span className="detail-value">{r.approvedDate?.toDate?.()?.toLocaleString() || "N/A"}</span>
+            </div>
+          )}
+          {r.type === "loan" && r.loanId && (
+            <div className="detail-row">
+              <span className="detail-label">Loan ID</span>
+              <span className="detail-value" style={{ fontSize: 12 }}>{r.loanId}</span>
+            </div>
+          )}
+          {r.notes && (
+            <div className="detail-row">
+              <span className="detail-label">Notes</span>
+              <span className="detail-value">{r.notes}</span>
+            </div>
+          )}
+          {r.rejectReason && r.status === "rejected" && (
+            <div className="detail-row" style={{ borderColor: "#ef444433" }}>
+              <span className="detail-label" style={{ color: "#ef4444" }}>Rejection Reason</span>
+              <span className="detail-value" style={{ color: "#ef4444" }}>{r.rejectReason}</span>
+            </div>
+          )}
+        </div>
+
+        {(r.receiptPath || r.receiptUrl) && (
+          <div style={{ border: "1px solid #21262d", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ padding: "8px 12px", background: "#1c2128", fontSize: 12, color: "#8b949e", fontWeight: 600 }}>
+              RECEIPT
+            </div>
+            <img
+              src={r.receiptPath || r.receiptUrl}
+              alt="Receipt"
+              style={{ width: "100%", maxHeight: 300, objectFit: "contain", display: "block" }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* Payments Tab */
 const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
   const [requests, setRequests] = useState<PaymentRequest[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<PaymentRequest | null>(null);
 
   useEffect(() => {
     if (!memberId) return;
@@ -165,7 +243,7 @@ const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) =
       ) : (
         <div className="activity-list">
           {filtered.map(r => (
-            <div key={r.id} className="approval-card" style={{ marginBottom: 8 }}>
+            <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
               <div className="approval-top">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
@@ -189,7 +267,66 @@ const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) =
           ))}
         </div>
       )}
+      {selected && <PaymentDetailModal request={selected} onClose={() => setSelected(null)} />}
     </>
+  );
+};
+
+/* Loan Detail Modal */
+const LoanDetailModal: React.FC<{ request: LoanRequest; onClose: () => void }> = ({ request: r, onClose }) => {
+  const statusConfig: Record<string, { bg: string; color: string; icon: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
+    disbursed: { bg: "rgba(59,130,246,0.15)", color: "#3b82f6", icon: "🏦", label: "Disbursed" },
+  };
+  const sc = statusConfig[r.status] || statusConfig.pending;
+  const dueDate = r.dueDate?.toDate?.();
+  const isOverdue = dueDate && dueDate < new Date() && r.status === "disbursed";
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <div className="modal-header">
+          <h2>Loan Detail</h2>
+          <button className="btn-icon" onClick={onClose}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
+          <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>₱{formatCurrency(r.amount)}</div>
+          <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>{r.interestRate}% interest rate</div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          <div className="detail-row">
+            <span className="detail-label">Requested</span>
+            <span className="detail-value">{r.requestedAt?.toDate?.()?.toLocaleString() || "N/A"}</span>
+          </div>
+          {r.processedAt && (
+            <div className="detail-row">
+              <span className="detail-label">Processed</span>
+              <span className="detail-value">{r.processedAt?.toDate?.()?.toLocaleString() || "N/A"}</span>
+            </div>
+          )}
+          <div className="detail-row">
+            <span className="detail-label">Due Date</span>
+            <span className="detail-value" style={{ color: isOverdue ? "#ef4444" : undefined }}>
+              {dueDate?.toLocaleDateString() || "N/A"}
+              {isOverdue && ` (OVERDUE)`}
+            </span>
+          </div>
+          {r.notes && (
+            <div className="detail-row">
+              <span className="detail-label">Purpose</span>
+              <span className="detail-value">{r.notes}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -198,12 +335,18 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
   const [requests, setRequests] = useState<LoanRequest[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<LoanRequest | null>(null);
 
   useEffect(() => {
     if (!memberId) return;
     const unsub = onSnapshot(
-      query(collection(db, "loan_requests"), where("memberId", "==", memberId), orderBy("requestedAt", "desc")),
-      (snap) => { setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as LoanRequest))); setLoading(false); },
+      query(collection(db, "loan_requests"), where("memberId", "==", memberId)),
+      (snap) => {
+        const data = snap.docs.map(d => ({ id: d.id, ...d.data() } as LoanRequest));
+        data.sort((a, b) => (b.requestedAt?.toDate?.()?.getTime() || 0) - (a.requestedAt?.toDate?.()?.getTime() || 0));
+        setRequests(data);
+        setLoading(false);
+      },
       () => setLoading(false)
     );
     return unsub;
@@ -234,13 +377,13 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
       {filtered.length === 0 ? (
         <p className="empty-text">No loan requests</p>
       ) : (
-        <div className="activity-list">
+            <div className="activity-list">
           {filtered.map(r => {
             const dueDate = r.dueDate?.toDate?.();
             const isOverdue = dueDate && dueDate < new Date() && r.status === "disbursed";
             const daysOverdue = dueDate ? Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
             return (
-              <div key={r.id} className="approval-card" style={{ marginBottom: 8 }}>
+              <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
                 <div className="approval-top">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
@@ -275,7 +418,65 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
           })}
         </div>
       )}
+      {selected && <LoanDetailModal request={selected} onClose={() => setSelected(null)} />}
     </>
+  );
+};
+
+/* Heads Detail Modal */
+const HeadChangeDetailModal: React.FC<{ request: HeadChangeRequest; onClose: () => void }> = ({ request: r, onClose }) => {
+  const statusConfig: Record<string, { bg: string; color: string; icon: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
+  };
+  const sc = statusConfig[r.status] || statusConfig.pending;
+  const diff = r.requestedHeads - r.currentHeads;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <div className="modal-header">
+          <h2>Head Change Detail</h2>
+          <button className="btn-icon" onClick={onClose}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
+            <span style={{ fontSize: 28, color: "#8b949e", textDecoration: "line-through" }}>{r.currentHeads}</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2">
+              <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
+            <span style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>{r.requestedHeads}</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>
+            {diff > 0 ? `+${diff} additional ${diff === 1 ? "head" : "heads"}` : `${diff} ${diff === 1 ? "head" : "heads"}`}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          <div className="detail-row">
+            <span className="detail-label">Requested</span>
+            <span className="detail-value">{r.requestedAt?.toDate?.()?.toLocaleString() || "N/A"}</span>
+          </div>
+          {r.processedAt && (
+            <div className="detail-row">
+              <span className="detail-label">Processed</span>
+              <span className="detail-value">{r.processedAt?.toDate?.()?.toLocaleString() || "N/A"}</span>
+            </div>
+          )}
+          {(r.reason || r.notes) && (
+            <div className="detail-row">
+              <span className="detail-label">Reason</span>
+              <span className="detail-value">{r.reason || r.notes}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -284,6 +485,7 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
   const [requests, setRequests] = useState<HeadChangeRequest[]>([]);
   const [filter, setFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<HeadChangeRequest | null>(null);
 
   useEffect(() => {
     if (!memberId) return;
@@ -320,7 +522,7 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
       ) : (
         <div className="activity-list">
           {filtered.map(r => (
-            <div key={r.id} className="approval-card" style={{ marginBottom: 8 }}>
+            <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
               <div className="approval-top">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
@@ -356,6 +558,7 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
           ))}
         </div>
       )}
+      {selected && <HeadChangeDetailModal request={selected} onClose={() => setSelected(null)} />}
     </>
   );
 };

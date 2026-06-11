@@ -78,14 +78,14 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70, maxWidth: 1200, maxHeight: 1200);
     if (pickedFile != null) {
       setState(() => _receiptImage = File(pickedFile.path));
     }
   }
 
   Future<void> _takePhoto() async {
-    final pickedFile = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 70);
+    final pickedFile = await _imagePicker.pickImage(source: ImageSource.camera, imageQuality: 70, maxWidth: 1200, maxHeight: 1200);
     if (pickedFile != null) {
       setState(() => _receiptImage = File(pickedFile.path));
     }

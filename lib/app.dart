@@ -34,6 +34,7 @@ import 'screens/admin/bulk_loan_processing.dart';
 import 'screens/admin/compliance_reports.dart';
 import 'screens/admin/member_migration.dart';
 import 'screens/admin/send_notification_screen.dart';
+import 'screens/maintenance_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
@@ -53,6 +54,7 @@ Future<void> bootstrapOnboardingFlag(WidgetRef ref) async {
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(currentUserProvider);
+  final settingsAsync = ref.watch(settingsProvider);
 
   return GoRouter(
     navigatorKey: notificationNavKey,
@@ -73,7 +75,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
           location == '/help' || location == '/about' ||
           location == '/privacy-security' || location == '/edit-profile' ||
-          location == '/notifications' || location == '/member-pay';
+          location == '/notifications' || location == '/member-pay' ||
+          location == '/maintenance';
+
+      final settings = settingsAsync.valueOrNull;
+      final maintenanceMode = settings?.isMaintenanceMode ?? false;
+
+      // Maintenance mode: block non-admin users from all app routes
+      if (maintenanceMode && !isAdmin && !isPublicRoute) {
+        return '/maintenance';
+      }
 
       // Unrecognized → redirect to home if recognized
       if (authNotifier.isFirebaseUser && isRecognized && isUnrecognized) {
@@ -122,6 +133,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/unrecognized',
         builder: (context, state) => const UnrecognizedScreen(),
+      ),
+      GoRoute(
+        path: '/maintenance',
+        builder: (context, state) => const MaintenanceScreen(),
       ),
       GoRoute(
         path: '/help',

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/firebase/firebase_service.dart';
 import 'biometric_service_stub.dart' as bio;
@@ -11,8 +12,17 @@ class SecurityService {
   }
 
   static Future<bool> isBiometricAvailable() => bio.isAvailable();
+  static Future<String?> getBiometricStatus() => bio.getError();
 
-  static Future<bool> authenticateWithBiometrics() => bio.authenticate();
+  static Future<bool> authenticateWithBiometrics({void Function(String)? onError}) async {
+    try {
+      return await bio.authenticate();
+    } catch (e) {
+      debugPrint('SecurityService biometric error: $e');
+      onError?.call(e.toString());
+      return false;
+    }
+  }
 
   static Future<bool> authenticateWithPasscode() async {
     try {

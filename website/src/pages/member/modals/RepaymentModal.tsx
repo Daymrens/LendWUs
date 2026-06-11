@@ -7,6 +7,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../../../firebase";
+import { compressImage } from "../../../utils/image";
 
 interface RepaymentModalProps {
   memberDocId: string;
@@ -49,13 +50,18 @@ const RepaymentModal: React.FC<RepaymentModalProps> = ({
     }).catch(() => {});
   }, []);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setReceiptFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => setReceiptPreview(reader.result as string);
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        setReceiptPreview(compressed);
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => setReceiptPreview(reader.result as string);
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -83,6 +89,7 @@ const RepaymentModal: React.FC<RepaymentModalProps> = ({
         year: d.getFullYear(),
         notes: "",
         receiptPath: receiptPreview,
+        receiptUrl: receiptPreview,
         receiptFilename: receiptFile.name,
       });
       onClose();

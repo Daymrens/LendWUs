@@ -7,6 +7,66 @@ interface Member {
   name: string;
 }
 
+interface Template {
+  label: string;
+  icon: string;
+  type: string;
+  title: string;
+  body: string;
+}
+
+const TEMPLATES: Template[] = [
+  {
+    label: "Payment Reminder",
+    icon: "💰",
+    type: "payment",
+    title: "Payment Reminder",
+    body: "This is a reminder to make your pending payment at your earliest convenience to keep your account in good standing.",
+  },
+  {
+    label: "Loan Approval",
+    icon: "✅",
+    type: "approval",
+    title: "Loan Approved",
+    body: "Your loan application has been approved. Please check your account for the updated details and disbursement schedule.",
+  },
+  {
+    label: "Head Change",
+    icon: "👥",
+    type: "head_change",
+    title: "Head Count Change",
+    body: "Your head count has been updated. Please review the changes in your account and reach out if you have any questions.",
+  },
+  {
+    label: "App Update",
+    icon: "📱",
+    type: "app_update",
+    title: "New App Update Available",
+    body: "A new version of the app is available. Please update to the latest version to enjoy new features and improvements.",
+  },
+  {
+    label: "System Notice",
+    icon: "ℹ️",
+    type: "system",
+    title: "System Maintenance Notice",
+    body: "The system will be undergoing scheduled maintenance. Some features may be temporarily unavailable during this time.",
+  },
+  {
+    label: "Meeting Reminder",
+    icon: "📅",
+    type: "reminder",
+    title: "Meeting Reminder",
+    body: "This is a reminder about the upcoming group meeting. Please make every effort to attend.",
+  },
+  {
+    label: "Contribution Due",
+    icon: "📊",
+    type: "reminder",
+    title: "Contribution Due Reminder",
+    body: "Your monthly contribution is due soon. Please make your deposit on time to avoid any penalties or interruptions.",
+  },
+];
+
 const SendNotification: React.FC = () => {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -80,6 +140,22 @@ const SendNotification: React.FC = () => {
     <div className="admin-page">
       <div className="page-header">
         <h1>Send Notification</h1>
+      </div>
+
+      <div className="notif-templates">
+        <label className="notif-templates-label">Quick Templates</label>
+        <div className="notif-templates-grid">
+          {TEMPLATES.map((t, i) => (
+            <button
+              key={i}
+              className="notif-template-btn"
+              onClick={() => { setTitle(t.title); setBody(t.body); setType(t.type); }}
+            >
+              <span className="notif-template-icon">{t.icon}</span>
+              <span className="notif-template-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="send-notif-card">
