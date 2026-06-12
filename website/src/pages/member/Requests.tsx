@@ -69,13 +69,8 @@ const Requests: React.FC = () => {
         )}
       </div>
 
-      <div className="tabs" style={{ marginBottom: 16 }}>
-        {(["payments", "loans", "heads"] as TabType[]).map(t => (
-          <button key={t} className={`tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      <TabPills active={tab} onChange={setTab} memberId={memberDocId} />
+      <TabStats tab={tab} memberId={memberDocId} />
 
       {tab === "payments" && <PaymentsTab memberId={memberDocId} />}
       {tab === "loans" && (
@@ -85,6 +80,108 @@ const Requests: React.FC = () => {
         </>
       )}
       {tab === "heads" && <HeadsTab memberId={memberDocId} />}
+    </div>
+  );
+};
+
+/* Tab Pills with pending badge */
+const TabPills: React.FC<{ active: TabType; onChange: (t: TabType) => void; memberId: string | undefined }> = ({ active, onChange, memberId }) => {
+  const [counts, setCounts] = useState<Record<TabType, number>>({ payments: 0, loans: 0, heads: 0 });
+
+  useEffect(() => {
+    if (!memberId) return;
+    const unsubs: (() => void)[] = [];
+    const configs: { tab: TabType; col: string }[] = [
+      { tab: "payments", col: "payment_requests" },
+      { tab: "loans", col: "loan_requests" },
+      { tab: "heads", col: "head_change_requests" },
+    ];
+    configs.forEach(({ tab, col }) => {
+      const u = onSnapshot(
+        query(collection(db, col), where("memberId", "==", memberId), where("status", "==", "pending")),
+        (snap) => setCounts(prev => ({ ...prev, [tab]: snap.size })),
+        () => {}
+      );
+      unsubs.push(u);
+    });
+    return () => unsubs.forEach(u => u());
+  }, [memberId]);
+
+  const labels: Record<TabType, string> = { payments: "Payments", loans: "Loans", heads: "Heads" };
+
+  return (
+    <div className="tabs" style={{ marginBottom: 16 }}>
+      {(Object.keys(labels) as TabType[]).map(t => (
+        <button key={t} className={`tab ${active === t ? "active" : ""}`} onClick={() => onChange(t)}>
+          {labels[t]}
+          {counts[t] > 0 && (
+            <span style={{
+              marginLeft: 6,
+              background: "#f59e0b",
+              color: "#000",
+              fontSize: 10,
+              fontWeight: 800,
+              borderRadius: 10,
+              padding: "1px 6px",
+              lineHeight: "16px",
+            }}>
+              {counts[t]}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+/* Stats summary row */
+const TabStats: React.FC<{ tab: TabType; memberId: string | undefined }> = ({ tab, memberId }) => {
+  const [stats, setStats] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, disbursed: 0 });
+
+  useEffect(() => {
+    if (!memberId) return;
+    const colMap: Record<TabType, string> = { payments: "payment_requests", loans: "loan_requests", heads: "head_change_requests" };
+    const col = colMap[tab];
+    if (!col) return;
+    const unsub = onSnapshot(
+      query(collection(db, col), where("memberId", "==", memberId)),
+      (snap) => {
+        const docs = snap.docs.map(d => d.data());
+        const pending = docs.filter(d => d.status === "pending").length;
+        const approved = docs.filter(d => d.status === "approved").length;
+        const rejected = docs.filter(d => d.status === "rejected").length;
+        const disbursed = docs.filter(d => d.status === "disbursed").length;
+        setStats({ total: docs.length, pending, approved, rejected, disbursed });
+      },
+      () => {}
+    );
+    return unsub;
+  }, [tab, memberId]);
+
+  const items = [
+    { label: "Total", count: stats.total, color: "#8b949e" },
+    { label: "Pending", count: stats.pending, color: "#f59e0b" },
+    { label: "Approved", count: stats.approved, color: "#22c55e" },
+    { label: "Rejected", count: stats.rejected, color: "#ef4444" },
+  ];
+  if (tab === "loans") items.splice(3, 0, { label: "Disbursed", count: stats.disbursed, color: "#3b82f6" });
+
+  return (
+    <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      {items.map(i => (
+        <div key={i.label} style={{
+          flex: 1,
+          minWidth: 80,
+          background: "#1c2128",
+          border: "1px solid #21262d",
+          borderRadius: 8,
+          padding: "10px 14px",
+          textAlign: "center",
+        }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: i.color }}>{i.count}</div>
+          <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>{i.label}</div>
+        </div>
+      ))}
     </div>
   );
 };
@@ -102,6 +199,38 @@ const formatDate = (ts: Timestamp | undefined) => {
   return d.toLocaleDateString();
 };
 
+/* SVG status icons */
+const statusSvgIcon = (status: string, size = 18) => {
+  const icons: Record<string, { viewBox: string; path: string; color: string }> = {
+    pending: {
+      viewBox: "0 0 24 24",
+      path: "<circle cx='12' cy='12' r='10'/><polyline points='12,6 12,12 16,14'/>",
+      color: "#f59e0b",
+    },
+    approved: {
+      viewBox: "0 0 24 24",
+      path: "<circle cx='12' cy='12' r='10'/><polyline points='9,12 11,14 15,10'/>",
+      color: "#22c55e",
+    },
+    rejected: {
+      viewBox: "0 0 24 24",
+      path: "<circle cx='12' cy='12' r='10'/><line x1='15' y1='9' x2='9' y2='15'/><line x1='9' y1='9' x2='15' y2='15'/>",
+      color: "#ef4444",
+    },
+    disbursed: {
+      viewBox: "0 0 24 24",
+      path: "<circle cx='12' cy='12' r='10'/><rect x='9' y='7' width='6' height='10' rx='1'/><line x1='12' y1='11' x2='12' y2='13'/>",
+      color: "#3b82f6",
+    },
+  };
+  const cfg = icons[status] || icons.pending;
+  return (
+    <svg width={size} height={size} viewBox={cfg.viewBox} fill="none" stroke={cfg.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <g dangerouslySetInnerHTML={{ __html: cfg.path }} />
+    </svg>
+  );
+};
+
 const statusBadge = (status: string) => {
   const map: Record<string, { color: string; bg: string }> = {
     pending: { color: "#f59e0b", bg: "rgba(245,158,11,0.15)" },
@@ -111,28 +240,39 @@ const statusBadge = (status: string) => {
   };
   const s = map[status] || map.pending;
   return (
-    <span className="chip" style={{ background: s.bg, color: s.color, fontSize: 11 }}>
+    <span className="chip" style={{ background: s.bg, color: s.color, fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4 }}>
+      {statusSvgIcon(status, 12)}
       {status.toUpperCase()}
     </span>
   );
 };
 
-const statusIcon = (status: string) => {
-  switch (status) {
-    case "pending": return "⏳";
-    case "approved": return "✅";
-    case "rejected": return "❌";
-    case "disbursed": return "🏦";
-    default: return "⏳";
+/* Payment type icons */
+const typeSvgIcon = (type: string) => {
+  if (type === "loan") {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="2" />
+        <path d="M6 12h.01" />
+        <path d="M18 12h.01" />
+      </svg>
+    );
   }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2v20" />
+      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+  );
 };
 
 /* Detail Modal */
 const PaymentDetailModal: React.FC<{ request: PaymentRequest; onClose: () => void }> = ({ request: r, onClose }) => {
-  const statusColors: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
-    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
-    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
+  const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", label: "Rejected" },
   };
   const sc = statusColors[r.status] || statusColors.pending;
 
@@ -146,7 +286,7 @@ const PaymentDetailModal: React.FC<{ request: PaymentRequest; onClose: () => voi
           </button>
         </div>
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <div style={{ marginBottom: 8 }}>{statusSvgIcon(r.status, 48)}</div>
           <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
           <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>₱{formatCurrency(r.amount)}</div>
           {r.type === "loan" && <div style={{ fontSize: 13, color: "#f59e0b", marginTop: 4 }}>Loan Repayment</div>}
@@ -225,14 +365,17 @@ const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) =
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
 
+  const filterTabs: { label: string; count: number; key: string | null }[] = [
+    { label: "All", count: requests.length, key: null },
+    { label: "Pending", count: pending, key: "pending" },
+    { label: "Approved", count: approved, key: "approved" },
+    { label: "Rejected", count: rejected, key: "rejected" },
+  ];
+
   return (
     <>
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[{ label: "All", count: requests.length, key: null },
-          { label: "Pending", count: pending, key: "pending" },
-          { label: "Approved", count: approved, key: "approved" },
-          { label: "Rejected", count: rejected, key: "rejected" },
-        ].map(t => (
+        {filterTabs.map(t => (
           <button key={t.label} className={`tab ${filter === t.key ? "active" : ""}`} onClick={() => setFilter(t.key)}>
             {t.label} ({t.count})
           </button>
@@ -246,16 +389,27 @@ const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) =
             <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
               <div className="approval-top">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
-                  <span style={{ fontSize: 18, fontWeight: 700 }}>₱{formatCurrency(r.amount)}</span>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 8,
+                    background: r.type === "loan" ? "rgba(245,158,11,0.12)" : "rgba(59,130,246,0.12)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    {typeSvgIcon(r.type)}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>
+                      ₱{formatCurrency(r.amount)}
+                    </div>
+                    <div style={{ fontSize: 11, color: r.type === "loan" ? "#f59e0b" : "#3b82f6", fontWeight: 600 }}>
+                      {r.type === "loan" ? "Loan Repayment" : "Contribution"}
+                    </div>
+                  </div>
                 </div>
                 {statusBadge(r.status)}
               </div>
               <div className="approval-details">
                 <span>Submitted {formatDate(r.requestDate)}</span>
-                {r.type === "loan" && r.loanId && (
-                  <span style={{ color: "#f59e0b", fontWeight: 600 }}>Loan repayment</span>
-                )}
+                {r.loanId && <span style={{ color: "#8b949e", fontSize: 11 }}>ID: {r.loanId}</span>}
               </div>
               {r.approvedDate && (
                 <div className="approval-details">
@@ -274,11 +428,11 @@ const PaymentsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) =
 
 /* Loan Detail Modal */
 const LoanDetailModal: React.FC<{ request: LoanRequest; onClose: () => void }> = ({ request: r, onClose }) => {
-  const statusConfig: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
-    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
-    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
-    disbursed: { bg: "rgba(59,130,246,0.15)", color: "#3b82f6", icon: "🏦", label: "Disbursed" },
+  const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", label: "Rejected" },
+    disbursed: { bg: "rgba(59,130,246,0.15)", color: "#3b82f6", label: "Disbursed" },
   };
   const sc = statusConfig[r.status] || statusConfig.pending;
   const dueDate = r.dueDate?.toDate?.();
@@ -294,7 +448,7 @@ const LoanDetailModal: React.FC<{ request: LoanRequest; onClose: () => void }> =
           </button>
         </div>
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <div style={{ marginBottom: 8 }}>{statusSvgIcon(r.status, 48)}</div>
           <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
           <div style={{ fontSize: 32, fontWeight: 800, color: "#fff" }}>₱{formatCurrency(r.amount)}</div>
           <div style={{ fontSize: 13, color: "#8b949e", marginTop: 4 }}>{r.interestRate}% interest rate</div>
@@ -360,15 +514,18 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
 
+  const filterTabs: { label: string; count: number; key: string | null }[] = [
+    { label: "All", count: requests.length, key: null },
+    { label: "Pending", count: pending, key: "pending" },
+    { label: "Approved", count: approved, key: "approved" },
+    { label: "Rejected", count: rejected, key: "rejected" },
+    { label: "Disbursed", count: disbursed, key: "disbursed" },
+  ];
+
   return (
     <>
       <div className="tabs" style={{ marginBottom: 12, flexWrap: "wrap" }}>
-        {[{ label: "All", count: requests.length, key: null },
-          { label: "Pending", count: pending, key: "pending" },
-          { label: "Approved", count: approved, key: "approved" },
-          { label: "Rejected", count: rejected, key: "rejected" },
-          { label: "Disbursed", count: disbursed, key: "disbursed" },
-        ].map(t => (
+        {filterTabs.map(t => (
           <button key={t.label} className={`tab ${filter === t.key ? "active" : ""}`} onClick={() => setFilter(t.key)}>
             {t.label} ({t.count})
           </button>
@@ -377,7 +534,7 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
       {filtered.length === 0 ? (
         <p className="empty-text">No loan requests</p>
       ) : (
-            <div className="activity-list">
+        <div className="activity-list">
           {filtered.map(r => {
             const dueDate = r.dueDate?.toDate?.();
             const isOverdue = dueDate && dueDate < new Date() && r.status === "disbursed";
@@ -386,7 +543,20 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
               <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
                 <div className="approval-top">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 8,
+                      background: r.status === "disbursed" ? "rgba(59,130,246,0.12)" : "rgba(245,158,11,0.12)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke={r.status === "disbursed" ? "#3b82f6" : "#f59e0b"}
+                        strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2" />
+                        <circle cx="12" cy="12" r="2" />
+                        <path d="M6 12h.01" />
+                        <path d="M18 12h.01" />
+                      </svg>
+                    </div>
                     <div>
                       <div style={{ fontSize: 18, fontWeight: 700 }}>₱{formatCurrency(r.amount)}</div>
                       <div style={{ fontSize: 12, color: "#8b949e" }}>{r.interestRate}% interest</div>
@@ -425,10 +595,10 @@ const LoansTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
 
 /* Heads Detail Modal */
 const HeadChangeDetailModal: React.FC<{ request: HeadChangeRequest; onClose: () => void }> = ({ request: r, onClose }) => {
-  const statusConfig: Record<string, { bg: string; color: string; icon: string; label: string }> = {
-    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", icon: "⏳", label: "Pending Review" },
-    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", icon: "✅", label: "Approved" },
-    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", icon: "❌", label: "Rejected" },
+  const statusConfig: Record<string, { bg: string; color: string; label: string }> = {
+    pending: { bg: "rgba(245,158,11,0.15)", color: "#f59e0b", label: "Pending Review" },
+    approved: { bg: "rgba(34,197,94,0.15)", color: "#22c55e", label: "Approved" },
+    rejected: { bg: "rgba(239,68,68,0.15)", color: "#ef4444", label: "Rejected" },
   };
   const sc = statusConfig[r.status] || statusConfig.pending;
   const diff = r.requestedHeads - r.currentHeads;
@@ -443,7 +613,7 @@ const HeadChangeDetailModal: React.FC<{ request: HeadChangeRequest; onClose: () 
           </button>
         </div>
         <div style={{ textAlign: "center", padding: "24px 0" }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>{sc.icon}</div>
+          <div style={{ marginBottom: 8 }}>{statusSvgIcon(r.status, 48)}</div>
           <h3 style={{ color: sc.color, margin: "0 0 4px" }}>{sc.label}</h3>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12 }}>
             <span style={{ fontSize: 28, color: "#8b949e", textDecoration: "line-through" }}>{r.currentHeads}</span>
@@ -504,14 +674,17 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading...</p></div>;
 
+  const filterTabs: { label: string; count: number; key: string | null }[] = [
+    { label: "All", count: requests.length, key: null },
+    { label: "Pending", count: pending, key: "pending" },
+    { label: "Approved", count: approved, key: "approved" },
+    { label: "Rejected", count: rejected, key: "rejected" },
+  ];
+
   return (
     <>
       <div className="tabs" style={{ marginBottom: 12 }}>
-        {[{ label: "All", count: requests.length, key: null },
-          { label: "Pending", count: pending, key: "pending" },
-          { label: "Approved", count: approved, key: "approved" },
-          { label: "Rejected", count: rejected, key: "rejected" },
-        ].map(t => (
+        {filterTabs.map(t => (
           <button key={t.label} className={`tab ${filter === t.key ? "active" : ""}`} onClick={() => setFilter(t.key)}>
             {t.label} ({t.count})
           </button>
@@ -525,7 +698,18 @@ const HeadsTab: React.FC<{ memberId: string | undefined }> = ({ memberId }) => {
             <div key={r.id} className="approval-card" style={{ marginBottom: 8, cursor: "pointer" }} onClick={() => setSelected(r)}>
               <div className="approval-top">
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 20 }}>{statusIcon(r.status)}</span>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 8,
+                    background: "rgba(139,148,158,0.1)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b949e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                  </div>
                   <div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 18, color: "#8b949e", textDecoration: "line-through" }}>

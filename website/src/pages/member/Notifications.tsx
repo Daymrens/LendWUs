@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -25,14 +25,35 @@ interface NotificationItem {
   data?: Record<string, unknown>;
 }
 
-const typeIcons: Record<string, string> = {
-  payment: "💰",
-  loan: "🏦",
-  approval: "✅",
-  head_change: "👥",
-  reminder: "⏰",
-  system: "ℹ️",
+function getRelativeTime(d: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+const TYPE_META: Record<string, { icon: string; color: string; bg: string }> = {
+  contribution: { icon: "\u{1F4B0}", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+  loan: { icon: "\u{1F3E6}", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  repayment: { icon: "\u{1F4B3}", color: "#3b82f6", bg: "rgba(59,130,246,0.12)" },
+  payment: { icon: "\u{1F4B5}", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
+  system: { icon: "\u2699\uFE0F", color: "#8b949e", bg: "rgba(139,148,158,0.12)" },
+  approval: { icon: "\u2705", color: "#22c55e", bg: "rgba(34,197,94,0.12)" },
+  warning: { icon: "\u26A0\uFE0F", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  reminder: { icon: "\u23F0", color: "#06b6d4", bg: "rgba(6,182,212,0.12)" },
+  head_change: { icon: "\u{1F465}", color: "#8b5cf6", bg: "rgba(139,92,246,0.12)" },
 };
+
+function getTypeMeta(type: string) {
+  return TYPE_META[type.toLowerCase()] || { icon: "\u{1F514}", color: "#8b949e", bg: "rgba(139,148,158,0.12)" };
+}
 
 function notificationRoute(n: NotificationItem): string {
   const route = n.data?.route as string | undefined;
@@ -48,6 +69,8 @@ const Notifications: React.FC = () => {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+  const [typeFilter, setTypeFilter] = useState("all");
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -81,22 +104,24 @@ const Notifications: React.FC = () => {
     navigate(notificationRoute(n));
   };
 
-  const formatTime = (ts: Timestamp) => {
-    if (!ts?.toDate) return "";
-    const d = ts.toDate();
-    const diff = Math.floor((Date.now() - d.getTime()) / (1000 * 60));
-    if (diff < 1) return "Just now";
-    if (diff < 60) return `${diff}m ago`;
-    const hours = Math.floor(diff / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
-    return d.toLocaleDateString();
-  };
-
-  if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading notifications...</p></div>;
+  const displayed = useMemo(() => {
+    let result = filter === "unread" ? notifications.filter(n => !n.read) : [...notifications];
+    if (typeFilter !== "all") result = result.filter(n => n.type.toLowerCase() === typeFilter);
+    return result;
+  }, [notifications, filter, typeFilter]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    notifications.forEach(n => {
+      const t = n.type.toLowerCase();
+      counts[t] = (counts[t] || 0) + 1;
+    });
+    return counts;
+  }, [notifications]);
+
+  if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading notifications...</p></div>;
 
   return (
     <div className="admin-page">
@@ -114,29 +139,71 @@ const Notifications: React.FC = () => {
         </div>
       </div>
 
-      {notifications.length === 0 ? (
+      <div className="notif-toolbar">
+        <div className="notif-tabs">
+          <button className={`notif-tab ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>
+            All
+            <span className="notif-tab-count">{notifications.length}</span>
+          </button>
+          <button className={`notif-tab ${filter === "unread" ? "active" : ""}`} onClick={() => setFilter("unread")}>
+            Unread
+            {unreadCount > 0 && <span className="notif-tab-count">{unreadCount}</span>}
+          </button>
+        </div>
+        <select className="search-input" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={{ width: "auto", marginBottom: 0 }}>
+          <option value="all">All Types</option>
+          {Object.keys(TYPE_META).map(t => (
+            <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)} ({typeCounts[t] || 0})</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="notif-stats">
+        <div className="notif-stat">
+          <span className="notif-stat-value">{notifications.length}</span>
+          <span className="notif-stat-label">Total</span>
+        </div>
+        <div className="notif-stat">
+          <span className="notif-stat-value" style={{ color: "#22c55e" }}>{unreadCount}</span>
+          <span className="notif-stat-label">Unread</span>
+        </div>
+        <div className="notif-stat">
+          <span className="notif-stat-value" style={{ color: "#8b949e" }}>{notifications.length - unreadCount}</span>
+          <span className="notif-stat-label">Read</span>
+        </div>
+      </div>
+
+      {displayed.length === 0 ? (
         <div className="admin-loading">
-          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>🔔</div>
-          <p className="empty-text">No notifications yet</p>
+          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>&#x1F514;</div>
+          <p className="empty-text">No notifications found</p>
         </div>
       ) : (
         <div className="notif-list">
-          {notifications.map(n => (
-            <div
-              key={n.id}
-              className={`notif-card ${!n.read ? "unread" : ""}`}
-              onClick={() => handleClick(n)}
-              style={{ cursor: "pointer" }}
-            >
-              <span style={{ fontSize: 20 }}>{typeIcons[n.type] || "ℹ️"}</span>
-              <div className="notif-content">
-                <div className="notif-title">{n.title}</div>
-                <div className="notif-body">{n.body}</div>
-                <div className="notif-time">{formatTime(n.createdAt)}</div>
+          {displayed.map(n => {
+            const meta = getTypeMeta(n.type);
+            return (
+              <div
+                key={n.id}
+                className={`notif-card ${!n.read ? "unread" : ""}`}
+                onClick={() => handleClick(n)}
+                style={{ cursor: "pointer" }}
+              >
+                <div className="notif-card-icon" style={{ background: meta.bg }}>
+                  {meta.icon}
+                </div>
+                <div className="notif-content">
+                  <div className="notif-title">{n.title}</div>
+                  <div className="notif-body">{n.body}</div>
+                  <div className="notif-meta">
+                    <span className="notif-time">{n.createdAt?.toDate?.() ? getRelativeTime(n.createdAt.toDate()) : ""}</span>
+                    <span className="notif-type-badge" style={{ color: meta.color, background: meta.bg }}>{n.type}</span>
+                  </div>
+                </div>
+                {!n.read && <div className="notif-unread-dot" />}
               </div>
-              {!n.read && <div className="notif-unread-dot" />}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

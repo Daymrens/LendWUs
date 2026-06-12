@@ -74,6 +74,11 @@ const Loans: React.FC = () => {
   const now = new Date();
   const activeLoans = loans.filter(l => !l.isFullyRepaid);
   const repaidLoans = loans.filter(l => l.isFullyRepaid);
+  const totalPrincipal = activeLoans.reduce((sum, l) => sum + l.principal, 0);
+  const overdueCount = activeLoans.filter(l => {
+    const dueDate = l.dueDate?.toDate?.();
+    return dueDate && dueDate < now;
+  }).length;
 
   if (loading) return (
     <div className="admin-page">
@@ -89,9 +94,27 @@ const Loans: React.FC = () => {
         <span className="chip active-chip">{activeLoans.length} active</span>
       </div>
 
+      {/* Stats summary */}
+      <div className="mini-stats" style={{ marginBottom: 24 }}>
+        <div className="stat-card">
+          <div className="stat-label">Active Loans</div>
+          <div className="stat-value">{activeLoans.length}</div>
+        </div>
+        <div className="stat-card gradient">
+          <div className="stat-label">Total Principal</div>
+          <div className="stat-value">₱{formatCurrency(totalPrincipal)}</div>
+        </div>
+        <div className="stat-card" style={{ borderColor: overdueCount > 0 ? "rgba(239,68,68,0.3)" : undefined }}>
+          <div className="stat-label">Overdue</div>
+          <div className="stat-value" style={{ color: overdueCount > 0 ? "#ef4444" : "#22c55e" }}>
+            {overdueCount === 0 ? "None" : overdueCount}
+          </div>
+        </div>
+      </div>
+
       {/* Active Loans */}
       <div className="section">
-        <h2>Active Loans</h2>
+        <h2>🏦 Active Loans</h2>
         {activeLoans.length === 0 ? (
           <div className="chart-card" style={{ textAlign: "center", padding: 32 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>✅</div>
@@ -111,40 +134,56 @@ const Loans: React.FC = () => {
               const daysOverdue = dueDate ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
               return (
-                <div key={loan.id} className="approval-card" style={{ marginBottom: 12 }}>
-                  <div className="approval-top">
-                    <div>
-                      <strong>Loan #{loan.id.slice(0, 5)}</strong>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e" }}>
-                        {(loan.interestRate * 100).toFixed(0)}% interest
-                      </span>
+                <div key={loan.id} className="stat-card" style={{ marginBottom: 12 }}>
+                  <div className="approval-top" style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 18 }}>🏦</span>
+                      <div>
+                        <strong>Loan #{loan.id.slice(0, 5)}</strong>
+                        <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e" }}>
+                          {(loan.interestRate * 100).toFixed(0)}% interest
+                        </span>
+                      </div>
                     </div>
-                    <span className="approval-amount" style={{ color: isOverdue ? "#ef4444" : "#f59e0b" }}>
+                    <span style={{ fontSize: 18, fontWeight: 700, color: isOverdue ? "#ef4444" : "#f59e0b" }}>
                       ₱{formatCurrency(remaining)}
                     </span>
                   </div>
-                  {isOverdue && (
-                    <span className="chip" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", marginBottom: 8, display: "inline-block" }}>
-                      {daysOverdue} days overdue
-                    </span>
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <div style={{ flex: 1, height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ width: `${progress * 100}%`, height: "100%", background: isOverdue ? "#ef4444" : "#f59e0b", borderRadius: 3 }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: "#8b949e" }}>{(progress * 100).toFixed(0)}%</span>
-                  </div>
-                  <div className="approval-details">
+                  <div className="approval-details" style={{ marginBottom: 8 }}>
                     <span>Principal: ₱{formatCurrency(loan.principal)}</span>
                     <span>Due: {formatDate(loan.dueDate)}</span>
                     <span>Issued: {formatDate(loan.issuedDate)}</span>
                   </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                    <div style={{ flex: 1, height: 8, background: "#1c2128", borderRadius: 4, overflow: "hidden" }}>
+                      <div style={{
+                        width: `${progress * 100}%`,
+                        height: "100%",
+                        background: isOverdue ? "#ef4444" : "#22c55e",
+                        borderRadius: 4,
+                        transition: "width 0.3s ease",
+                      }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: "#8b949e", minWidth: 32, textAlign: "right" }}>
+                      {(progress * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                    {isOverdue && (
+                      <span className="chip" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>
+                        ⚠ {daysOverdue} days overdue
+                      </span>
+                    )}
+                    <span className="chip" style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e", marginLeft: "auto" }}>
+                      ₱{formatCurrency(remaining)} remaining
+                    </span>
+                  </div>
                   <button
                     className="btn btn-warning btn-sm"
-                    style={{ width: "100%", marginTop: 8 }}
+                    style={{ width: "100%", marginTop: 10 }}
                     onClick={() => { setRepayLoan(loan); setShowRepaymentModal(true); }}
                   >
-                    Repay Loan
+                    Make a Repayment
                   </button>
                 </div>
               );
@@ -155,30 +194,63 @@ const Loans: React.FC = () => {
 
       {/* Repaid Loans */}
       {repaidLoans.length > 0 && (
-        <div className="section">
+        <div className="section" style={{ marginTop: 0 }}>
           <button
-            className="btn btn-outline btn-sm"
-            style={{ width: "100%", justifyContent: "space-between", display: "flex", alignItems: "center" }}
+            className="stat-card"
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              cursor: "pointer",
+              border: "1px solid rgba(34,197,94,0.15)",
+              background: "rgba(34,197,94,0.04)",
+            }}
             onClick={() => setShowRepaid(!showRepaid)}
           >
-            <span>Repaid Loans ({repaidLoans.length})</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ transform: showRepaid ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>✅</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 600, color: "#22c55e", fontSize: 14 }}>
+                  Repaid Loans
+                </div>
+                <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>
+                  {repaidLoans.length} loan{repaidLoans.length > 1 ? "s" : ""} fully paid
+                </div>
+              </div>
+            </div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{
+                transform: showRepaid ? "rotate(180deg)" : "none",
+                transition: "transform 0.2s",
+                color: "#8b949e",
+              }}
+            >
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
           {showRepaid && (
-            <div className="activity-list" style={{ marginTop: 12 }}>
+            <div className="activity-list" style={{ marginTop: 8 }}>
               {repaidLoans.map(loan => (
-                <div key={loan.id} className="approval-card" style={{ marginBottom: 8, opacity: 0.8 }}>
-                  <div className="approval-top">
-                    <div>
-                      <strong>Loan #{loan.id.slice(0, 5)}</strong>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e" }}>
-                        {(loan.interestRate * 100).toFixed(0)}% interest
-                      </span>
+                <div key={loan.id} className="stat-card" style={{ marginBottom: 8, opacity: 0.85 }}>
+                  <div className="approval-top" style={{ marginBottom: 4 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 16 }}>✅</span>
+                      <div>
+                        <strong>Loan #{loan.id.slice(0, 5)}</strong>
+                        <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e" }}>
+                          {(loan.interestRate * 100).toFixed(0)}% interest
+                        </span>
+                      </div>
                     </div>
-                    <span className="chip" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>
-                      PAID
+                    <span className="chip" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", fontWeight: 600 }}>
+                      FULLY PAID
                     </span>
                   </div>
                   <div className="approval-details">

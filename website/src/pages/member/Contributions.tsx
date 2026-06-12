@@ -44,6 +44,7 @@ const Contributions: React.FC = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (!memberId) return;
@@ -140,6 +141,10 @@ const Contributions: React.FC = () => {
     return d.toLocaleDateString();
   };
 
+  const toggleMonth = (key: string) => {
+    setExpandedMonths(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading contributions...</p></div>;
   if (error) return <div className="admin-error"><p>Error: {error}</p></div>;
   if (!member) return <div className="admin-loading"><p>Member profile not found.</p></div>;
@@ -150,56 +155,63 @@ const Contributions: React.FC = () => {
         <h1>My Contributions</h1>
       </div>
 
-      <div className="section">
-        <div className="chart-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ margin: 0, color: "#c9d1d9", fontSize: 14, fontWeight: 600 }}>
-              Total Contributions
-            </h3>
-            <span className="chip active-chip">{contributions.length} payments</span>
+      <div className="reports-summary">
+        <div className="report-summary-card">
+          <div className="report-summary-icon" style={{ background: "rgba(34,197,94,0.12)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: "#22c55e", marginBottom: 12 }}>
-            ₱{formatCurrency(totalAll)}
+          <div className="report-summary-body">
+            <span className="report-summary-label">This Month</span>
+            <span className="report-summary-value text-success">₱{formatCurrency(totalThisMonth)}</span>
+            {required > 0 && (
+              <span className="report-summary-sub">
+                {progress >= 1 ? "Fully paid" : `${(progress * 100).toFixed(0)}% of ₱${formatCurrency(required)}`}
+              </span>
+            )}
           </div>
-          {required > 0 && (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: totalThisMonth >= required ? "#22c55e" : "#f59e0b" }}>
-                  This month: ₱{formatCurrency(totalThisMonth)}
-                </span>
-                <span style={{ fontSize: 12, color: "#8b949e" }}>Required: ₱{formatCurrency(required)}</span>
-              </div>
-              <div style={{ height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${progress * 100}%`, height: "100%", background: totalThisMonth >= required ? "#22c55e" : "#f59e0b", borderRadius: 3 }} />
-              </div>
-            </>
-          )}
-          {member.balance > 0 && (
-            <div style={{ marginTop: 12, fontSize: 13, color: "#22c55e", fontWeight: 600 }}>
-              Credit balance: ₱{formatCurrency(member.balance)}
-            </div>
-          )}
+        </div>
+        <div className="report-summary-card">
+          <div className="report-summary-icon" style={{ background: "rgba(59,130,246,0.12)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <div className="report-summary-body">
+            <span className="report-summary-label">Total All Time</span>
+            <span className="report-summary-value">₱{formatCurrency(totalAll)}</span>
+            <span className="report-summary-sub">{contributions.length} payments</span>
+          </div>
+        </div>
+        <div className="report-summary-card">
+          <div className="report-summary-icon" style={{ background: "rgba(245,158,11,0.12)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          </div>
+          <div className="report-summary-body">
+            <span className="report-summary-label">Last Month</span>
+            <span className="report-summary-value text-pending">₱{formatCurrency(totalLastMonth)}</span>
+          </div>
+        </div>
+        <div className="report-summary-card">
+          <div className="report-summary-icon" style={{ background: "rgba(139,148,158,0.12)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8b949e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2L2 10v2l10 10 10-10V10L14 2z"/><path d="M12 8v4"/><path d="M12 16h0"/></svg>
+          </div>
+          <div className="report-summary-body">
+            <span className="report-summary-label">Avg / Payment</span>
+            <span className="report-summary-value">₱{formatCurrency(avg)}</span>
+            <span className="report-summary-sub">Across all contributions</span>
+          </div>
         </div>
       </div>
 
-      <div className="mini-stats">
-        <div className="mini-stat accent">
-          <span className="mini-stat-label">This Month</span>
-          <span className="mini-stat-value">₱{formatCurrency(totalThisMonth)}</span>
+      {member.balance > 0 && (
+        <div className="section">
+          <div className="chart-card" style={{ borderColor: "#22c55e33", background: "linear-gradient(135deg, #161b22, #0d2818)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
+              <span style={{ color: "#22c55e", fontSize: 14, fontWeight: 600 }}>Credit Balance</span>
+              <span style={{ marginLeft: "auto", color: "#22c55e", fontSize: 20, fontWeight: 800 }}>₱{formatCurrency(member.balance)}</span>
+            </div>
+          </div>
         </div>
-        <div className="mini-stat">
-          <span className="mini-stat-label">Total</span>
-          <span className="mini-stat-value">₱{formatCurrency(totalAll)}</span>
-        </div>
-        <div className="mini-stat">
-          <span className="mini-stat-label">Last Month</span>
-          <span className="mini-stat-value">₱{formatCurrency(totalLastMonth)}</span>
-        </div>
-        <div className="mini-stat">
-          <span className="mini-stat-label">Avg/Payment</span>
-          <span className="mini-stat-value">₱{formatCurrency(avg)}</span>
-        </div>
-      </div>
+      )}
 
       <div className="section">
         <h2>Monthly Trend (6 months)</h2>
@@ -226,48 +238,90 @@ const Contributions: React.FC = () => {
             const monthTotal = items.reduce((s, c) => s + (Number(c.amount) || 0), 0);
             const parts = key.split("-");
             const monthName = `${MONTHS[parseInt(parts[1]) - 1]} ${parts[0]}`;
+            const monthProgress = required > 0 ? Math.min(monthTotal / required, 1) : 0;
+            const isExpanded = expandedMonths[key] ?? false;
+            const isCurrentMonth =
+              parseInt(parts[0]) === now.getFullYear() && parseInt(parts[1]) === now.getMonth() + 1;
+
             return (
-              <div key={key} className="approval-card" style={{ marginBottom: 12 }}>
+              <div key={key} className="approval-card" style={{ marginBottom: 12, overflow: "hidden" }}>
                 <div
                   className="approval-top"
                   style={{ cursor: "pointer", marginBottom: 0 }}
+                  onClick={() => toggleMonth(key)}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div
-                      style={{
-                        width: 36, height: 36, borderRadius: "50%",
-                        background: "rgba(34,197,94,0.1)",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        fontWeight: 700, fontSize: 13, color: "#22c55e",
-                      }}
-                    >
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: "50%",
+                      background: isCurrentMonth ? "rgba(34,197,94,0.15)" : "rgba(139,148,158,0.1)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontWeight: 700, fontSize: 14, color: isCurrentMonth ? "#22c55e" : "#8b949e",
+                      flexShrink: 0,
+                    }}>
                       {parts[1]}
                     </div>
-                    <strong>{monthName}</strong>
+                    <div>
+                      <strong style={{ color: "#e6edf3", fontSize: 15, fontWeight: 600 }}>{monthName}</strong>
+                      <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>
+                        {items.length} payment{items.length > 1 ? "s" : ""}
+                        {isCurrentMonth && <span className="chip active-chip" style={{ marginLeft: 8, fontSize: 9 }}>Current</span>}
+                      </div>
+                    </div>
                   </div>
-                  <span style={{ color: "#22c55e", fontWeight: 700, fontSize: 15 }}>
-                    ₱{formatCurrency(monthTotal)}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ color: "#22c55e", fontWeight: 700, fontSize: 16, display: "block" }}>
+                        ₱{formatCurrency(monthTotal)}
+                      </span>
+                      {required > 0 && (
+                        <span style={{ fontSize: 11, color: "#8b949e" }}>
+                          {monthProgress >= 1 ? "✓ Complete" : `${(monthProgress * 100).toFixed(0)}%`}
+                        </span>
+                      )}
+                    </div>
+                    <svg
+                      width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b949e" strokeWidth="2"
+                      style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s", flexShrink: 0 }}
+                    >
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </div>
                 </div>
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ fontSize: 12, color: "#8b949e", cursor: "pointer", padding: "4px 0" }}>
-                    {items.length} payment{items.length > 1 ? "s" : ""}
-                  </summary>
-                  <div style={{ marginTop: 8 }}>
+
+                {required > 0 && (
+                  <div style={{ marginTop: 10, marginBottom: isExpanded ? 12 : 0 }}>
+                    <div style={{ height: 4, background: "#1c2128", borderRadius: 2, overflow: "hidden" }}>
+                      <div style={{
+                        width: `${monthProgress * 100}%`, height: "100%",
+                        background: monthProgress >= 1 ? "#22c55e" : monthProgress >= 0.5 ? "#f59e0b" : "#ef4444",
+                        borderRadius: 2, transition: "width 0.4s",
+                      }} />
+                    </div>
+                  </div>
+                )}
+
+                {isExpanded && (
+                  <div style={{ marginTop: 4, borderTop: "1px solid #21262d", paddingTop: 8 }}>
                     {items.map(c => (
                       <div key={c.id} style={{
                         display: "flex", justifyContent: "space-between", alignItems: "center",
                         padding: "8px 0", borderBottom: "1px solid #21262d",
                       }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                          <span style={{ fontWeight: 600 }}>₱{formatCurrency(c.amount)}</span>
+                          <div style={{
+                            width: 24, height: 24, borderRadius: "50%",
+                            background: "rgba(34,197,94,0.1)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                          </div>
+                          <span style={{ fontWeight: 600, color: "#e6edf3" }}>₱{formatCurrency(c.amount)}</span>
                         </div>
                         <span style={{ fontSize: 12, color: "#8b949e" }}>{formatDate(c.date)}</span>
                       </div>
                     ))}
                   </div>
-                </details>
+                )}
               </div>
             );
           })

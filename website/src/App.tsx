@@ -5,6 +5,7 @@ import { db } from './firebase';
 import './App.css';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import MaintenanceScreen from './pages/MaintenanceScreen';
 import Dashboard from './pages/admin/Dashboard';
 import Members from './pages/admin/Members';
 import MemberProfile from './pages/admin/MemberProfile';
@@ -23,7 +24,6 @@ import MemberLoans from './pages/member/Loans';
 import MemberRequests from './pages/member/Requests';
 import MemberProfilePage from './pages/member/Profile';
 import MemberNotifications from './pages/member/Notifications';
-import MemberEditProfile from './pages/member/EditProfile';
 import MemberHelpSupport from './pages/member/HelpSupport';
 import MemberAbout from './pages/member/About';
 import MemberPrivacySecurity from './pages/member/PrivacySecurity';
@@ -42,27 +42,6 @@ import {
   Search
 } from 'lucide-react';
 import { useWebNotifications } from './hooks/useWebNotifications';
-
-const MaintenanceScreen: React.FC = () => {
-  const [message, setMessage] = useState("The system is currently undergoing maintenance. Please check back later.");
-  useEffect(() => {
-    getDoc(doc(db, 'app_settings', 'fund_settings')).then(snap => {
-      if (snap.exists() && snap.data().maintenanceMessage) {
-        setMessage(snap.data().maintenanceMessage);
-      }
-    }).catch(() => {});
-  }, []);
-  return (
-    <div className="maintenance-container">
-      <div className="maintenance-card">
-        <div className="maintenance-icon">🔧</div>
-        <h1>Under Maintenance</h1>
-        <p>{message}</p>
-        <div className="spinner" style={{ marginTop: 24 }} />
-      </div>
-    </div>
-  );
-};
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -505,7 +484,6 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     { path: '/member/requests', label: 'Requests', icon: '📋' },
     { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
     { path: '/member/profile', label: 'Profile', icon: '👤' },
-    { path: '/member/edit-profile', label: 'Edit Profile', icon: '✏️' },
     { path: '/member/privacy-security', label: 'Privacy & Security', icon: '🔒' },
     { path: '/member/help-support', label: 'Help & Support', icon: '❓' },
     { path: '/member/about', label: 'About', icon: 'ℹ️' },
@@ -601,7 +579,7 @@ const App: React.FC = () => {
       <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/profile" element={<ProtectedMemberRoute><MemberLayout><MemberProfilePage /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/notifications" element={<ProtectedMemberRoute><MemberLayout><MemberNotifications /></MemberLayout></ProtectedMemberRoute>} />
-      <Route path="/member/edit-profile" element={<ProtectedMemberRoute><MemberLayout><MemberEditProfile /></MemberLayout></ProtectedMemberRoute>} />
+       <Route path="/member/edit-profile" element={<Navigate to="/member/profile" replace />} />
       <Route path="/member/help-support" element={<ProtectedMemberRoute><MemberLayout><MemberHelpSupport /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/about" element={<ProtectedMemberRoute><MemberLayout><MemberAbout /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/privacy-security" element={<ProtectedMemberRoute><MemberLayout><MemberPrivacySecurity /></MemberLayout></ProtectedMemberRoute>} />

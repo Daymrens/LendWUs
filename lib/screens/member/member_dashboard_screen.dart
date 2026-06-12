@@ -61,57 +61,57 @@ class MemberDashboardScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My Dashboard'),
-        actions: [
-          Consumer(
-            builder: (context, ref, _) {
-              final auth = ref.watch(currentUserProvider);
-              final userId = auth.state?.id;
-              final unread = userId != null
-                  ? (ref.watch(unreadCountProvider(userId)).value ?? 0)
-                  : 0;
-              return Stack(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications_outlined),
-                    onPressed: () {
-                      context.push('/notifications');
-                    },
-                    tooltip: 'Notifications',
-                  ),
-                  if (unread > 0)
-                    Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.warning,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Text(
-                          unread.toString(),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+          actions: [
+            Consumer(
+              builder: (context, ref, _) {
+                final auth = ref.watch(currentUserProvider);
+                final userId = auth.state?.id;
+                final unread = userId != null
+                    ? (ref.watch(unreadCountProvider(userId)).value ?? 0)
+                    : 0;
+                return Stack(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined),
+                      onPressed: () {
+                        context.push('/notifications');
+                      },
+                      tooltip: 'Notifications',
+                    ),
+                    if (unread > 0)
+                      Positioned(
+                        right: 6,
+                        top: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.warning,
+                            shape: BoxShape.circle,
                           ),
-                          textAlign: TextAlign.center,
+                          constraints: const BoxConstraints(
+                            minWidth: 18,
+                            minHeight: 18,
+                          ),
+                          child: Text(
+                            unread.toString(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              );
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Welcome, ${user?.username}',
@@ -301,7 +301,8 @@ class MemberDashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildContributionCard(BuildContext context, WidgetRef ref, double total, String memberId, AppSettings? settings) {
@@ -763,9 +764,8 @@ class _RecentContributions extends ConsumerWidget {
           ),
         ),
       ],
-      ),
     );
-  }
+}
 
   String _formatDate(DateTime d) {
     final now = DateTime.now();

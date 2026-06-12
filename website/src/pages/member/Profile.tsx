@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useMemberAuth } from "../../context/MemberAuthContext";
 
@@ -16,10 +16,20 @@ interface MemberData {
   joinedAt?: { toDate?: () => Date };
 }
 
+const getInitials = (name: string): string => {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return (name[0] || "M").toUpperCase();
+};
+
 const Profile: React.FC = () => {
   const { user, logout } = useMemberAuth();
   const navigate = useNavigate();
   const [member, setMember] = useState<MemberData | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!user?.memberId) return;
@@ -29,12 +39,45 @@ const Profile: React.FC = () => {
     return unsub;
   }, [user?.memberId]);
 
+  useEffect(() => {
+    if (user?.username) setNameInput(user.username);
+  }, [user?.username]);
+
   const handleLogout = async () => {
     await logout();
     window.location.href = "/member/login";
   };
 
-  const initial = (user?.username || user?.email || "M")[0].toUpperCase();
+  const startEditing = () => {
+    setNameInput(user?.username || "");
+    setEditing(true);
+    setMsg(null);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setMsg(null);
+  };
+
+  const saveName = async () => {
+    if (!nameInput.trim()) return;
+    setSaving(true);
+    setMsg(null);
+    try {
+      if (user?.uid) {
+        await updateDoc(doc(db, "users", user.uid), { username: nameInput.trim() });
+        setMsg({ ok: true, text: "Name updated" });
+        setEditing(false);
+      }
+    } catch (err: unknown) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Failed to update" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const displayName = user?.username || "Member";
+  const initials = getInitials(displayName);
   const joinedDate = member?.joinedAt?.toDate?.() || null;
 
   return (
@@ -45,16 +88,26 @@ const Profile: React.FC = () => {
 
       <div className="settings-section" style={{ textAlign: "center", padding: "32px 24px" }}>
         <div style={{
-          width: 80, height: 80, borderRadius: "50%", background: "#22c55e",
+          width: 88, height: 88, borderRadius: "50%",
+          background: "linear-gradient(135deg, #22c55e, #16a34a)",
           display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 36, fontWeight: 700, color: "#0d1117", marginBottom: 12,
+          fontSize: 32, fontWeight: 700, color: "#0d1117", marginBottom: 12,
+          boxShadow: "0 0 0 4px rgba(34,197,94,0.2)",
         }}>
-          {initial}
+          {initials}
         </div>
-        <h2 style={{ margin: "0 0 4px" }}>{user?.username || "Member"}</h2>
-        <p style={{ color: "#8b949e", margin: 0, fontSize: 14 }}>
-          {user?.customMemberId || "Member"} · {user?.email}
+        <h2 style={{ margin: "0 0 4px", fontSize: 20 }}>{displayName}</h2>
+        <p style={{ color: "#8b949e", margin: "0 0 4px", fontSize: 14 }}>
+          {user?.email}
         </p>
+        <div style={{
+          display: "inline-block", marginTop: 8,
+          background: "rgba(34,197,94,0.1)", color: "#22c55e",
+          padding: "4px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600,
+          border: "1px solid rgba(34,197,94,0.2)",
+        }}>
+          {user?.customMemberId || "Member"}
+        </div>
       </div>
 
       <div className="mini-stats" style={{ marginBottom: 24 }}>
@@ -64,23 +117,49 @@ const Profile: React.FC = () => {
         </div>
         <div className="mini-stat">
           <span className="mini-stat-label">Per Head</span>
-          <span className="mini-stat-value">₱{member?.amountPerHead?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&pound;{member?.amountPerHead?.toFixed(2) ?? "-"}</span>
         </div>
         <div className="mini-stat warning">
           <span className="mini-stat-label">Required</span>
-          <span className="mini-stat-value">₱{member?.totalRequired?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&pound;{member?.totalRequired?.toFixed(2) ?? "-"}</span>
         </div>
         <div className="mini-stat accent">
           <span className="mini-stat-label">Balance</span>
-          <span className="mini-stat-value">₱{member?.balance?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&pound;{member?.balance?.toFixed(2) ?? "-"}</span>
         </div>
       </div>
 
       <div className="settings-section">
-        <h2>Account Information</h2>
+        <div className="settings-section-header">
+          <div className="settings-section-icon">&#x1F464;</div>
+          <h2>Account Information</h2>
+          {!editing && (
+            <button className="btn btn-outline btn-sm" onClick={startEditing} style={{ marginLeft: "auto" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+          )}
+        </div>
+
+        {msg && (
+          <div className={`send-notif-result ${msg.ok ? "success" : "error"}`} style={{ marginBottom: 12 }}>
+            {msg.ok ? "\u2705" : "\u26A0\uFE0F"} {msg.text}
+          </div>
+        )}
+
         <div className="form-group">
           <label>Name</label>
-          <input type="text" value={user?.username || "N/A"} disabled />
+          {editing ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input type="text" value={nameInput} onChange={e => setNameInput(e.target.value)} autoFocus style={{ flex: 1 }} />
+              <button className="btn btn-primary btn-sm" onClick={saveName} disabled={saving || !nameInput.trim()}>
+                {saving ? "Saving..." : "Save"}
+              </button>
+              <button className="btn btn-outline btn-sm" onClick={cancelEditing}>Cancel</button>
+            </div>
+          ) : (
+            <input type="text" value={displayName} disabled />
+          )}
         </div>
         <div className="form-group">
           <label>Email</label>
@@ -97,26 +176,37 @@ const Profile: React.FC = () => {
       </div>
 
       <div className="settings-section">
-        <h2>Quick Links</h2>
-        <div className="member-card" onClick={() => navigate("/member/edit-profile")} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", border: "1px solid #30363d", borderRadius: 8, marginBottom: 8 }}>
-          <span>Edit Profile</span>
-          <span style={{ color: "#8b949e" }}>→</span>
+        <div className="settings-section-header">
+          <div className="settings-section-icon">&#x1F517;</div>
+          <h2>Quick Links</h2>
         </div>
-        <div className="member-card" onClick={() => navigate("/member/privacy-security")} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", border: "1px solid #30363d", borderRadius: 8, marginBottom: 8 }}>
-          <span>Privacy & Security</span>
-          <span style={{ color: "#8b949e" }}>→</span>
-        </div>
-        <div className="member-card" onClick={() => navigate("/member/notifications")} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", border: "1px solid #30363d", borderRadius: 8, marginBottom: 8 }}>
-          <span>Notifications</span>
-          <span style={{ color: "#8b949e" }}>→</span>
-        </div>
-        <div className="member-card" onClick={() => navigate("/member/help-support")} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", border: "1px solid #30363d", borderRadius: 8, marginBottom: 8 }}>
-          <span>Help & Support</span>
-          <span style={{ color: "#8b949e" }}>→</span>
-        </div>
-        <div className="member-card" onClick={() => navigate("/member/about")} style={{ cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", border: "1px solid #30363d", borderRadius: 8 }}>
-          <span>About</span>
-          <span style={{ color: "#8b949e" }}>→</span>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {[
+            { label: "Privacy & Security", icon: "\uD83D\uDD12", path: "/member/privacy-security" },
+            { label: "Notifications", icon: "\uD83D\uDD14", path: "/member/notifications" },
+            { label: "Help & Support", icon: "\u2753", path: "/member/help-support" },
+            { label: "About", icon: "\u2139\uFE0F", path: "/member/about" },
+          ].map(link => (
+            <div
+              key={link.path}
+              className="member-card"
+              onClick={() => navigate(link.path)}
+              style={{ cursor: "pointer", gap: 12, transition: "border-color 0.15s, box-shadow 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#22c55e44"; e.currentTarget.style.boxShadow = "0 0 0 1px rgba(34,197,94,0.15)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#21262d"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: "rgba(139,148,158,0.08)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 16, flexShrink: 0,
+              }}>
+                {link.icon}
+              </div>
+              <span style={{ flex: 1, color: "#e6edf3", fontWeight: 500, fontSize: 14 }}>{link.label}</span>
+              <span style={{ color: "#8b949e", fontSize: 14 }}>&rarr;</span>
+            </div>
+          ))}
         </div>
       </div>
 

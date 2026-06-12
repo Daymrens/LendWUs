@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   collection,
   getDocs,
@@ -19,7 +19,48 @@ interface ActivityItem {
   details?: string;
 }
 
+interface GroupedItems {
+  label: string;
+  items: ActivityItem[];
+}
+
 const PAGE_SIZE = 30;
+
+function getRelativeTime(d: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function getGroupLabel(d: Date): string {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekStart = new Date(today.getTime() - today.getDay() * 86400000);
+  const dDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  if (dDate.getTime() === today.getTime()) return "Today";
+  if (dDate.getTime() === yesterday.getTime()) return "Yesterday";
+  if (dDate >= weekStart) return "This Week";
+  const month = d.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  return month;
+}
+
+const TYPE_ICONS: Record<string, string> = {
+  contribution: "💰",
+  loan: "🏦",
+  repayment: "💳",
+  payment: "💵",
+  loan_request: "📋",
+  head_change: "👥",
+};
 
 const Activity: React.FC = () => {
   const [allItems, setAllItems] = useState<ActivityItem[]>([]);
@@ -28,6 +69,7 @@ const Activity: React.FC = () => {
   const [error, setError] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
 
   useEffect(() => {
@@ -38,9 +80,17 @@ const Activity: React.FC = () => {
     let result = [...allItems];
     if (typeFilter !== "all") result = result.filter(a => a.type === typeFilter);
     if (statusFilter !== "all") result = result.filter(a => a.status === statusFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(a =>
+        a.description.toLowerCase().includes(q) ||
+        (a.memberName && a.memberName.toLowerCase().includes(q)) ||
+        (a.details && a.details.toLowerCase().includes(q))
+      );
+    }
     setFiltered(result);
     setPage(0);
-  }, [allItems, typeFilter, statusFilter]);
+  }, [allItems, typeFilter, statusFilter, search]);
 
   const loadActivity = async () => {
     setLoading(true);
@@ -65,7 +115,7 @@ const Activity: React.FC = () => {
         items.push({
           id: d.id,
           type: "contribution",
-          description: `Contribution by ${names[c.memberId as string] || c.memberId as string}`,
+          description: `Contribution by ${names[c.memberId as string] || (c.memberId as string)}`,
           amount: `₱${(Number(c.amount) || 0).toLocaleString()}`,
           status: (c.status as string) || "pending",
           date: (c.date as Timestamp)?.toDate?.() || new Date(),
@@ -78,7 +128,7 @@ const Activity: React.FC = () => {
         items.push({
           id: d.id,
           type: "loan",
-          description: `Loan issued to ${names[l.memberId as string] || l.memberId as string}`,
+          description: `Loan issued to ${names[l.memberId as string] || (l.memberId as string)}`,
           amount: `₱${(Number(l.principal) || 0).toLocaleString()}`,
           status: l.isFullyRepaid ? "repaid" : "active",
           date: (l.issuedDate as Timestamp)?.toDate?.() || new Date(),
@@ -92,8 +142,8 @@ const Activity: React.FC = () => {
           id: d.id,
           type: p.type === "loan" ? "repayment" : "payment",
           description: p.type === "loan"
-            ? `Loan repayment by ${names[p.memberId as string] || p.memberId as string}`
-            : `Payment request from ${names[p.memberId as string] || p.memberId as string}`,
+            ? `Loan repayment by ${names[p.memberId as string] || (p.memberId as string)}`
+            : `Payment request from ${names[p.memberId as string] || (p.memberId as string)}`,
           amount: `₱${(Number(p.amount) || 0).toLocaleString()}`,
           status: (p.status as string) || "pending",
           date: (p.requestDate as Timestamp)?.toDate?.() || new Date(),
@@ -106,7 +156,7 @@ const Activity: React.FC = () => {
         items.push({
           id: d.id,
           type: "loan_request",
-          description: `Loan request from ${(r.memberName as string) || names[r.memberId as string] || r.memberId as string}`,
+          description: `Loan request from ${(r.memberName as string) || names[r.memberId as string] || (r.memberId as string)}`,
           amount: `₱${(Number(r.amount) || 0).toLocaleString()}`,
           status: (r.status as string) || "pending",
           date: (r.requestedAt as Timestamp)?.toDate?.() || new Date(),
@@ -119,8 +169,8 @@ const Activity: React.FC = () => {
         items.push({
           id: d.id,
           type: "head_change",
-          description: `Head change request from ${(h.memberName as string) || names[h.memberId as string] || h.memberId as string}`,
-          amount: `${h.currentHeads} → ${h.requestedHeads} heads`,
+          description: `Head change request from ${(h.memberName as string) || names[h.memberId as string] || (h.memberId as string)}`,
+          amount: `${h.currentHeads} \u2192 ${h.requestedHeads} heads`,
           status: (h.status as string) || "pending",
           date: (h.requestedAt as Timestamp)?.toDate?.() || new Date(),
           memberName: (h.memberName as string) || names[h.memberId as string],
@@ -137,8 +187,44 @@ const Activity: React.FC = () => {
     }
   };
 
-  const paginated = filtered.slice(0, (page + 1) * PAGE_SIZE);
-  const hasMore = paginated.length < filtered.length;
+  const groups = useMemo(() => {
+    const map = new Map<string, ActivityItem[]>();
+    for (const item of filtered) {
+      const label = getGroupLabel(item.date);
+      if (!map.has(label)) map.set(label, []);
+      map.get(label)!.push(item);
+    }
+    const order = ["Today", "Yesterday", "This Week"];
+    const result: GroupedItems[] = [];
+    for (const key of order) {
+      if (map.has(key)) { result.push({ label: key, items: map.get(key)! }); map.delete(key); }
+    }
+    map.forEach((items, label) => result.push({ label, items }));
+    return result;
+  }, [filtered]);
+
+  const allGroups = useMemo(() => {
+    let remaining = (page + 1) * PAGE_SIZE;
+    const result: GroupedItems[] = [];
+    for (const g of groups) {
+      if (remaining <= 0) break;
+      const take = Math.min(g.items.length, remaining);
+      result.push({ label: g.label, items: g.items.slice(0, take) });
+      remaining -= take;
+    }
+    return result;
+  }, [groups, page]);
+
+  const totalVisible = allGroups.reduce((s, g) => s + g.items.length, 0);
+  const hasMore = totalVisible < filtered.length;
+
+  const stats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const item of allItems) {
+      counts[item.type] = (counts[item.type] || 0) + 1;
+    }
+    return counts;
+  }, [allItems]);
 
   const fmtStatus = (s: string) => {
     const m: Record<string, { label: string; cls: string }> = {
@@ -151,6 +237,12 @@ const Activity: React.FC = () => {
     return m[s] || { label: s, cls: "chip" };
   };
 
+  const statusColor = (s: string) => {
+    if (s === "approved" || s === "repaid") return "success";
+    if (s === "pending") return "pending";
+    return "error";
+  };
+
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading activity...</p></div>;
   if (error) return <div className="admin-error"><p>{error}</p><button className="btn btn-primary" onClick={loadActivity}>Retry</button></div>;
 
@@ -158,51 +250,99 @@ const Activity: React.FC = () => {
     <div className="admin-page">
       <div className="page-header">
         <h1>Activity Feed</h1>
-        <button className="btn btn-outline btn-sm" onClick={loadActivity}>Refresh</button>
+        <button className="btn btn-outline btn-sm" onClick={loadActivity}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <select className="search-input" style={{ width: "auto", marginBottom: 0 }} value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
-          <option value="all">All Types</option>
-          <option value="contribution">Contributions</option>
-          <option value="loan">Loans</option>
-          <option value="repayment">Repayments</option>
-          <option value="payment">Payments</option>
-          <option value="loan_request">Loan Requests</option>
-          <option value="head_change">Head Changes</option>
-        </select>
-        <select className="search-input" style={{ width: "auto", marginBottom: 0 }} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="all">All Statuses</option>
-          <option value="approved">Approved</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
-          <option value="repaid">Repaid</option>
-          <option value="active">Active</option>
-        </select>
-        <span style={{ color: "#8b949e", fontSize: 13, alignSelf: "center" }}>{filtered.length} items</span>
+      <div className="activity-toolbar">
+        <div className="activity-filters">
+          <select className="search-input" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+            <option value="all">All Types</option>
+            <option value="contribution">Contributions</option>
+            <option value="loan">Loans</option>
+            <option value="repayment">Repayments</option>
+            <option value="payment">Payments</option>
+            <option value="loan_request">Loan Requests</option>
+            <option value="head_change">Head Changes</option>
+          </select>
+          <select className="search-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+            <option value="all">All Statuses</option>
+            <option value="approved">Approved</option>
+            <option value="pending">Pending</option>
+            <option value="rejected">Rejected</option>
+            <option value="repaid">Repaid</option>
+            <option value="active">Active</option>
+          </select>
+          <div className="activity-search-wrapper">
+            <svg className="activity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input className="search-input activity-search" type="text" placeholder="Search activities..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+        </div>
+        <span className="activity-count">{filtered.length} item{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
-      <div className="activity-list">
-        {paginated.length === 0 ? (
+      <div className="activity-stats-bar">
+        {Object.entries(stats).map(([type, count]) => (
+          <div
+            key={type}
+            className={`activity-stat-chip ${typeFilter === type ? "active" : ""}`}
+            onClick={() => setTypeFilter(typeFilter === type ? "all" : type)}
+          >
+            <span className="activity-stat-icon">{TYPE_ICONS[type] || "\u{1F4CB}"}</span>
+            <span className="activity-stat-label">{type.replace("_", " ")}</span>
+            <span className="activity-stat-count">{count}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="activity-feed">
+        {allGroups.length === 0 ? (
           <p className="empty-text">No activity found</p>
-        ) : paginated.map(item => (
-          <div key={`${item.type}-${item.id}`} className="activity-item">
-            <div className={`activity-dot ${item.status === "approved" || item.status === "repaid" ? "success" : item.status === "pending" ? "pending" : "error"}`} />
-            <div className="activity-info">
-              <div className="activity-title">{item.description}</div>
-              <div className="activity-sub">{item.date.toLocaleString()}{item.details ? ` • ${item.details}` : ""}</div>
+        ) : allGroups.map(group => (
+          <div key={group.label} className="activity-group">
+            <div className="activity-group-header">
+              <span className="activity-group-label">{group.label}</span>
+              <span className="activity-group-line" />
             </div>
-            <div style={{ textAlign: "right" }}>
-              {item.amount && <div className={`activity-amount ${item.status === "approved" || item.status === "repaid" ? "text-success" : item.status === "pending" ? "text-pending" : "text-error"}`}>{item.amount}</div>}
-              <div><span className={`chip ${fmtStatus(item.status).cls}`} style={{ fontSize: 10 }}>{fmtStatus(item.status).label}</span></div>
-            </div>
+            {group.items.map(item => {
+              const st = statusColor(item.status);
+              return (
+                <div key={`${item.type}-${item.id}`} className="activity-card">
+                  <div className={`activity-card-icon activity-icon-${item.type}`}>
+                    {TYPE_ICONS[item.type] || "\u{1F4CB}"}
+                  </div>
+                  <div className={`activity-card-dot activity-dot-${st}`} />
+                  <div className="activity-card-body">
+                    <div className="activity-card-title">{item.description}</div>
+                    <div className="activity-card-meta">
+                      <span>{getRelativeTime(item.date)}</span>
+                      {item.details && <><span className="meta-sep">|</span><span>{item.details}</span></>}
+                    </div>
+                  </div>
+                  <div className="activity-card-end">
+                    {item.amount && (
+                      <div className={`activity-card-amount activity-amount-${st}`}>
+                        {item.amount}
+                      </div>
+                    )}
+                    <span className={`chip ${fmtStatus(item.status).cls}`}>
+                      {fmtStatus(item.status).label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
 
       {hasMore && (
-        <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button className="btn btn-outline btn-sm" onClick={() => setPage(p => p + 1)}>Load More</button>
+        <div className="activity-load-more">
+          <button className="btn btn-outline btn-sm" onClick={() => setPage(p => p + 1)}>
+            Load More ({filtered.length - totalVisible} remaining)
+          </button>
         </div>
       )}
     </div>

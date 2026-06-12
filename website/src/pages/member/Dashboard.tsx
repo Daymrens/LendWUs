@@ -201,27 +201,42 @@ const Dashboard: React.FC = () => {
   else if (daysUntilNext <= 3) { cutoffLabel = `${daysUntilNext} days to cutoff`; cutoffColor = "#f59e0b"; }
   else if (daysUntilNext <= 7) { cutoffLabel = `${daysUntilNext} days to cutoff`; cutoffColor = "#22c55e"; }
   else { cutoffLabel = `Cutoff in ${daysUntilNext} days`; cutoffColor = "#8b949e"; }
+  const cutoffPct = Math.max(0, Math.min(100, ((cutoffDay1 - daysUntilNext) / cutoffDay1) * 100));
 
   if (loading) return (
     <div className="admin-page">
-      <div className="page-header"><h1>Welcome</h1></div>
-      <div className="section">
-        <div className="chart-card">
-          <div className="skeleton" style={{ width: "40%", height: 14, marginBottom: 16, borderRadius: 4 }} />
-          <div className="skeleton" style={{ width: "30%", height: 32, marginBottom: 12, borderRadius: 4 }} />
-          <div className="skeleton" style={{ width: "100%", height: 6, borderRadius: 3 }} />
-        </div>
+      <div className="page-header">
+        <h1>Welcome</h1>
       </div>
       <div className="mini-stats">
         {[1,2,3,4].map(i => (
           <div key={i} className="mini-stat" style={{ border: "1px solid #30363d", borderRadius: 8, padding: 16 }}>
-            <div className="skeleton" style={{ width: "60%", height: 12, marginBottom: 8, borderRadius: 4 }} />
-            <div className="skeleton" style={{ width: "40%", height: 20, borderRadius: 4 }} />
+            <div className="skeleton" style={{ width: "60%", height: 10, margin: "0 auto 8px", borderRadius: 4 }} />
+            <div className="skeleton" style={{ width: "40%", height: 18, margin: "0 auto", borderRadius: 4 }} />
           </div>
         ))}
       </div>
       <div className="dashboard-actions">
         {[1,2,3].map(i => <div key={i} className="skeleton" style={{ flex: 1, height: 40, borderRadius: 8 }} />)}
+      </div>
+      <div className="section">
+        <div className="activity-group-header">
+          <div className="skeleton" style={{ width: 140, height: 14, borderRadius: 4 }} />
+          <div className="skeleton" style={{ flex: 1, height: 1, borderRadius: 0 }} />
+        </div>
+        <div className="chart-card">
+          <div className="skeleton" style={{ width: "40%", height: 14, marginBottom: 16, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: "30%", height: 32, marginBottom: 12, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: "100%", height: 6, marginBottom: 12, borderRadius: 3 }} />
+          <div className="skeleton" style={{ width: "50%", height: 12, borderRadius: 4 }} />
+        </div>
+      </div>
+      <div className="section">
+        <div className="activity-group-header">
+          <div className="skeleton" style={{ width: 120, height: 14, borderRadius: 4 }} />
+          <div className="skeleton" style={{ flex: 1, height: 1, borderRadius: 0 }} />
+        </div>
+        <div className="skeleton" style={{ width: "100%", height: 80, borderRadius: 10 }} />
       </div>
     </div>
   );
@@ -255,58 +270,70 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Contribution Card */}
+      {/* Cutoff Countdown Card */}
       <div className="section">
-        <div className="chart-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ margin: 0, color: "#c9d1d9", fontSize: 14, fontWeight: 600 }}>My Contributions</h3>
-            <span className="chip active-chip">{contributions.length} payments</span>
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 800, color: "#22c55e", marginBottom: 12 }}>
-            ₱{formatCurrency(totalContributions)}
-          </div>
-          {fullMonthlyRequired > 0 && (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b" }}>
-                  This month: ₱{formatCurrency(totalThisMonth)}
-                </span>
-                <span style={{ fontSize: 12, color: "#8b949e" }}>Required: ₱{formatCurrency(fullMonthlyRequired)}</span>
-              </div>
-              <div style={{ height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
-                <div style={{ width: `${progress * 100}%`, height: "100%", background: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b", borderRadius: 3 }} />
-              </div>
-            </>
-          )}
-          {member.balance > 0 && (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
-              <span style={{ color: "#22c55e", fontSize: 13, fontWeight: 600 }}>Credit balance: ₱{formatCurrency(member.balance)}</span>
+        <div className="chart-card" style={{ border: `1px solid ${cutoffColor}33`, position: "relative", overflow: "hidden" }}>
+          <div style={{
+            position: "absolute", top: 0, left: 0, bottom: 0,
+            width: `${cutoffPct}%`, background: `${cutoffColor}0d`,
+            transition: "width 0.5s ease",
+          }} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cutoffColor} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>Next Cutoff</span>
             </div>
-          )}
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={cutoffColor} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            <span style={{ color: cutoffColor, fontSize: 13, fontWeight: 500 }}>{cutoffLabel}</span>
+            <span className={`chip ${daysUntilNext <= 0 ? "inactive-chip" : daysUntilNext <= 3 ? "badge-orange" : "active-chip"}`}>
+              {cutoffLabel}
+            </span>
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: cutoffColor, marginBottom: 8 }}>
+            {daysUntilNext <= 0 ? "Due Today" : `${daysUntilNext} day${daysUntilNext !== 1 ? "s" : ""}`}
+          </div>
+          <div style={{ height: 4, background: "#1c2128", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{
+              width: `${Math.min(100, ((cutoffDay1 - Math.max(0, daysUntilNext)) / cutoffDay1) * 100)}%`,
+              height: "100%", background: cutoffColor, borderRadius: 2,
+              transition: "width 0.5s ease",
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+            <span style={{ fontSize: 11, color: "#8b949e" }}>Cutoff day {cutoffDay1}/{cutoffDay2}</span>
+            <span style={{ fontSize: 11, color: "#8b949e" }}>
+              {member.amountPerHead > 0 ? `₱${formatCurrency(perCutoffAmount)} per cutoff` : ""}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Stat Chips */}
+      {/* Mini Stats */}
       <div className="mini-stats">
         <div className="mini-stat accent">
-          <span className="mini-stat-label">My Contributions</span>
+          <span className="mini-stat-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 4 }}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
+            Total Contributions
+          </span>
           <span className="mini-stat-value">₱{formatCurrency(totalContributions)}</span>
         </div>
         <div className="mini-stat warning">
-          <span className="mini-stat-label">Active Loans</span>
+          <span className="mini-stat-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 4 }}><polygon points="12 2 22 7 22 17 12 22 2 17 2 7 12 2"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
+            Active Loans
+          </span>
           <span className="mini-stat-value">{activeLoans.length}</span>
         </div>
         <div className="mini-stat">
-          <span className="mini-stat-label">Pending</span>
+          <span className="mini-stat-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 4 }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Pending
+          </span>
           <span className="mini-stat-value">{totalPending}</span>
         </div>
         <div className="mini-stat accent">
-          <span className="mini-stat-label">Heads</span>
+          <span className="mini-stat-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 4 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Heads
+          </span>
           <span className="mini-stat-value">{member.headsCount}</span>
         </div>
       </div>
@@ -320,19 +347,63 @@ const Dashboard: React.FC = () => {
             setShowPaymentModal(true);
           }
         }}>
-          + Pay Contribution
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 6 }}><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
+          Pay Contribution
         </button>
         <button className="btn btn-outline" style={{ borderColor: "#f59e0b", color: "#f59e0b" }} onClick={() => setShowLoanModal(true)}>
-          + Request Loan
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 6 }}><polygon points="12 2 22 7 22 17 12 22 2 17 2 7 12 2"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
+          Request Loan
         </button>
         <button className="btn btn-outline" style={{ borderColor: "#3b82f6", color: "#3b82f6" }} onClick={() => setShowHeadModal(true)}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: 6 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Change Heads
         </button>
       </div>
 
-      {/* Returns Section */}
+      {/* My Contributions Section */}
+      <div className="section">
+        <div className="activity-group-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
+          <span className="activity-group-label">My Contributions</span>
+          <span className="activity-group-line" />
+        </div>
+        <div className="chart-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <h3 style={{ margin: 0, color: "#c9d1d9", fontSize: 14, fontWeight: 600 }}>Total Contributed</h3>
+            <span className="chip active-chip">{contributions.length} payment{contributions.length !== 1 ? "s" : ""}</span>
+          </div>
+          <div style={{ fontSize: 32, fontWeight: 800, color: "#22c55e", marginBottom: 12 }}>
+            ₱{formatCurrency(totalContributions)}
+          </div>
+          {fullMonthlyRequired > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b" }}>
+                  This month: ₱{formatCurrency(totalThisMonth)}
+                </span>
+                <span style={{ fontSize: 12, color: "#8b949e" }}>Required: ₱{formatCurrency(fullMonthlyRequired)}</span>
+              </div>
+              <div style={{ height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
+                <div style={{ width: `${progress * 100}%`, height: "100%", background: totalThisMonth >= fullMonthlyRequired ? "#22c55e" : "#f59e0b", borderRadius: 3, transition: "width 0.5s ease" }} />
+              </div>
+            </>
+          )}
+          {member.balance > 0 && (
+            <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="12" y1="12" x2="12" y2="12"/></svg>
+              <span style={{ color: "#22c55e", fontSize: 13, fontWeight: 600 }}>Credit balance: ₱{formatCurrency(member.balance)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Annual Returns Section */}
       <div className="annual-returns">
-        <div className="annual-returns-title">End of Year Returns</div>
+        <div className="activity-group-header" style={{ margin: "0 0 16px" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+          <span className="activity-group-label">End of Year Returns</span>
+          <span className="activity-group-line" />
+        </div>
         <div className="mini-stats">
           <div className="mini-stat accent">
             <span className="mini-stat-label">Returns Pool</span>
@@ -349,13 +420,20 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Active Loans */}
+      {/* Active Loans Section */}
       <div className="section">
-        <h2>Active Loans</h2>
+        <div className="activity-group-header">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><polygon points="12 2 22 7 22 17 12 22 2 17 2 7 12 2"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
+          <span className="activity-group-label">Active Loans</span>
+          <span className="activity-group-line" />
+          {activeLoans.length > 0 && (
+            <span className="chip badge-orange">{activeLoans.length} active</span>
+          )}
+        </div>
         {activeLoans.length === 0 ? (
           <p className="empty-text">No active loans</p>
         ) : (
-          <div className="activity-list">
+          <div className="activity-feed">
             {activeLoans.map(loan => {
               const totalDue = loan.principal + (loan.principal * (loan.interestRate || 0));
               const remaining = loan.remainingBalance ?? totalDue;
@@ -365,38 +443,57 @@ const Dashboard: React.FC = () => {
               const daysOverdue = dueDate ? Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
 
               return (
-                <div key={loan.id} className="approval-card" style={{ marginBottom: 12 }}>
-                  <div className="approval-top">
-                    <div>
-                      <strong>Loan #{loan.id.slice(0, 5)}</strong>
-                      <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e" }}>{(loan.interestRate * 100).toFixed(0)}% interest</span>
+                <div key={loan.id} className="activity-card" style={{ marginBottom: 8, flexWrap: "wrap" }}>
+                  <div className={`activity-card-icon ${isOverdue ? "activity-icon-loan" : "activity-icon-contribution"}`}>
+                    {isOverdue ? "\u26A0\uFE0F" : "\uD83C\uDFE6"}
+                  </div>
+                  <div className={`activity-card-dot ${isOverdue ? "activity-dot-error" : "activity-dot-pending"}`} />
+                  <div className="activity-card-body">
+                    <div className="activity-card-title">
+                      Loan #{loan.id.slice(0, 5)}
+                      <span style={{ marginLeft: 8, fontSize: 12, color: "#8b949e", fontWeight: 400 }}>
+                        {(loan.interestRate * 100).toFixed(0)}% interest
+                      </span>
                     </div>
-                    <span className="approval-amount" style={{ color: isOverdue ? "#ef4444" : "#f59e0b" }}>
+                    <div className="activity-card-meta">
+                      <span>Principal: ₱{formatCurrency(loan.principal)}</span>
+                      <span className="meta-sep">|</span>
+                      <span>Due: {dueDate?.toLocaleDateString() || "N/A"}</span>
+                      {isOverdue && (
+                        <>
+                          <span className="meta-sep">|</span>
+                          <span style={{ color: "#ef4444" }}>{daysOverdue}d overdue</span>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                      <div style={{ flex: 1, height: 4, background: "#1c2128", borderRadius: 2, overflow: "hidden" }}>
+                        <div style={{ width: `${loanProgress * 100}%`, height: "100%", background: isOverdue ? "#ef4444" : "#f59e0b", borderRadius: 2 }} />
+                      </div>
+                      <span style={{ fontSize: 11, color: "#8b949e", fontWeight: 600 }}>{(loanProgress * 100).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                  <div className="activity-card-end">
+                    <div className={`activity-card-amount ${isOverdue ? "activity-amount-error" : "activity-amount-pending"}`}>
                       ₱{formatCurrency(remaining)}
-                    </span>
-                  </div>
-                  {isOverdue && (
-                    <span className="chip" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", marginBottom: 8, display: "inline-block" }}>
-                      {daysOverdue} days overdue
-                    </span>
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <div style={{ flex: 1, height: 6, background: "#1c2128", borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ width: `${loanProgress * 100}%`, height: "100%", background: isOverdue ? "#ef4444" : "#f59e0b", borderRadius: 3 }} />
                     </div>
-                    <span style={{ fontSize: 11, color: "#8b949e" }}>{(loanProgress * 100).toFixed(0)}%</span>
+                    <button
+                      className="btn btn-sm"
+                      style={{
+                        background: "rgba(245, 158, 11, 0.1)",
+                        color: "#f59e0b",
+                        border: "1px solid rgba(245, 158, 11, 0.2)",
+                        borderRadius: 6,
+                        padding: "4px 10px",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                      onClick={() => { setRepayLoan(loan); setShowRepaymentModal(true); }}
+                    >
+                      Repay
+                    </button>
                   </div>
-                  <div className="approval-details">
-                    <span>Principal: ₱{formatCurrency(loan.principal)}</span>
-                    <span>Due: {dueDate?.toLocaleDateString() || "N/A"}</span>
-                  </div>
-                  <button
-                    className="btn btn-warning btn-sm"
-                    style={{ width: "100%", marginTop: 8 }}
-                    onClick={() => { setRepayLoan(loan); setShowRepaymentModal(true); }}
-                  >
-                    Repay Loan
-                  </button>
                 </div>
               );
             })}
