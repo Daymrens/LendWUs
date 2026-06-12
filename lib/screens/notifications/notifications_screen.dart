@@ -33,10 +33,10 @@ class NotificationsScreen extends ConsumerWidget {
           data: (notifications) {
             if (notifications.isEmpty) {
               return ListView(
-                children: const [
-                  SizedBox(height: 120),
+                children:  [
+                   SizedBox(height: 120),
                   Icon(Icons.notifications_off, size: 64, color: AppColors.textMuted),
-                  SizedBox(height: 16),
+                   SizedBox(height: 16),
                   Center(
                     child: Text('No notifications yet',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 16)),

@@ -228,7 +228,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
                             const Text('No Contributions Recorded',
                               style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.warning, fontSize: 14)),
                             const Gap(4),
-                            const Text(
+                            Text(
                               'You need at least one contribution before applying for a loan.',
                               style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                             ),

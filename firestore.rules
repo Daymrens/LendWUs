@@ -122,6 +122,28 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // ─── user_settings ─────────────────────────────────────────
+    match /user_settings/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── otp_codes ─────────────────────────────────────────────
+    match /otp_codes/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── email_logs ─────────────────────────────────────────────
+    match /email_logs/{logId} {
+      allow create: if isAuth();
+      allow read: if isAdmin();
+    }
+
+    // ─── backups ────────────────────────────────────────────────
+    match /backups/{backupId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin();
+    }
+
     // ─── meta ────────────────────────────────────────────────
     match /meta/{docId} {
       allow read, write: if isAdmin();

@@ -81,7 +81,7 @@ class _LinkUserSheetState extends ConsumerState<LinkUserSheet> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -96,7 +96,7 @@ class _LinkUserSheetState extends ConsumerState<LinkUserSheet> {
             ),
           ),
           const Gap(8),
-          const Text(
+          Text(
             'Enter the email of the user to link them to this member:',
             style: TextStyle(color: AppColors.textMuted),
           ),

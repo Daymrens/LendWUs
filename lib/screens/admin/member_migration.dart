@@ -100,7 +100,7 @@ class _MemberMigrationScreenState extends ConsumerState<MemberMigrationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Transfer all records from one member to another.',
+              Text('Transfer all records from one member to another.',
                 style: TextStyle(color: AppColors.textMuted)),
               const Gap(24),
               DropdownButtonFormField<String>(

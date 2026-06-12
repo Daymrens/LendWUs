@@ -114,7 +114,7 @@ class _BulkLoanProcessingScreenState extends ConsumerState<BulkLoanProcessingScr
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Paste CSV with columns: memberId, principal, interestRate, dueDate',
+            Text('Paste CSV with columns: memberId, principal, interestRate, dueDate',
               style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
             const Gap(8),
             TextField(

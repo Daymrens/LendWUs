@@ -259,7 +259,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                           getTitlesWidget: (v, m) {
                             final i = v.toInt();
                             if (i >= 0 && i < labels.length) {
-                              return Text(labels[i], style: const TextStyle(color: AppColors.textMuted, fontSize: 11));
+                              return Text(labels[i], style: TextStyle(color: AppColors.textMuted, fontSize: 11));
                             }
                             return const Text('');
                           },
@@ -311,7 +311,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
               getTitlesWidget: (v, m) {
                 final i = v.toInt();
                 if (i >= 0 && i < labels.length) {
-                  return Text(labels[i], style: const TextStyle(color: AppColors.textMuted, fontSize: 11));
+                  return Text(labels[i], style: TextStyle(color: AppColors.textMuted, fontSize: 11));
                 }
                 return const Text('');
               },
@@ -480,7 +480,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                             Text(member?.name ?? 'Unknown',
                               style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                             Text(_formatDate(contrib.date),
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                           ],
                         ),
                       ),
@@ -490,7 +490,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                           Text(CurrencyFormatter.format(contrib.amount),
                             style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 15)),
                           Text('#${contrib.id?.substring(0, 4) ?? ''}',
-                            style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
                         ],
                       ),
                     ],

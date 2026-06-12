@@ -90,7 +90,7 @@ class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
                 Text('Account Security',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                 const Gap(8),
-                const Text('Manage your account data and privacy settings.',
+                Text('Manage your account data and privacy settings.',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                   textAlign: TextAlign.center),
               ],
@@ -209,7 +209,7 @@ class _PrivacySecurityScreenState extends ConsumerState<PrivacySecurityScreen> {
               color: AppColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
+            child: Text(
               'Your data is stored securely in Firebase Firestore and is only accessible '
               'to authorized group admins. We do not share your personal information with '
               'third parties. Account deletion will remove your user profile and unlink '

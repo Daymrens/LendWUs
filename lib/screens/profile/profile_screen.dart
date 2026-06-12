@@ -365,10 +365,10 @@ class _MemberStatsSection extends ConsumerWidget {
                         flex: 2,
                         child: Row(
                           children: [
-                            const Icon(Icons.calendar_today, size: 14, color: AppColors.textMuted),
+                            Icon(Icons.calendar_today, size: 14, color: AppColors.textMuted),
                             const SizedBox(width: 6),
                             Text('Since $joinedDate',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                           ],
                         ),
                       ),
@@ -393,7 +393,7 @@ class _MemberStatsSection extends ConsumerWidget {
       children: [
         Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 15)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
       ],
     );
   }

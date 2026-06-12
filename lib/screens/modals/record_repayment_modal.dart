@@ -126,7 +126,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
         right: 24,
         top: 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -162,7 +162,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                   children: [
                     Text('Record Repayment',
                       style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold)),
-                    const Text('Record a loan repayment',
+                    Text('Record a loan repayment',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
@@ -204,11 +204,11 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.info, color: AppColors.textMuted, size: 32),
+                    Icon(Icons.info, color: AppColors.textMuted, size: 32),
                     const Gap(12),
-                    const Text('No Active Loans',
+                    Text('No Active Loans',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 16, fontWeight: FontWeight.w600)),
-                    const Text('There are no active loans to record repayment for.',
+                    Text('There are no active loans to record repayment for.',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
@@ -248,7 +248,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                   children: [
                     const Icon(Icons.account_balance_wallet, size: 18, color: AppColors.warning),
                     const Gap(10),
-                    const Text('Remaining Balance',
+                    Text('Remaining Balance',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                     const Spacer(),
                     Text(CurrencyFormatter.format(_selectedBalance),

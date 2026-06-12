@@ -236,7 +236,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
     _applySort(loans);
 
     if (loans.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         physics: AlwaysScrollableScrollPhysics(),
         child: Center(
           child: Column(
@@ -293,7 +293,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        Text('Loan #${loan.id?.substring(0, 4) ?? ''}', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                        Text('Loan #${loan.id?.substring(0, 4) ?? ''}', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -333,16 +333,16 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                     ),
                   ),
                   const Gap(8),
-                  Text('${(progress * 100).toStringAsFixed(0)}%', style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  Text('${(progress * 100).toStringAsFixed(0)}%', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                 ],
               ),
               const Gap(6),
               Row(
                 children: [
-                  const Icon(Icons.payment, size: 12, color: AppColors.textMuted),
+                  Icon(Icons.payment, size: 12, color: AppColors.textMuted),
                   const Gap(4),
                   Text('$repayCount payments · Due ${loan.dueDate.day}/${loan.dueDate.month}/${loan.dueDate.year}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
                 ],
               ),
             ],
@@ -356,7 +356,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
         Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: valueColor)),
       ],
     );
@@ -385,7 +385,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
     final completedLoans = allLoans.where((l) => l.isFullyRepaid).toList();
 
     if (completedLoans.isEmpty) {
-      return const SingleChildScrollView(
+      return SingleChildScrollView(
         physics: AlwaysScrollableScrollPhysics(),
         child: Center(
           child: Column(
@@ -431,7 +431,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                   children: [
                     Text(memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     Text('${CurrencyFormatter.format(loan.principal)} @ ${(loan.interestRate * 100).toStringAsFixed(0)}% · ${loanRepayments.length} payments',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                   ],
                 ),
               ),
@@ -439,7 +439,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(CurrencyFormatter.format(totalRepaid), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text('+${CurrencyFormatter.format(interestPaid)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                  Text('+${CurrencyFormatter.format(interestPaid)}', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
                 ],
               ),
             ],

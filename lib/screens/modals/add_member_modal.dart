@@ -145,7 +145,7 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
         right: 24,
         top: 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -171,7 +171,7 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
                     ),
                     child: Text(
                       widget.existingMember!.displayId,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textMuted,

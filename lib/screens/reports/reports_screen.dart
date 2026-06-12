@@ -152,7 +152,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               return Container(
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-                child: const Center(child: Text('No contributions yet', style: TextStyle(color: AppColors.textMuted))),
+                child: Center(child: Text('No contributions yet', style: TextStyle(color: AppColors.textMuted))),
               );
             }
 
@@ -161,7 +161,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
               child: Column(
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       SizedBox(width: 28),
                       Gap(12),
@@ -171,7 +171,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       SizedBox(width: 40, child: Text('%', style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.right)),
                     ],
                   ),
-                  const Divider(color: AppColors.surfaceAlt, height: 20),
+                  Divider(color: AppColors.surfaceAlt, height: 20),
                   ...sorted.map((e) {
                     final share = grandTotal > 0 ? (e.value / grandTotal * 100) : 0.0;
                     return Padding(
@@ -205,12 +205,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           const Gap(8),
                           Text(CurrencyFormatter.format(e.value), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                           const Gap(6),
-                          SizedBox(width: 40, child: Text('${share.toStringAsFixed(1)}%', style: const TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.right)),
+                          SizedBox(width: 40, child: Text('${share.toStringAsFixed(1)}%', style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.right)),
                         ],
                       ),
                     );
                   }),
-                  const Divider(color: AppColors.surfaceAlt, height: 16),
+                  Divider(color: AppColors.surfaceAlt, height: 16),
                   Row(
                     children: [
                       const Spacer(),
@@ -248,7 +248,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                   return Container(
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(16)),
-                    child: const Center(child: Text('No loans yet', style: TextStyle(color: AppColors.textMuted))),
+                    child: Center(child: Text('No loans yet', style: TextStyle(color: AppColors.textMuted))),
                   );
                 }
 
@@ -263,10 +263,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             children: [
                               Text('Active Loans (${activeLoans.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.warning)),
                               const Spacer(),
-                              const Text('Due', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              Text('Due', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                             ],
                           ),
-                          const Divider(color: AppColors.surfaceAlt, height: 16),
+                          Divider(color: AppColors.surfaceAlt, height: 16),
                           ...activeLoans.take(5).map((l) {
                             final loanRepayments = repayments.where((r) => r.loanId == l.id);
                             final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
@@ -302,10 +302,10 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                             children: [
                               Text('Paid Loans (${paidLoans.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primary)),
                               const Spacer(),
-                              const Text('Interest', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              Text('Interest', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                             ],
                           ),
-                          const Divider(color: AppColors.surfaceAlt, height: 16),
+                          Divider(color: AppColors.surfaceAlt, height: 16),
                           ...paidLoans.take(5).map((l) {
                             final loanRepayments = repayments.where((r) => r.loanId == l.id);
                             final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
@@ -322,7 +322,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                     style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
                                   const Gap(8),
                                   Text('+${CurrencyFormatter.format(interest)}',
-                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                                    style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                                 ],
                               ),
                             );

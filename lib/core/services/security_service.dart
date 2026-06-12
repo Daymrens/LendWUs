@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../core/firebase/firebase_service.dart';
 import 'biometric_service_stub.dart' as bio;
 
@@ -30,6 +31,33 @@ class SecurityService {
     } catch (_) {
       return false;
     }
+  }
+
+  static const FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  static const _bioEmailKey = 'biometric_login_email';
+  static const _bioPasswordKey = 'biometric_login_password';
+
+  static Future<void> saveBiometricCredentials(String email, String password) async {
+    await _secureStorage.write(key: _bioEmailKey, value: email);
+    await _secureStorage.write(key: _bioPasswordKey, value: password);
+  }
+
+  static Future<String?> getBiometricEmail() async {
+    return await _secureStorage.read(key: _bioEmailKey);
+  }
+
+  static Future<String?> getBiometricPassword() async {
+    return await _secureStorage.read(key: _bioPasswordKey);
+  }
+
+  static Future<bool> hasBiometricCredentials() async {
+    final email = await _secureStorage.read(key: _bioEmailKey);
+    return email != null && email.isNotEmpty;
+  }
+
+  static Future<void> clearBiometricCredentials() async {
+    await _secureStorage.delete(key: _bioEmailKey);
+    await _secureStorage.delete(key: _bioPasswordKey);
   }
 
   static Future<String> generateBackupCode() async {
@@ -70,6 +98,10 @@ class SecurityService {
       'biometric_enabled': true,
       'biometric_updated_at': DateTime.now().toIso8601String(),
     }, SetOptions(merge: true));
+    final email = FirebaseService.auth.currentUser?.email;
+    if (email != null) {
+      await saveBiometricCredentials(email, '');
+    }
   }
 
   static Future<void> disableBiometricAuth() async {
@@ -79,6 +111,7 @@ class SecurityService {
       'biometric_enabled': false,
       'biometric_updated_at': DateTime.now().toIso8601String(),
     }, SetOptions(merge: true));
+    await clearBiometricCredentials();
   }
 
   static Future<bool> isBiometricEnabled() async {

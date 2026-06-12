@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   collection,
@@ -9,6 +9,7 @@ import {
   updateDoc,
   doc,
   writeBatch,
+  deleteDoc,
   Timestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -71,6 +72,7 @@ const Notifications: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [confirmingClear, setConfirmingClear] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -85,11 +87,11 @@ const Notifications: React.FC = () => {
     return unsub;
   }, [user?.uid]);
 
-  const markAsRead = async (id: string) => {
+  const markAsRead = useCallback(async (id: string) => {
     try { await updateDoc(doc(db, "notifications", id), { read: true }); } catch { /* ignore */ }
-  };
+  }, []);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     const unread = notifications.filter(n => !n.read);
     if (unread.length === 0) return;
     try {
@@ -97,12 +99,37 @@ const Notifications: React.FC = () => {
       unread.forEach(n => batch.update(doc(db, "notifications", n.id), { read: true }));
       await batch.commit();
     } catch { /* ignore */ }
-  };
+  }, [notifications]);
 
-  const handleClick = (n: NotificationItem) => {
+  const deleteNotification = useCallback(async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try { await deleteDoc(doc(db, "notifications", id)); } catch { /* ignore */ }
+  }, []);
+
+  const clearRead = useCallback(async () => {
+    const read = notifications.filter(n => n.read);
+    if (read.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      read.forEach(n => batch.delete(doc(db, "notifications", n.id)));
+      await batch.commit();
+    } catch { /* ignore */ }
+  }, [notifications]);
+
+  const clearAll = useCallback(async () => {
+    if (notifications.length === 0) return;
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => batch.delete(doc(db, "notifications", n.id)));
+      await batch.commit();
+    } catch { /* ignore */ }
+    setConfirmingClear(false);
+  }, [notifications]);
+
+  const handleClick = useCallback((n: NotificationItem) => {
     if (!n.read) markAsRead(n.id);
     navigate(notificationRoute(n));
-  };
+  }, [markAsRead, navigate]);
 
   const displayed = useMemo(() => {
     let result = filter === "unread" ? notifications.filter(n => !n.read) : [...notifications];
@@ -111,6 +138,7 @@ const Notifications: React.FC = () => {
   }, [notifications, filter, typeFilter]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
+  const readCount = notifications.length - unreadCount;
 
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -135,6 +163,16 @@ const Notifications: React.FC = () => {
                 Mark all read
               </button>
             </>
+          )}
+          {readCount > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={clearRead} style={{ borderColor: "#8b949e", color: "#8b949e" }}>
+              Clear read
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={() => setConfirmingClear(true)} style={{ borderColor: "#ef4444", color: "#ef4444" }}>
+              Clear all
+            </button>
           )}
         </div>
       </div>
@@ -168,15 +206,19 @@ const Notifications: React.FC = () => {
           <span className="notif-stat-label">Unread</span>
         </div>
         <div className="notif-stat">
-          <span className="notif-stat-value" style={{ color: "#8b949e" }}>{notifications.length - unreadCount}</span>
+          <span className="notif-stat-value" style={{ color: "#8b949e" }}>{readCount}</span>
           <span className="notif-stat-label">Read</span>
         </div>
       </div>
 
       {displayed.length === 0 ? (
         <div className="admin-loading">
-          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>&#x1F514;</div>
-          <p className="empty-text">No notifications found</p>
+          <div style={{ fontSize: 48, opacity: 0.3, marginBottom: 16 }}>
+            {filter === "unread" ? "\u2705" : "\u{1F514}"}
+          </div>
+          <p className="empty-text">
+            {filter === "unread" ? "All caught up!" : "No notifications found"}
+          </p>
         </div>
       ) : (
         <div className="notif-list">
@@ -187,7 +229,6 @@ const Notifications: React.FC = () => {
                 key={n.id}
                 className={`notif-card ${!n.read ? "unread" : ""}`}
                 onClick={() => handleClick(n)}
-                style={{ cursor: "pointer" }}
               >
                 <div className="notif-card-icon" style={{ background: meta.bg }}>
                   {meta.icon}
@@ -200,10 +241,34 @@ const Notifications: React.FC = () => {
                     <span className="notif-type-badge" style={{ color: meta.color, background: meta.bg }}>{n.type}</span>
                   </div>
                 </div>
-                {!n.read && <div className="notif-unread-dot" />}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {!n.read && <div className="notif-unread-dot" />}
+                  <button
+                    className="notif-delete-btn"
+                    onClick={(e) => deleteNotification(n.id, e)}
+                    title="Delete notification"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {confirmingClear && (
+        <div className="modal-overlay" onClick={() => setConfirmingClear(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <h3>Clear all notifications?</h3>
+            <p>This action cannot be undone. All {notifications.length} notifications will be permanently deleted.</p>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setConfirmingClear(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={clearAll}>Yes, clear all</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

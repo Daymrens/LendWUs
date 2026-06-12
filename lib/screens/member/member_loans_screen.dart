@@ -310,7 +310,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -338,7 +338,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
                 const SizedBox(height: 8),
                 Text(
                   'Loan #${l.id!.length > 5 ? l.id!.substring(0, 5) : l.id}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -368,7 +368,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
               ),
               const SizedBox(width: 8),
               Text('${(widget.progress * 100).toStringAsFixed(0)}%',
-                style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
             ],
           ),
           const SizedBox(height: 20),
@@ -382,9 +382,9 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
           if (l.isFullyRepaid)
             _detailRow('Status', 'Fully Paid'),
           const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.surfaceAlt),
+          Divider(height: 1, color: AppColors.surfaceAlt),
           const SizedBox(height: 12),
-          const Text('REPAYMENT HISTORY',
+          Text('REPAYMENT HISTORY',
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 1)),
           const SizedBox(height: 8),
           if (_loadingRepayments)
@@ -393,7 +393,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             )
           else if (_repayments == null || _repayments!.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text('No repayments recorded', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
@@ -412,9 +412,9 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(CurrencyFormatter.format(r.amountPaid),
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
                       Text(DateFormatter.format(r.date),
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                     ],
                   ),
                   const Icon(Icons.check_circle, color: AppColors.success, size: 20),
@@ -436,12 +436,12 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
           SizedBox(
             width: 110,
             child: Text(label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(value,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 13),
               textAlign: TextAlign.end,
             ),
           ),

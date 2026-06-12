@@ -29,7 +29,7 @@ class AboutScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold, letterSpacing: -1)),
                 const Gap(4),
-                const Text('Version 1.0.0',
+                Text('Version 1.0.0',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               ],
             ),
@@ -46,7 +46,7 @@ class AboutScreen extends StatelessWidget {
               children: [
                 Text('About', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 const Gap(12),
-                const Text(
+                Text(
                   'LendWUs is a group savings and loan management application. '
                   'It helps members track contributions, manage loans, and '
                   'stay on top of payments with real-time updates and notifications.',

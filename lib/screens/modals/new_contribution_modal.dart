@@ -83,7 +83,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
         right: 24,
         top: 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -121,7 +121,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
                       'New Contribution',
                       style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold),
                     ),
-                    const Text('Record a manual contribution',
+                    Text('Record a manual contribution',
                       style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
@@ -164,12 +164,12 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
                       Icons.people, 'Heads', '${_selectedMember!.headsCount}',
                       Icons.monetization_on, 'Per Head', CurrencyFormatter.format(_selectedMember!.amountPerHead),
                     ),
-                    const Divider(height: 24, color: AppColors.textMuted),
+                    Divider(height: 24, color: AppColors.textMuted),
                     Row(
                       children: [
-                        const Icon(Icons.assignment, size: 16, color: AppColors.textMuted),
+                        Icon(Icons.assignment, size: 16, color: AppColors.textMuted),
                         const Gap(8),
-                        const Text('Total Required', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                        Text('Total Required', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                         const Spacer(),
                         Text(CurrencyFormatter.format(_selectedMember!.totalRequired),
                           style: const TextStyle(color: AppColors.warning, fontWeight: FontWeight.bold, fontSize: 14)),
@@ -178,9 +178,9 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        const Icon(Icons.account_balance_wallet, size: 16, color: AppColors.textMuted),
+                        Icon(Icons.account_balance_wallet, size: 16, color: AppColors.textMuted),
                         const Gap(8),
-                        const Text('Credit Balance', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                        Text('Credit Balance', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                         const Spacer(),
                         Text(CurrencyFormatter.format(_selectedMember!.balance),
                           style: TextStyle(
@@ -259,9 +259,9 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
             children: [
               Icon(icon1, size: 16, color: AppColors.textMuted),
               const Gap(8),
-              Text(label1, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text(label1, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               const Spacer(),
-              Text(value1, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(value1, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ),
@@ -271,9 +271,9 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
             children: [
               Icon(icon2, size: 16, color: AppColors.textMuted),
               const Gap(8),
-              Text(label2, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text(label2, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               const Spacer(),
-              Text(value2, style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+              Text(value2, style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
             ],
           ),
         ),

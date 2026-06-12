@@ -838,7 +838,7 @@ class _HeadChangeApprovalCardState extends ConsumerState<_HeadChangeApprovalCard
               Text('Cannot Approve', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ),
-          content: const Text(
+          content: Text(
             'This member has existing contributions. Head changes are only allowed in January (start of the year reset).',
             style: TextStyle(color: AppColors.textMuted, height: 1.5),
           ),

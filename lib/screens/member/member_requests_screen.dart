@@ -229,15 +229,15 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
+                  Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
                     'Submitted ${_formatDate(request.requestDate)}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
                   if (request.type == PaymentType.loan && request.loanId != null) ...[
                     const SizedBox(width: 12),
-                    const Icon(Icons.account_balance, size: 14, color: AppColors.textMuted),
+                    Icon(Icons.account_balance, size: 14, color: AppColors.textMuted),
                     const SizedBox(width: 4),
                     const Text(
                       'Loan repayment',
@@ -254,7 +254,7 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
                     const SizedBox(width: 4),
                     Text(
                       'Processed ${_formatDate(request.approvedDate!)}',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -269,7 +269,7 @@ class _PaymentRequestsTabState extends ConsumerState<_PaymentRequestsTab> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.notes, size: 14, color: AppColors.textMuted),
+                      Icon(Icons.notes, size: 14, color: AppColors.textMuted),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -364,7 +364,7 @@ class _PaymentDetailSheet extends StatelessWidget {
             : 'Pending Review';
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -399,7 +399,7 @@ class _PaymentDetailSheet extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   r.type == PaymentType.loan ? 'Loan Repayment' : 'Contribution Payment',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                 ),
               ],
             ),
@@ -409,7 +409,7 @@ class _PaymentDetailSheet extends StatelessWidget {
           if (r.approvedDate != null)
             _detailRow(context, 'Processed', DateFormatter.format(r.approvedDate!)),
           if (r.type == PaymentType.loan && r.loanId != null)
-            _detailRow(context, 'Loan ID', r.loanId!, valueStyle: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+            _detailRow(context, 'Loan ID', r.loanId!, valueStyle: TextStyle(fontSize: 12, color: AppColors.textPrimary)),
           if (r.notes != null && r.notes!.isNotEmpty)
             _detailRow(context, 'Notes', r.notes!),
           if (r.rejectReason != null && r.status == PaymentStatus.rejected)
@@ -431,7 +431,7 @@ class _PaymentDetailSheet extends StatelessWidget {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     color: AppColors.surfaceAlt,
-                    child: const Text('RECEIPT',
+                    child: Text('RECEIPT',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 1)),
                   ),
                   ReceiptImage(
@@ -458,14 +458,14 @@ class _PaymentDetailSheet extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-              style: labelStyle ?? const TextStyle(
+              style: labelStyle ?? TextStyle(
                 color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
               )),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(value,
-              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              style: valueStyle ?? TextStyle(color: AppColors.textPrimary, fontSize: 13),
               textAlign: TextAlign.end,
             ),
           ),
@@ -632,7 +632,7 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
                             ),
                             Text(
                               '${request.interestRate}% interest',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                             ),
                           ],
                         ),
@@ -672,11 +672,11 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
+                  Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
                   const SizedBox(width: 4),
                   Text(
                     'Requested ${_formatDate(request.requestedAt)}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -688,7 +688,7 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
                     const SizedBox(width: 4),
                     Text(
                       'Processed ${_formatDate(request.processedAt!)}',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -703,7 +703,7 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.notes, size: 14, color: AppColors.textMuted),
+                    Icon(Icons.notes, size: 14, color: AppColors.textMuted),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -920,16 +920,16 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
                         Row(
                           children: [
                             Text('${request.currentHeads}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 20,
                                 decoration: TextDecoration.lineThrough,
                               )),
                             const SizedBox(width: 8),
-                            const Icon(Icons.arrow_forward, size: 18, color: AppColors.textMuted),
+                            Icon(Icons.arrow_forward, size: 18, color: AppColors.textMuted),
                             const SizedBox(width: 8),
                             Text('${request.requestedHeads}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: AppColors.textPrimary,
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -937,7 +937,7 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
                           ],
                         ),
                         Text('${request.currentHeads == 1 ? 'head' : 'heads'} → ${request.requestedHeads == 1 ? 'head' : 'heads'}',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                       ],
                     ),
                   ],
@@ -948,11 +948,11 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
+                Icon(Icons.schedule, size: 14, color: AppColors.textMuted),
                 const SizedBox(width: 4),
                 Text(
                   'Requested ${_formatDate(request.requestedAt)}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -964,7 +964,7 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
                   const SizedBox(width: 4),
                   Text(
                     'Processed ${_formatDate(request.processedAt!)}',
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                   ),
                 ],
               ),
@@ -979,7 +979,7 @@ class _HeadChangesTabState extends ConsumerState<_HeadChangesTab> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.notes, size: 14, color: AppColors.textMuted),
+                    Icon(Icons.notes, size: 14, color: AppColors.textMuted),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
@@ -1089,7 +1089,7 @@ class _LoanDetailSheet extends StatelessWidget {
     final statusLabel = _statusLabel(r.status);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1124,7 +1124,7 @@ class _LoanDetailSheet extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${r.interestRate}% interest',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                 ),
               ],
             ),
@@ -1153,14 +1153,14 @@ class _LoanDetailSheet extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-              style: labelStyle ?? const TextStyle(
+              style: labelStyle ?? TextStyle(
                 color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
               )),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(value,
-              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              style: valueStyle ?? TextStyle(color: AppColors.textPrimary, fontSize: 13),
               textAlign: TextAlign.end,
             ),
           ),
@@ -1206,7 +1206,7 @@ class _HeadChangeDetailSheet extends StatelessWidget {
     final statusLabel = _statusLabel(r.status);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1240,24 +1240,24 @@ class _HeadChangeDetailSheet extends StatelessWidget {
                     Column(
                       children: [
                         Text('${r.currentHeads}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 28,
                             decoration: TextDecoration.lineThrough,
                           )),
                         Text(r.currentHeads == 1 ? 'head' : 'heads',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                       ],
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.arrow_forward, size: 24, color: AppColors.textMuted),
+                    Icon(Icons.arrow_forward, size: 24, color: AppColors.textMuted),
                     const SizedBox(width: 16),
                     Column(
                       children: [
                         Text('${r.requestedHeads}',
                           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                         Text(r.requestedHeads == 1 ? 'head' : 'heads',
-                          style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                       ],
                     ),
                   ],
@@ -1288,14 +1288,14 @@ class _HeadChangeDetailSheet extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-              style: labelStyle ?? const TextStyle(
+              style: labelStyle ?? TextStyle(
                 color: AppColors.textMuted, fontSize: 12, fontWeight: FontWeight.w600,
               )),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(value,
-              style: valueStyle ?? const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+              style: valueStyle ?? TextStyle(color: AppColors.textPrimary, fontSize: 13),
               textAlign: TextAlign.end,
             ),
           ),

@@ -40,7 +40,7 @@ class TopContributors extends ConsumerWidget {
             final top = sorted.take(5).toList();
 
             if (top.isEmpty) {
-              return const Card(
+              return Card(
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Center(

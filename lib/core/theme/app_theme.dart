@@ -8,7 +8,7 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: AppColors.background,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         surface: AppColors.surface,
         primary: AppColors.primary,
         secondary: AppColors.secondary,
@@ -69,14 +69,14 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: false,
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
         titleTextStyle: GoogleFonts.plusJakartaSans(
           fontSize: 22,
           fontWeight: FontWeight.bold,
           color: AppColors.textPrimary,
         ),
       ),
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.surface,
         selectedItemColor: AppColors.primary,
         unselectedItemColor: AppColors.textMuted,
@@ -127,8 +127,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        labelStyle: const TextStyle(color: AppColors.textMuted),
-        hintStyle: const TextStyle(color: AppColors.textMuted),
+        labelStyle: TextStyle(color: AppColors.textMuted),
+        hintStyle: TextStyle(color: AppColors.textMuted),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
       tabBarTheme: TabBarThemeData(

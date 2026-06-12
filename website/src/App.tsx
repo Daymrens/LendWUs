@@ -26,6 +26,7 @@ import MemberProfilePage from './pages/member/Profile';
 import MemberNotifications from './pages/member/Notifications';
 import MemberHelpSupport from './pages/member/HelpSupport';
 import MemberAbout from './pages/member/About';
+import MemberChangelog from './pages/member/Changelog';
 import MemberPrivacySecurity from './pages/member/PrivacySecurity';
 import MemberUnrecognized from './pages/member/Unrecognized';
 import {
@@ -582,6 +583,7 @@ const App: React.FC = () => {
        <Route path="/member/edit-profile" element={<Navigate to="/member/profile" replace />} />
       <Route path="/member/help-support" element={<ProtectedMemberRoute><MemberLayout><MemberHelpSupport /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/about" element={<ProtectedMemberRoute><MemberLayout><MemberAbout /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/changelog" element={<ProtectedMemberRoute><MemberLayout><MemberChangelog /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/privacy-security" element={<ProtectedMemberRoute><MemberLayout><MemberPrivacySecurity /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

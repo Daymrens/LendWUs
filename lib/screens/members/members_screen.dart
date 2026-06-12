@@ -57,10 +57,10 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                       onChanged: (v) => setState(() => _searchQuery = v.toLowerCase()),
                       decoration: InputDecoration(
                         hintText: 'Search members...',
-                        prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                        prefixIcon: Icon(Icons.search, color: AppColors.textMuted),
                         suffixIcon: _searchQuery.isNotEmpty
                             ? IconButton(
-                                icon: const Icon(Icons.clear, color: AppColors.textMuted),
+                                icon: Icon(Icons.clear, color: AppColors.textMuted),
                                 onPressed: () {
                                   _searchController.clear();
                                   setState(() => _searchQuery = '');
@@ -117,7 +117,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                         const Spacer(),
                         Text(
                           'Total: ${CurrencyFormatter.format(totalContributions)}',
-                          style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                         ),
                       ],
                     ),
@@ -137,11 +137,11 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.people_outline, size: 48, color: AppColors.textMuted),
+                                Icon(Icons.people_outline, size: 48, color: AppColors.textMuted),
                                 const Gap(12),
                                 Text(
                                   allMembers.isEmpty ? 'No members yet' : 'No matches',
-                                  style: const TextStyle(fontSize: 16, color: AppColors.textMuted),
+                                  style: TextStyle(fontSize: 16, color: AppColors.textMuted),
                                 ),
                               ],
                             ),

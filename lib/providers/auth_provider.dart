@@ -9,6 +9,7 @@ import '../data/models/member.dart';
 import '../core/firebase/firebase_service.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/notification_watcher.dart';
+import '../core/services/security_service.dart';
 import '../core/utils/member_id_generator.dart';
 import 'members_provider.dart';
 import 'settings_provider.dart';
@@ -22,6 +23,8 @@ class CurrentUserNotifier extends ChangeNotifier {
   User? _user;
   bool _isRecognized = false;
   bool _isLoading = false;
+  bool _biometricRequired = false;
+  bool _biometricChecked = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   String? _deactivationReason;
   StreamSubscription<DocumentSnapshot>? _memberDocSub;
@@ -34,6 +37,7 @@ class CurrentUserNotifier extends ChangeNotifier {
   bool get isRecognized => _isRecognized;
   bool get isLoading => _isLoading;
   bool get isFirebaseUser => FirebaseService.auth.currentUser != null;
+  bool get isBiometricRequired => _biometricRequired;
   String? get deactivationReason => _deactivationReason;
 
   CurrentUserNotifier(this.ref) {
@@ -119,12 +123,22 @@ class CurrentUserNotifier extends ChangeNotifier {
       if (_user != null) {
         await _registerFcmToken();
         _notificationWatcher.start(_user!.id!);
+        if (!_biometricChecked) {
+          _biometricChecked = true;
+          try {
+            _biometricRequired = await SecurityService.isBiometricEnabled();
+          } catch (_) {
+            _biometricRequired = false;
+          }
+        }
       } else {
         _notificationWatcher.dispose();
       }
     } else {
       _user = null;
       _isRecognized = false;
+      _biometricChecked = false;
+      _biometricRequired = false;
     }
 
     if (!_disposed) notifyListeners();
@@ -168,6 +182,16 @@ class CurrentUserNotifier extends ChangeNotifier {
 
   void clearDeactivationReason() {
     _deactivationReason = null;
+  }
+
+  void clearBiometricRequirement() {
+    _biometricRequired = false;
+    if (!_disposed) notifyListeners();
+  }
+
+  void resetBiometricCheck() {
+    _biometricChecked = false;
+    _biometricRequired = false;
   }
 
   Future<void> _registerFcmToken() async {
@@ -243,6 +267,8 @@ class CurrentUserNotifier extends ChangeNotifier {
     _user = null;
     _isRecognized = false;
     _isLoading = false;
+    _biometricChecked = false;
+    _biometricRequired = false;
     if (!_disposed) notifyListeners();
   }
 

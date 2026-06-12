@@ -133,7 +133,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
         right: 24,
         top: 24,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -171,8 +171,8 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
                       style: Theme.of(context).textTheme.displayMedium?.copyWith(fontWeight: FontWeight.bold)),
                     fundSummary.when(
                       data: (summary) => Text('Available: ${CurrencyFormatter.format(summary.availableToLoan)}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                      loading: () => const Text('Checking balance...',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      loading: () => Text('Checking balance...',
                         style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                       error: (_, __) => const SizedBox(),
                     ),
@@ -233,13 +233,13 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.account_balance_wallet, size: 16, color: AppColors.textMuted),
+                    Icon(Icons.account_balance_wallet, size: 16, color: AppColors.textMuted),
                     const Gap(8),
                     Text('${_selectedMember!.name} · ${_selectedMember!.headsCount} head(s)',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                     const Spacer(),
                     Text('Req: ${CurrencyFormatter.format(_selectedMember!.totalRequired)}',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                   ],
                 ),
               ),
@@ -294,11 +294,11 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
               ),
               child: ListTile(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                leading: const Icon(Icons.calendar_today, size: 20, color: AppColors.textMuted),
-                title: const Text('Due Date', style: TextStyle(fontSize: 14, color: AppColors.textPrimary)),
+                leading: Icon(Icons.calendar_today, size: 20, color: AppColors.textMuted),
+                title: Text('Due Date', style: TextStyle(fontSize: 14, color: AppColors.textPrimary)),
                 subtitle: Text('${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                trailing: Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.textMuted),
                 onTap: () async {
                   final date = await showDatePicker(
                     context: context,

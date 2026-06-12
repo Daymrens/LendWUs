@@ -72,7 +72,7 @@ class _IntroductionScreenState extends State<IntroductionScreen> {
               alignment: Alignment.topRight,
               child: TextButton(
                 onPressed: _completeIntro,
-                child: const Text('SKIP', style: TextStyle(color: AppColors.textMuted)),
+                child: Text('SKIP', style: TextStyle(color: AppColors.textMuted)),
               ),
             ),
             Expanded(
@@ -348,7 +348,7 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
                   height: 56,
                   child: TextButton(
                     onPressed: widget.onComplete,
-                    child: const Text(
+                    child: Text(
                       'Skip for now',
                       style: TextStyle(color: AppColors.textMuted),
                     ),

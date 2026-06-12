@@ -98,7 +98,7 @@ class MemberTileWithStatus extends ConsumerWidget {
                         ),
                         child: Text(
                           member.displayId,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: AppColors.textMuted,
@@ -126,11 +126,11 @@ class MemberTileWithStatus extends ConsumerWidget {
                   const Gap(4),
                   Row(
                     children: [
-                      const Icon(Icons.email, size: 12, color: AppColors.textMuted),
+                      Icon(Icons.email, size: 12, color: AppColors.textMuted),
                       const Gap(4),
                       Text(
                         member.linkedEmail!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           color: AppColors.textMuted,
                         ),
@@ -159,7 +159,7 @@ class MemberTileWithStatus extends ConsumerWidget {
                 ),
               ),
               PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
+                icon: Icon(Icons.more_vert, color: AppColors.textMuted, size: 20),
                 color: AppColors.surfaceAlt,
                 onSelected: (value) {
                   switch (value) {

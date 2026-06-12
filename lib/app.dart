@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/app_colors.dart';
 import 'providers/auth_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/unrecognized_screen.dart';
+import 'screens/auth/biometric_verify_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/members/members_screen.dart';
 import 'screens/reports/reports_screen.dart';
@@ -21,6 +23,7 @@ import 'screens/profile/help_support_screen.dart';
 import 'screens/profile/about_screen.dart';
 import 'screens/profile/privacy_security_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
+import 'screens/profile/changelog_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/member/member_pay_screen.dart';
 import 'data/models/payment_request.dart';
@@ -35,6 +38,8 @@ import 'screens/admin/compliance_reports.dart';
 import 'screens/admin/member_migration.dart';
 import 'screens/admin/send_notification_screen.dart';
 import 'screens/maintenance_screen.dart';
+import 'screens/activity/activity_feed_screen.dart';
+import 'screens/search/global_search_screen.dart';
 import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
@@ -71,8 +76,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = location == '/login';
       final isIntro = location == '/intro';
       final isUnrecognized = location == '/unrecognized';
-      final isMemberRoute = location.startsWith('/member-');
+      final isMemberRoute = location == '/member-home' ||
+          location == '/member-contributions' ||
+          location == '/member-loans' ||
+          location == '/member-requests' ||
+          location == '/member-profile';
       final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
+          location == '/biometric-verify' ||
+          location == '/changelog' ||
           location == '/help' || location == '/about' ||
           location == '/privacy-security' || location == '/edit-profile' ||
           location == '/notifications' || location == '/member-pay' ||
@@ -106,6 +117,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return isAdmin ? '/' : '/member-home';
       }
 
+      // Biometric required → verify unless already there
+      if (user != null && isRecognized && authNotifier.isBiometricRequired && location != '/biometric-verify') {
+        return '/biometric-verify';
+      }
+
       // Intro → skip if completed
       if (isIntro && onboardingComplete) {
         return '/login';
@@ -131,6 +147,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const IntroductionScreen(),
       ),
       GoRoute(
+        path: '/biometric-verify',
+        builder: (context, state) => const BiometricVerifyScreen(),
+      ),
+      GoRoute(
         path: '/unrecognized',
         builder: (context, state) => const UnrecognizedScreen(),
       ),
@@ -145,6 +165,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/about',
         builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/changelog',
+        builder: (context, state) => const ChangelogScreen(),
       ),
       GoRoute(
         path: '/privacy-security',
@@ -237,6 +261,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/send-notification',
             builder: (context, state) => const SendNotificationScreen(),
           ),
+          GoRoute(
+            path: '/activity',
+            builder: (context, state) => const ActivityFeedScreen(),
+          ),
+          GoRoute(
+            path: '/search',
+            builder: (context, state) => const GlobalSearchScreen(),
+          ),
         ],
       ),
       ShellRoute(
@@ -297,6 +329,8 @@ class _SinkingFundAppState extends ConsumerState<SinkingFundApp> {
 
     final themeMode = ref.watch(themeModeProvider);
     final router = ref.watch(goRouterProvider);
+
+    AppColors.init(themeMode == ThemeMode.light ? Brightness.light : Brightness.dark);
 
     return MaterialApp.router(
       title: 'LendWUs',

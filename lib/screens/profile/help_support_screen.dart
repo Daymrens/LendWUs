@@ -26,7 +26,7 @@ class HelpSupportScreen extends StatelessWidget {
                 Text('How can we help you?',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                 const Gap(8),
-                const Text('Reach out to us through any of the channels below.',
+                Text('Reach out to us through any of the channels below.',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                   textAlign: TextAlign.center),
               ],
@@ -100,7 +100,7 @@ class HelpSupportScreen extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Text(answer, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          child: Text(answer, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
         ),
       ],
     );

@@ -140,7 +140,7 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
             Text('Head Change Not Allowed', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Head changes for members with existing contributions are only allowed in January (start of the year reset). '
           'Please wait until January to submit your request.\n\n'
           'New members with no contributions can change heads at any time.',
@@ -159,7 +159,7 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -205,7 +205,7 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Current Heads',
+                            Text('Current Heads',
                               style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
                             const SizedBox(height: 8),
                             Row(
@@ -313,7 +313,7 @@ class _MemberHeadChangeModalState extends ConsumerState<MemberHeadChangeModal> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+        Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
         Text(
           value,
           style: TextStyle(

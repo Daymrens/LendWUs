@@ -104,7 +104,7 @@ class ComplianceReportsScreen extends ConsumerWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 18)),
             ],
           ),

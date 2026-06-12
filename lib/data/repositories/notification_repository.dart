@@ -124,6 +124,38 @@ class NotificationRepository {
         .update({'read': true});
   }
 
+  Future<void> deleteNotification(String notificationId) async {
+    await FirebaseService.firestore
+        .collection('notifications')
+        .doc(notificationId)
+        .delete();
+  }
+
+  Future<void> deleteAllNotifications(String userId) async {
+    final snapshot = await FirebaseService.firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .get();
+    final batch = FirebaseService.firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  Future<void> deleteReadNotifications(String userId) async {
+    final snapshot = await FirebaseService.firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('read', isEqualTo: true)
+        .get();
+    final batch = FirebaseService.firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
   Future<int> getUnreadCount(String userId) async {
     final snapshot = await FirebaseService.firestore
         .collection('notifications')

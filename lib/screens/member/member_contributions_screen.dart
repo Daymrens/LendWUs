@@ -150,7 +150,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
                     Text(
                       'Contributed: ${CurrencyFormatter.format(totalThisMonth)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                     ),
                     const SizedBox(height: 24),
                     Row(
@@ -268,7 +268,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
                   )),
                 const Spacer(),
                 Text('Required: ${CurrencyFormatter.format(requiredPerHead)}',
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               ],
             ),
             const SizedBox(height: 6),
@@ -373,11 +373,11 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+              Text(title, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
               Icon(icon, color: color, size: 16),
             ],
           ),
-          Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(value, style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
           Text(subtitle, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600)),
         ],
       ),
@@ -430,7 +430,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
                       getTitlesWidget: (v, m) {
                         final i = v.toInt();
                         if (i >= 0 && i < labels.length) {
-                          return Text(labels[i], style: const TextStyle(color: AppColors.textMuted, fontSize: 11));
+                          return Text(labels[i], style: TextStyle(color: AppColors.textMuted, fontSize: 11));
                         }
                         return const Text('');
                       },
@@ -478,7 +478,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
               getTitlesWidget: (v, m) {
                 final i = v.toInt();
                 if (i >= 0 && i < labels.length) {
-                  return Text(labels[i], style: const TextStyle(color: AppColors.textMuted, fontSize: 11));
+                  return Text(labels[i], style: TextStyle(color: AppColors.textMuted, fontSize: 11));
                 }
                 return const Text('');
               },
@@ -623,7 +623,7 @@ class _ContributionDetailsSheet extends StatelessWidget {
     final isAdmin = contribution.createdBy == 'admin';
     return Container(
       padding: const EdgeInsets.all(24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -666,7 +666,7 @@ class _ContributionDetailsSheet extends StatelessWidget {
                   const Gap(4),
                   Text(
                     _formatDetailDate(contribution.date),
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -705,11 +705,11 @@ class _ContributionDetailsSheet extends StatelessWidget {
           SizedBox(
             width: 120,
             child: Text(label,
-              style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
           ),
           Expanded(
             child: Text(value,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w500)),
           ),
         ],
       ),

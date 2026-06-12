@@ -155,7 +155,7 @@ class _MemberHeader extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.surfaceAlt, width: 1)),
       ),
@@ -181,7 +181,7 @@ class _MemberHeader extends StatelessWidget {
               ),
               child: Text(
                 member.displayId,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, fontFamily: 'monospace'),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textMuted, fontFamily: 'monospace'),
               ),
             ),
           const Gap(8),
@@ -204,16 +204,16 @@ class _MemberHeader extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.email, size: 14, color: AppColors.textMuted),
+                    Icon(Icons.email, size: 14, color: AppColors.textMuted),
                     const Gap(4),
-                    Text(member.linkedEmail!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    Text(member.linkedEmail!, style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
                   ],
                 ),
               ],
             ],
           ),
           const Gap(6),
-          Text('Joined $joinedDate', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          Text('Joined $joinedDate', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
           const Gap(12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -235,7 +235,7 @@ class _MemberHeader extends StatelessWidget {
       children: [
         Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
       ],
     );
   }
@@ -295,7 +295,7 @@ class _StatTile extends StatelessWidget {
           const SizedBox(height: 6),
           Text(value, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13), textAlign: TextAlign.center, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 9), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+          Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 9), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -310,7 +310,7 @@ class _ContributionsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (contributions.isEmpty) {
-      return const Center(child: Text('No contributions yet', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('No contributions yet', style: TextStyle(color: AppColors.textMuted)));
     }
 
     final sorted = List<Contribution>.from(contributions)..sort((a, b) => b.date.compareTo(a.date));
@@ -329,9 +329,9 @@ class _ContributionsTab extends StatelessWidget {
             child: Text('${c.month}/${c.year % 100}', style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 11)),
           ),
           title: Text(CurrencyFormatter.format(c.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text(DateFormat('MMM d, yyyy').format(c.date), style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+          subtitle: Text(DateFormat('MMM d, yyyy').format(c.date), style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
           trailing: c.notes != null && c.notes!.isNotEmpty
-              ? Tooltip(message: c.notes!, child: const Icon(Icons.info_outline, size: 18, color: AppColors.textMuted))
+              ? Tooltip(message: c.notes!, child: Icon(Icons.info_outline, size: 18, color: AppColors.textMuted))
               : null,
         );
       },
@@ -348,7 +348,7 @@ class _LoansTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loans.isEmpty) {
-      return const Center(child: Text('No loans yet', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('No loans yet', style: TextStyle(color: AppColors.textMuted)));
     }
 
     final sorted = List<Loan>.from(loans)..sort((a, b) => b.issuedDate.compareTo(a.issuedDate));
@@ -389,9 +389,9 @@ class _LoansTab extends StatelessWidget {
                 ],
               ),
               const Gap(4),
-              Text('Interest: ${loan.interestRate}%', style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
-              Text('Issued: ${DateFormat('MMM d, yyyy').format(loan.issuedDate)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-              Text('Due: ${DateFormat('MMM d, yyyy').format(loan.dueDate)}', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              Text('Interest: ${loan.interestRate}%', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text('Issued: ${DateFormat('MMM d, yyyy').format(loan.issuedDate)}', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              Text('Due: ${DateFormat('MMM d, yyyy').format(loan.dueDate)}', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               if (!loan.isFullyRepaid)
                 Text('Remaining: ${CurrencyFormatter.format(remaining > 0 ? remaining : 0)}',
                   style: TextStyle(color: remaining > 0 ? AppColors.warning : AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
@@ -411,7 +411,7 @@ class _PaymentsTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (payments.isEmpty) {
-      return const Center(child: Text('No payment requests yet', style: TextStyle(color: AppColors.textMuted)));
+      return Center(child: Text('No payment requests yet', style: TextStyle(color: AppColors.textMuted)));
     }
 
     final sorted = List<PaymentRequest>.from(payments)..sort((a, b) => b.requestDate.compareTo(a.requestDate));
@@ -448,7 +448,7 @@ class _PaymentsTab extends StatelessWidget {
           title: Text(CurrencyFormatter.format(p.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
           subtitle: Text(
             '${DateFormat('MMM d, yyyy').format(p.requestDate)} • ${p.type == PaymentType.loan ? 'Loan' : 'Contribution'}',
-            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

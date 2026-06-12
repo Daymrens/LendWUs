@@ -312,7 +312,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                                 ),
                               )
                             else
-                              const Padding(
+                              Padding(
                                 padding: EdgeInsets.symmetric(vertical: 24),
                                 child: Text(
                                   'No QR payment info configured yet',
@@ -325,7 +325,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                               Text(
                                 '$qrName  •  $qrNumber',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                               ),
                             ],
                             const Gap(12),
@@ -359,7 +359,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                   prefixText: '${CurrencyFormatter.currencySymbol} ',
                   border: const OutlineInputBorder(),
                   helperText: isLoan ? 'Enter amount to repay' : 'Enter the amount you paid',
-                  helperStyle: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                  helperStyle: TextStyle(color: AppColors.textMuted, fontSize: 11),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Please enter amount';
@@ -372,7 +372,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
               const Gap(24),
 
               // Receipt section
-              const Text('Upload Receipt',
+              Text('Upload Receipt',
                 style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
               const Gap(10),
 
@@ -393,14 +393,14 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                         child: Row(
                           children: [
-                            const Icon(Icons.image, size: 16, color: AppColors.textMuted),
+                            Icon(Icons.image, size: 16, color: AppColors.textMuted),
                             const Gap(8),
                             Expanded(
                               child: Text(_receiptImage!.path.split('\\').last,
                                 style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
                             ),
                             Text('${(_receiptImage!.lengthSync() / 1024).toStringAsFixed(0)} KB',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
                             const Gap(8),
                             GestureDetector(
                               onTap: () => setState(() => _receiptImage = null),

@@ -209,7 +209,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                               Text(
                                 'Contributed: ${CurrencyFormatter.format(monthlyTotal)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                               ),
                               const SizedBox(height: 24),
                               Row(
@@ -676,7 +676,7 @@ class _MemberReturnsSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Returns Pool', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          Text('Returns Pool', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(CurrencyFormatter.format(info.totalReturns),
                             style: const TextStyle(color: AppColors.primary, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -687,7 +687,7 @@ class _MemberReturnsSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Per Head Share', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          Text('Per Head Share', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text(CurrencyFormatter.format(info.perHeadShare),
                             style: const TextStyle(color: AppColors.secondary, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -698,7 +698,7 @@ class _MemberReturnsSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Heads', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          Text('Heads', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                           const SizedBox(height: 4),
                           Text('${info.totalHeads}',
                             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -757,7 +757,7 @@ class _RecentContributions extends ConsumerWidget {
                   title: Text(CurrencyFormatter.format(c.amount),
                     style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                   trailing: Text(dateStr,
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                 );
               }).toList(),
             ),

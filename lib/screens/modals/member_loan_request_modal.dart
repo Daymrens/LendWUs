@@ -124,7 +124,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
     }
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -172,7 +172,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'You need to have at least one contribution before applying for a loan. Please make a payment first.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: AppColors.textMuted, fontSize: 13),

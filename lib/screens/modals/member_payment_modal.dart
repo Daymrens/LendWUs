@@ -176,7 +176,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
             ),
           ),
           const Gap(8),
-          const Text('Scan with GCash, PayMaya, or any PH bank app',
+          Text('Scan with GCash, PayMaya, or any PH bank app',
             style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
         ],
       );
@@ -199,15 +199,15 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
           ),
           const Gap(8),
           Text('$qrName  •  $qrNumber',
-            style: const TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
+            style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
           const Gap(4),
-          const Text('Scan with GCash, PayMaya, or any PH bank app',
+          Text('Scan with GCash, PayMaya, or any PH bank app',
             style: TextStyle(color: AppColors.textMuted, fontSize: 11), textAlign: TextAlign.center),
         ],
       );
     }
 
-    return const Column(
+    return Column(
       children: [
         SizedBox(
           width: double.infinity,
@@ -291,7 +291,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     );
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -348,7 +348,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(memberName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                            const Text('Member', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                            Text('Member', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
                           ],
                         ),
                       ],
@@ -373,7 +373,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                                 payAdvance
                                   ? 'Next Cutoff (${CurrencyFormatter.format(perCutoffAmount)})'
                                   : 'This Month (${CurrencyFormatter.format(fullMonthlyRequired)} total)',
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                               ),
                               Text(
                                 payAdvance
@@ -443,7 +443,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                       payAdvance
                         ? 'Quick Amount (next cutoff: ${CurrencyFormatter.format(perCutoffAmount)})'
                         : 'Quick Amount',
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
                     ),
                     const Gap(10),
                     Row(
@@ -487,7 +487,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                         labelText: 'Amount (${CurrencyFormatter.currencySymbol})',
                         prefixText: '${CurrencyFormatter.currencySymbol} ',
                         helperText: 'Min: ${CurrencyFormatter.format(minAmount)}  •  Max: ${CurrencyFormatter.format(maxAmount)}',
-                        helperStyle: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                        helperStyle: TextStyle(color: AppColors.textMuted, fontSize: 11),
                       ),
                       keyboardType: TextInputType.number,
                       validator: (v) => _amountValidator(v, minAmount, maxAmount),
@@ -509,9 +509,9 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.qr_code, size: 20, color: AppColors.textMuted),
+                                  Icon(Icons.qr_code, size: 20, color: AppColors.textMuted),
                                   const Gap(10),
-                                  const Text('Scan to pay via GCash/PayMaya',
+                                  Text('Scan to pay via GCash/PayMaya',
                                     style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w500, fontSize: 14)),
                                   const Spacer(),
                                   Icon(_showQR ? Icons.expand_less : Icons.expand_more, color: AppColors.textMuted),
@@ -532,7 +532,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                     const Gap(24),
 
                     // Receipt Upload
-                    const Text('Upload Receipt', style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
+                    Text('Upload Receipt', style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontWeight: FontWeight.w600)),
                     const Gap(10),
 
                     if (_receiptImage != null)
@@ -556,7 +556,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.image, size: 16, color: AppColors.textMuted),
+                                  Icon(Icons.image, size: 16, color: AppColors.textMuted),
                                   const Gap(8),
                                   Expanded(
                                     child: Text(
@@ -567,7 +567,7 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
                                   ),
                                   Text(
                                     '${(_receiptImage!.lengthSync() / 1024).toStringAsFixed(0)} KB',
-                                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
                                   ),
                                   const Gap(8),
                                   GestureDetector(
