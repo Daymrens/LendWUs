@@ -10,12 +10,11 @@ import '../../providers/auth_provider.dart';
 import '../../providers/returns_provider.dart';
 import '../../data/models/contribution.dart';
 import '../../data/models/member.dart';
-import '../../data/models/loan_request.dart' show LoanRequestStatus;
-import '../../data/models/payment_request.dart' show PaymentStatus, PaymentType;
+import '../../data/models/loan.dart';
+import '../../data/models/payment_request.dart' show PaymentRequest, PaymentStatus, PaymentType;
+import '../../data/models/loan_request.dart' show LoanRequest, LoanRequestStatus;
 import '../../data/models/app_settings.dart' show AppSettings;
 import '../../data/repositories/loan_repository.dart';
-import '../../data/repositories/payment_request_repository.dart';
-import '../../data/repositories/loan_request_repository.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/members_provider.dart';
 import '../modals/member_payment_modal.dart';
@@ -55,7 +54,6 @@ class MemberDashboardScreen extends ConsumerWidget {
     final pendingCount = ref.watch(_memberPendingRequestsProvider(memberId));
     final settingsAsync = ref.watch(settingsProvider);
     final memberAsync = ref.watch(memberByIdProvider(memberId));
-    final colorScheme = Theme.of(context).colorScheme;
 
     return _BiometricPromptGate(
       child: Scaffold(
@@ -151,11 +149,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                   error: (_, __) => _statChip(context, 'Active Loans', 0, AppColors.warning),
                 ),
                 const SizedBox(width: 8),
-                pendingCount.when(
-                  data: (count) => _statChip(context, 'Pending', count, AppColors.secondary),
-                  loading: () => _loadingChip(context),
-                  error: (_, __) => _statChip(context, 'Pending', 0, AppColors.secondary),
-                ),
+                _statChip(context, 'Pending', pendingCount, AppColors.secondary),
               ],
             ),
 
@@ -315,9 +309,11 @@ class MemberDashboardScreen extends ConsumerWidget {
     final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
     final member = memberAsync.asData?.value;
     final memberHeads = member?.headsCount ?? 1;
-    final memberTotalRequired = (member?.totalRequired ?? 0.0) > 0
-        ? member!.totalRequired
+    final memberTotalRequired = member?.totalRequired ?? 0.0;
+    final computedRequired = memberTotalRequired > 0
+        ? memberTotalRequired
         : memberHeads * (settings?.minPaymentPerHead ?? 0.0);
+    final progress = computedRequired > 0 ? (monthlyTotal / computedRequired).clamp(0.0, 1.0) : 0.0;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -343,14 +339,14 @@ class MemberDashboardScreen extends ConsumerWidget {
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: AppColors.primary, fontWeight: FontWeight.bold)),
             ),
-            if (memberTotalRequired > 0) ...[
+            if (computedRequired > 0) ...[
               const SizedBox(height: 12),
               Row(
                 children: [
                   Text('This month: ${CurrencyFormatter.format(monthlyTotal)}',
-                    style: TextStyle(color: monthlyTotal >= memberTotalRequired ? AppColors.primary : AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
+                    style: TextStyle(color: monthlyTotal >= computedRequired ? AppColors.primary : AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
                   const Spacer(),
-                  Text('Required: ${CurrencyFormatter.format(memberTotalRequired)}',
+                  Text('Required: ${CurrencyFormatter.format(computedRequired)}',
                     style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
                 ],
               ),
@@ -358,11 +354,16 @@ class MemberDashboardScreen extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
-                  value: (monthlyTotal / memberTotalRequired).clamp(0.0, 1.0),
+                  value: progress,
                   backgroundColor: colorScheme.surfaceContainerHighest,
-                  color: monthlyTotal >= memberTotalRequired ? AppColors.primary : AppColors.warning,
+                  color: monthlyTotal >= computedRequired ? AppColors.primary : AppColors.warning,
                   minHeight: 6,
                 ),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _statusBadge(monthlyTotal, computedRequired),
               ),
             ],
           ],
@@ -507,6 +508,41 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget _statusBadge(double paid, double required) {
+    if (paid >= required) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.success.withAlpha(25),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text('Paid',
+          style: TextStyle(color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w600)),
+      );
+    }
+    if (paid <= 0) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withAlpha(25),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Text('Pending',
+          style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w600)),
+      );
+    }
+    final pct = (paid / required * 100).toStringAsFixed(0);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withAlpha(25),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text('$pct%',
+        style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w600)),
+    );
+  }
+
   Widget _quickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
     final colorScheme = Theme.of(context).colorScheme;
     return Material(
@@ -554,8 +590,9 @@ class MemberDashboardScreen extends ConsumerWidget {
 
     return Column(
       children: loans.map((loanData) {
-        final loan = loanData['loan'];
-        final remainingBalance = loanData['remainingBalance'] as double;
+        final loan = loanData['loan'] as Loan?;
+        if (loan == null) return const SizedBox();
+        final remainingBalance = (loanData['remainingBalance'] as num?)?.toDouble() ?? 0.0;
         final totalDue = loan.principal + (loan.principal * loan.interestRate);
         final progress = totalDue > 0 ? ((totalDue - remainingBalance) / totalDue).clamp(0.0, 1.0) : 0.0;
         final now = DateTime.now();
@@ -575,7 +612,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Loan #${loan.id.length > 5 ? loan.id.substring(0, 5) : loan.id}',
+                        Text('Loan #${loan.id != null && loan.id!.length > 5 ? loan.id!.substring(0, 5) : (loan.id ?? '')}',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                         Text('${(loan.interestRate * 100).toStringAsFixed(0)}% interest',
                           style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
@@ -645,11 +682,17 @@ class MemberDashboardScreen extends ConsumerWidget {
   }
 }
 
-final _memberPendingRequestsProvider = FutureProvider.family<int, String>((ref, memberId) async {
-  final paymentsRepo = PaymentRequestRepository();
-  final loansRepo = LoanRequestRepository();
-  final payments = await paymentsRepo.getPaymentRequestsByMember(memberId);
-  final loans = await loansRepo.getLoanRequestsByMember(memberId);
+final _memberPaymentRequestsStreamProvider = StreamProvider.family<List<PaymentRequest>, String>((ref, memberId) {
+  return ref.watch(paymentRequestRepositoryProvider).watchMemberPaymentRequests(memberId);
+});
+
+final _memberLoanRequestsStreamProvider = StreamProvider.family<List<LoanRequest>, String>((ref, memberId) {
+  return ref.watch(loanRequestRepositoryProvider).watchMemberLoanRequests(memberId);
+});
+
+final _memberPendingRequestsProvider = Provider.family<int, String>((ref, memberId) {
+  final payments = [...?ref.watch(_memberPaymentRequestsStreamProvider(memberId)).asData?.value];
+  final loans = [...?ref.watch(_memberLoanRequestsStreamProvider(memberId)).asData?.value];
   return payments.where((p) => p.status == PaymentStatus.pending).length +
          loans.where((l) => l.status == LoanRequestStatus.pending).length;
 });

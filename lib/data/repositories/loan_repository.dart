@@ -165,6 +165,11 @@ class LoanRepository {
     return InterestCalculator.calculateTotalInterestEarned(loans, repayments);
   }
 
+  Future<double> getTotalRepayments() async {
+    final repayments = await getAllRepayments();
+    return repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+  }
+
   Stream<List<Loan>> watchAllLoans() {
     return FirebaseService.firestore.collection('loans').snapshots().map(
         (snapshot) => snapshot.docs

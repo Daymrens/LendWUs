@@ -1,5 +1,6 @@
 import 'member.dart';
 import 'contribution.dart';
+import 'loan.dart';
 
 class MemberWithStatus {
   final Member member;
@@ -24,8 +25,9 @@ class MemberWithStatus {
     Member member,
     List<Contribution> contributions,
     int month,
-    int year,
-  ) {
+    int year, {
+    List<Loan> loans = const [],
+  }) {
     final requiredAmount = member.totalRequired > 0
         ? member.totalRequired
         : member.headsCount * member.amountPerHead;
@@ -40,10 +42,19 @@ class MemberWithStatus {
     final remaining = requiredAmount - amountPaid;
     final progress = requiredAmount > 0 ? (amountPaid / requiredAmount).clamp(0.0, 1.0) : 0.0;
 
+    // Check for overdue loans (active loan past due date)
+    final hasOverdueLoan = loans.any((l) =>
+        l.memberId == member.id &&
+        !l.isFullyRepaid &&
+        l.dueDate.isBefore(DateTime.now()));
+
     String paymentStatus;
     String statusColor;
 
-    if (progress >= 1.0) {
+    if (hasOverdueLoan) {
+      paymentStatus = 'Overdue';
+      statusColor = 'red';
+    } else if (progress >= 1.0) {
       paymentStatus = 'Paid';
       statusColor = 'green';
     } else if (amountPaid == 0) {

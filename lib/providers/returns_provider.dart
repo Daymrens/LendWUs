@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/returns_info.dart';
 import '../data/repositories/loan_repository.dart';
-import '../data/repositories/member_repository.dart';
 import '../core/utils/interest_calculator.dart';
 import 'members_provider.dart';
 
@@ -24,6 +23,14 @@ final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
     );
     final activeMembers = currentMembers.where((m) => m.isActive).toList();
     final totalHeads = activeMembers.fold<int>(0, (sum, m) => sum + (m.headsCount as int));
+    if (totalHeads == 0) {
+      controller.add(ReturnsInfo(
+        totalReturns: totalInterest,
+        totalHeads: 0,
+        perHeadShare: 0.0,
+      ));
+      return;
+    }
     controller.add(ReturnsInfo(
       totalReturns: totalInterest,
       totalHeads: totalHeads,

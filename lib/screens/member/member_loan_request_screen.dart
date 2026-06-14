@@ -102,11 +102,13 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
       final memberRepo = MemberRepository();
       final member = await memberRepo.getMemberById(currentUser!.memberId!);
 
+      final amountText = _amountController.text.replaceAll(',', '');
+      final interestText = _interestController.text.replaceAll(',', '');
       final loanRequest = LoanRequest(
         memberId: currentUser.memberId!,
         memberName: member?.name ?? currentUser.username,
-        amount: double.parse(_amountController.text),
-        interestRate: double.parse(_interestController.text),
+        amount: double.parse(amountText),
+        interestRate: double.parse(interestText),
         notes: _purposeController.text,
         dueDate: _dueDate,
         status: LoanRequestStatus.pending,
@@ -175,8 +177,8 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
                       CircleAvatar(
                         radius: 20,
                         backgroundColor: AppColors.primary.withAlpha(25),
-                        child: Text(
-                          (_member!.name ?? 'M')[0].toUpperCase(),
+                        child:                         Text(
+                          ((_member!.name ?? '').isNotEmpty ? _member!.name! : 'M')[0].toUpperCase(),
                           style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),
@@ -250,7 +252,8 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Please enter amount';
-                  if (double.tryParse(value) == null || double.parse(value) <= 0) return 'Please enter valid amount';
+                  final cleaned = value.replaceAll(',', '');
+                  if (double.tryParse(cleaned) == null || double.parse(cleaned) <= 0) return 'Please enter valid amount';
                   return null;
                 },
               ),

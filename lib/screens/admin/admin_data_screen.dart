@@ -209,6 +209,7 @@ class _ContributionsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final contributionsAsync = ref.watch(_contributionsListProvider);
+    final membersAsync = ref.watch(_membersListProvider);
     return contributionsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => const Center(child: Text('Error loading contributions')),
@@ -216,16 +217,21 @@ class _ContributionsTab extends ConsumerWidget {
         if (items.isEmpty) {
           return const Center(child: Text('No contributions'));
         }
+        final memberNames = switch (membersAsync) {
+          AsyncData(:final value) => {for (final m in value) m.id: m.name},
+          _ => <String?, String>{},
+        };
         return ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           itemCount: items.length,
           itemBuilder: (context, index) {
             final item = items[index];
+            final memberName = memberNames[item.memberId] ?? item.memberId ?? 'Unknown';
             return _DataTile(
               title: CurrencyFormatter.format(item.amount),
               subtitle: '${item.date.day}/${item.date.month}/${item.date.year}',
-              trailing: item.memberId,
+              trailing: memberName,
               onEdit: () => _editContribution(context, ref, item),
               onDelete: () => _deleteContribution(context, ref, item),
             );
@@ -244,6 +250,7 @@ class _LoansTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final loansAsync = ref.watch(_loansListProvider);
+    final membersAsync = ref.watch(_membersListProvider);
     return loansAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => const Center(child: Text('Error loading loans')),
@@ -251,6 +258,10 @@ class _LoansTab extends ConsumerWidget {
         if (items.isEmpty) {
           return const Center(child: Text('No loans'));
         }
+        final memberNames = switch (membersAsync) {
+          AsyncData(:final value) => {for (final m in value) m.id: m.name},
+          _ => <String?, String>{},
+        };
         return ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -258,10 +269,11 @@ class _LoansTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final item = items[index];
             final status = item.isFullyRepaid ? 'Paid' : 'Active';
+            final memberName = memberNames[item.memberId] ?? item.memberId ?? 'Unknown';
             return _DataTile(
               title: '${CurrencyFormatter.format(item.principal)} ($status)',
               subtitle: 'Issued: ${item.issuedDate.day}/${item.issuedDate.month}/${item.issuedDate.year}',
-              trailing: item.memberId,
+              trailing: memberName,
               onEdit: () => _editLoan(context, ref, item),
               onDelete: () => _deleteLoan(context, ref, item),
             );
@@ -498,7 +510,12 @@ Future<void> _editContribution(BuildContext context, WidgetRef ref, Contribution
               controller: amountCtl,
               decoration: const InputDecoration(labelText: 'Amount'),
               keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final n = double.tryParse(v);
+                if (n == null || n <= 0) return 'Enter a valid amount';
+                return null;
+              },
             ),
             const Gap(12),
             TextFormField(
@@ -526,6 +543,7 @@ Future<void> _editContribution(BuildContext context, WidgetRef ref, Contribution
     item.amount = double.parse(amountCtl.text);
     item.notes = notesCtl.text;
     await ref.read(contributionRepositoryProvider).updateContribution(item);
+    ref.invalidate(_contributionsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contribution updated')));
     }
@@ -550,6 +568,7 @@ Future<void> _deleteContribution(BuildContext context, WidgetRef ref, Contributi
   );
   if (confirmed == true) {
     await ref.read(contributionRepositoryProvider).deleteContribution(item.id!);
+    ref.invalidate(_contributionsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contribution deleted')));
     }
@@ -574,14 +593,24 @@ Future<void> _editLoan(BuildContext context, WidgetRef ref, Loan item) async {
               controller: principalCtl,
               decoration: const InputDecoration(labelText: 'Principal'),
               keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final n = double.tryParse(v);
+                if (n == null || n <= 0) return 'Enter a valid amount';
+                return null;
+              },
             ),
             const Gap(12),
             TextFormField(
               controller: interestCtl,
               decoration: const InputDecoration(labelText: 'Interest Rate %'),
               keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final n = double.tryParse(v);
+                if (n == null || n < 0) return 'Enter a valid rate';
+                return null;
+              },
             ),
           ],
         ),
@@ -604,6 +633,7 @@ Future<void> _editLoan(BuildContext context, WidgetRef ref, Loan item) async {
     item.principal = double.parse(principalCtl.text);
     item.interestRate = double.parse(interestCtl.text) / 100;
     await ref.read(loanRepositoryProvider).updateLoan(item);
+    ref.invalidate(_loansListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Loan updated')));
     }
@@ -628,6 +658,7 @@ Future<void> _deleteLoan(BuildContext context, WidgetRef ref, Loan item) async {
   );
   if (confirmed == true) {
     await ref.read(loanRepositoryProvider).deleteLoan(item.id!);
+    ref.invalidate(_loansListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Loan deleted')));
     }
@@ -648,7 +679,12 @@ Future<void> _editRepayment(BuildContext context, WidgetRef ref, Repayment item)
           controller: amountCtl,
           decoration: const InputDecoration(labelText: 'Amount'),
           keyboardType: TextInputType.number,
-          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+          validator: (v) {
+            if (v == null || v.isEmpty) return 'Required';
+            final n = double.tryParse(v);
+            if (n == null || n <= 0) return 'Enter a valid amount';
+            return null;
+          },
         ),
       ),
       actions: [
@@ -668,6 +704,7 @@ Future<void> _editRepayment(BuildContext context, WidgetRef ref, Repayment item)
   if (result == true) {
     item.amountPaid = double.parse(amountCtl.text);
     await ref.read(loanRepositoryProvider).updateRepayment(item);
+    ref.invalidate(_repaymentsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Repayment updated')));
     }
@@ -692,6 +729,7 @@ Future<void> _deleteRepayment(BuildContext context, WidgetRef ref, Repayment ite
   );
   if (confirmed == true) {
     await ref.read(loanRepositoryProvider).deleteRepayment(item.id!);
+    ref.invalidate(_repaymentsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Repayment deleted')));
     }
@@ -723,14 +761,24 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
               controller: headsCtl,
               decoration: const InputDecoration(labelText: 'Heads Count'),
               keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final n = int.tryParse(v);
+                if (n == null || n < 1) return 'Must be at least 1';
+                return null;
+              },
             ),
             const Gap(12),
             TextFormField(
               controller: amountCtl,
               decoration: const InputDecoration(labelText: 'Amount per Head'),
               keyboardType: TextInputType.number,
-              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final n = double.tryParse(v);
+                if (n == null || n <= 0) return 'Enter a valid amount';
+                return null;
+              },
             ),
           ],
         ),
@@ -755,6 +803,7 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
     item.amountPerHead = double.parse(amountCtl.text);
     item.totalRequired = item.headsCount * item.amountPerHead;
     await ref.read(memberRepositoryProvider).updateMember(item);
+    ref.invalidate(_membersListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member updated')));
     }
@@ -779,6 +828,7 @@ Future<void> _deleteMember(BuildContext context, WidgetRef ref, Member item) asy
   );
   if (confirmed == true) {
     await ref.read(memberRepositoryProvider).deleteMember(item.id!);
+    ref.invalidate(_membersListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member deleted')));
     }
@@ -802,6 +852,7 @@ Future<void> _deletePaymentRequest(BuildContext context, WidgetRef ref, PaymentR
   );
   if (confirmed == true) {
     await ref.read(paymentRequestRepositoryProvider).deletePaymentRequest(item.id!);
+    ref.invalidate(_paymentRequestsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment request deleted')));
     }
@@ -825,6 +876,7 @@ Future<void> _deleteLoanRequest(BuildContext context, WidgetRef ref, LoanRequest
   );
   if (confirmed == true) {
     await ref.read(loanRequestRepositoryProvider).deleteLoanRequest(item.id!);
+    ref.invalidate(_loanRequestsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Loan request deleted')));
     }

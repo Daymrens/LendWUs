@@ -6,7 +6,6 @@ import {
   doc,
   query,
   where,
-  orderBy,
   Timestamp,
   limit,
   runTransaction,
@@ -18,10 +17,10 @@ import { db } from "../../firebase";
 interface PaymentRequest {
   id: string;
   memberId: string;
-  type: string;
   amount: number;
   status: string;
-  requestDate: Timestamp;
+  type?: string;
+  createdAt?: Timestamp;
   loanId?: string;
   notes?: string;
   rejectReason?: string;
@@ -32,23 +31,24 @@ interface PaymentRequest {
 interface LoanRequest {
   id: string;
   memberId: string;
-  memberName: string;
-  amount: number;
+  memberName?: string;
+  amount?: number;
+  principal?: number;
   interestRate: number;
   dueDate: Timestamp;
   status: string;
-  requestedAt: Timestamp;
+  createdAt?: Timestamp;
   notes?: string;
 }
 
 interface HeadChangeRequest {
   id: string;
   memberId: string;
-  memberName: string;
-  currentHeads: number;
+  memberName?: string;
+  currentHeads?: number;
   requestedHeads: number;
   status: string;
-  requestedAt: Timestamp;
+  createdAt?: Timestamp;
   reason?: string;
 }
 
@@ -92,9 +92,13 @@ const PaymentsTab: React.FC = () => {
     (async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, "payment_requests"), orderBy("requestDate", "desc"));
-        const snap = await getDocs(q);
+        const snap = await getDocs(collection(db, "payment_requests"));
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest));
+        list.sort((a, b) => {
+          const da = a.createdAt?.toDate?.() ?? new Date(0);
+          const db = b.createdAt?.toDate?.() ?? new Date(0);
+          return db.getTime() - da.getTime();
+        });
         setRequests(list.filter(r => r.status === "pending"));
         const names = await loadNames();
         setMemberNames(names);
@@ -106,9 +110,13 @@ const PaymentsTab: React.FC = () => {
   const reload = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "payment_requests"), orderBy("requestDate", "desc"));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "payment_requests"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest));
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate?.() ?? new Date(0);
+        const db = b.createdAt?.toDate?.() ?? new Date(0);
+        return db.getTime() - da.getTime();
+      });
       setRequests(list.filter(r => r.status === "pending"));
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -154,14 +162,18 @@ const PaymentsTab: React.FC = () => {
           });
         });
 
-        const contribsSnap = await getDocs(query(
-          collection(db, "contributions"),
-          where("memberId", "==", memberDocId),
-          where("month", "==", month),
-          where("year", "==", year),
-        ));
+        const contribsSnap = await getDocs(
+          query(collection(db, "contributions"), where("memberId", "==", memberDocId))
+        );
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
         let monthTotal = 0;
-        contribsSnap.docs.forEach(d => { monthTotal += Number(d.data().amount) || 0; });
+        contribsSnap.docs.forEach(d => {
+          const cd = d.data().date?.toDate?.();
+          if (cd && cd >= monthStart && cd <= monthEnd) {
+            monthTotal += Number(d.data().amount) || 0;
+          }
+        });
 
         const memberDoc = await getDoc(doc(db, "members", memberDocId));
         if (memberDoc.exists()) {
@@ -200,6 +212,11 @@ const PaymentsTab: React.FC = () => {
           const data = snap.data()!;
           if (data.status !== "pending") throw new Error("Request already processed");
 
+          const loanSnap = await transaction.get(doc(db, "loans", req.loanId!));
+          if (!loanSnap.exists) throw new Error("Loan not found");
+          const loanData = loanSnap.data()!;
+          const totalDue = (loanData.principal || 0) + ((loanData.principal || 0) * (loanData.interestRate || 0));
+
           transaction.update(requestRef, {
             status: "approved",
             approvedDate: now,
@@ -208,26 +225,20 @@ const PaymentsTab: React.FC = () => {
           const repayRef = doc(collection(db, "repayments"));
           transaction.set(repayRef, {
             loanId: req.loanId,
-            memberId: req.memberId,
             amountPaid: req.amount,
             date: now,
           });
-        });
 
-        const loanDoc = await getDoc(doc(db, "loans", req.loanId));
-        if (loanDoc.exists()) {
-          const loan = loanDoc.data();
-          const totalDue = (loan.principal || 0) + ((loan.principal || 0) * (loan.interestRate || 0));
           const repaymentsSnap = await getDocs(query(
             collection(db, "repayments"),
             where("loanId", "==", req.loanId),
           ));
-          let totalRepaid = 0;
+          let totalRepaid = req.amount;
           repaymentsSnap.docs.forEach(d => { totalRepaid += Number(d.data().amountPaid) || 0; });
           if (totalRepaid >= totalDue) {
-            await updateDoc(doc(db, "loans", req.loanId), { isFullyRepaid: true });
+            transaction.update(doc(db, "loans", req.loanId!), { isFullyRepaid: true });
           }
-        }
+        });
       }
 
       reload();
@@ -283,7 +294,7 @@ const PaymentsTab: React.FC = () => {
                 </div>
                 <span className="approval-amount">₱{(r.amount || 0).toLocaleString()}</span>
               </div>
-              <p className="approval-date">Submitted: {r.requestDate?.toDate?.()?.toLocaleDateString() || "N/A"}</p>
+              <p className="approval-date">Submitted: {r.createdAt?.toDate?.()?.toLocaleDateString() || "N/A"}</p>
               {r.notes && <p className="approval-notes">{r.notes}</p>}
               {(r.receiptPath || r.receiptUrl) && (
                 <div style={{ margin: "8px 0" }}>
@@ -329,9 +340,13 @@ const LoansTab: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "loan_requests"), orderBy("requestedAt", "desc"));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "loan_requests"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as LoanRequest));
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate?.() ?? new Date(0);
+        const db = b.createdAt?.toDate?.() ?? new Date(0);
+        return db.getTime() - da.getTime();
+      });
       setRequests(list.filter(r => r.status === "pending"));
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -352,7 +367,8 @@ const LoansTab: React.FC = () => {
 
         // Create Loan doc
         const loanRef = doc(collection(db, "loans"));
-        const interestRate = ((data.interestRate as number) || 0) / 100;
+        const rawRate = (data.interestRate as number) || 0;
+        const interestRate = rawRate > 1 ? rawRate / 100 : rawRate;
         const dueDate = data.dueDate instanceof Timestamp
           ? data.dueDate
           : data.dueDate?.toDate
@@ -443,9 +459,9 @@ const LoansTab: React.FC = () => {
                 <span className="approval-amount" style={{ color: "#f59e0b" }}>₱{(r.amount || 0).toLocaleString()}</span>
               </div>
               <div className="approval-details">
-                <span>Interest: {r.interestRate || 0}%</span>
+                <span>Interest: {r.interestRate > 1 ? r.interestRate : ((r.interestRate || 0) * 100).toFixed(1)}%</span>
                 <span>Due: {r.dueDate?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
-                <span>Requested: {r.requestedAt?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
+                <span>Requested: {r.createdAt?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
               </div>
               {r.notes && <p className="approval-notes">Notes: {r.notes}</p>}
               <div className="approval-actions">
@@ -473,9 +489,13 @@ const HeadsTab: React.FC = () => {
   const load = async () => {
     setLoading(true);
     try {
-      const q = query(collection(db, "head_change_requests"), orderBy("requestedAt", "desc"));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "head_change_requests"));
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as HeadChangeRequest));
+      list.sort((a, b) => {
+        const da = a.createdAt?.toDate?.() ?? new Date(0);
+        const db = b.createdAt?.toDate?.() ?? new Date(0);
+        return db.getTime() - da.getTime();
+      });
       setRequests(list.filter(r => r.status === "pending"));
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -563,19 +583,19 @@ const HeadsTab: React.FC = () => {
                 <div>
                   <strong>{r.memberName || r.memberId}</strong>
                   <div className="head-change-display">
-                    <span>{r.currentHeads} heads</span>
+                    <span>{r.currentHeads ?? 0} heads</span>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                     <span style={{ color: "#f59e0b" }}>{r.requestedHeads} heads</span>
                   </div>
                 </div>
-                <span className={`${r.requestedHeads > r.currentHeads ? "text-success" : "text-error"}`}>
-                  {r.requestedHeads > r.currentHeads ? "+" : ""}{r.requestedHeads - r.currentHeads}
+                <span className={`${r.requestedHeads > (r.currentHeads ?? 0) ? "text-success" : "text-error"}`}>
+                  {r.requestedHeads > (r.currentHeads ?? 0) ? "+" : ""}{r.requestedHeads - (r.currentHeads ?? 0)}
                 </span>
               </div>
               <div className="approval-details">
-                <span>Current: {r.currentHeads}</span>
+                <span>Current: {r.currentHeads ?? 0}</span>
                 <span>Requested: {r.requestedHeads}</span>
-                <span>Requested: {r.requestedAt?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
+                <span>Date: {r.createdAt?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
               </div>
               {r.reason && <p className="approval-notes">Reason: {r.reason}</p>}
               <div className="approval-actions">

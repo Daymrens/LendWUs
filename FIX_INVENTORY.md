@@ -131,16 +131,16 @@ Inconsistencies found and fixed:
 | 15 | Mock pre-approval data | `loan_calculator.dart:68-71` | ✅ Done (part of 1.8) | |
 | 16 | `notification_watcher` listener leak | `notification_watcher.dart:15` | ✅ Done | Added StreamSubscription field, cancel on dispose |
 | 17 | N+1 queries in reminder_service | `reminder_service.dart:23-44` | ✅ Done | Batch member queries with `in` filter + chunking |
-| 18 | CSV export pagination | `csv_export_service.dart:50-58` | ⏳ Pending | Remove delays, paginate fetches |
-| 19 | `app.dart:63` stale redirect | `app.dart:63` | ⏳ Pending | `ref.read` → `ref.watch` |
-| 20 | Bottom nav mismatch | `app.dart:301-383` | ⏳ Pending | 7 nav items but 18 admin routes |
-| 21 | `FutureBuilder` + `ref.read` in admin_data | `admin_data_screen.dart:211` | ⏳ Pending | Convert to proper Riverpod provider |
-| 22 | Mixed navigation | `member_dashboard_screen.dart:74`, `dashboard_screen.dart:69`, `member_loans_screen.dart:135` | ⏳ Pending | Use `context.push()` |
-| 23 | BulkLoanProcessing no transaction | `BulkLoanProcessing.tsx:51-90` | ⏳ Pending | Add `writeBatch` or `runTransaction`, active-loan check |
-| 24 | Non-atomic payment approval | `Approvals.tsx:129-221` | ⏳ Pending | Move record creation inside transaction |
-| 25 | `@types/react-router-dom` v5 mismatch | `package.json:9` | ⏳ Pending | Pin matching types |
-| 26 | Dynamic import in onSnapshot | `member/Loans.tsx:77-81` | ⏳ Pending | Static import at top |
-| 27 | `backfillMissingMemberIds` runs on every mount | `Members.tsx:49` | ⏳ Pending | Add guard flag |
+| 18 | CSV export pagination | `csv_export_service.dart` | ✅ Done | Sequential exports, high limit (5000), pagination params on `getAllPaymentRequests` |
+| 19 | `app.dart:63` stale redirect | `app.dart:63` | ✅ Done | `ref.read` → `ref.watch` for `onboardingCompleteProvider` |
+| 20 | Bottom nav mismatch | `app.dart:301-383` | ✅ Done | Added "More" bottom sheet with all 10 additional admin routes |
+| 21 | `FutureBuilder` + `ref.read` in admin_data | `admin_data_screen.dart:211` | ✅ Done | Already using `FutureProvider` + `.when()` — no fix needed |
+| 22 | Mixed navigation | `member_dashboard_screen.dart`, `dashboard_screen.dart`, `member_loans_screen.dart` | ✅ Done | Already using `context.push()` everywhere |
+| 23 | BulkLoanProcessing no transaction | `BulkLoanProcessing.tsx` | ✅ Done | Added active-loan check per member before batch commit |
+| 24 | Non-atomic payment approval | `Approvals.tsx:129-221` | ✅ Done | Loan read + `isFullyRepaid` check moved inside `runTransaction` |
+| 25 | `@types/react-router-dom` v5 mismatch | `package.json:9` | ✅ Done | No `@types/react-router-dom` in deps (v7 has built-in types) |
+| 26 | Dynamic import in onSnapshot | `member/Loans.tsx:77-81` | ✅ Done | No dynamic `import()` found — already static |
+| 27 | `backfillMissingMemberIds` runs on every mount | `Members.tsx:49` | ✅ Done | Already guarded by `useRef` flag |
 
 ---
 
@@ -179,20 +179,30 @@ Inconsistencies found and fixed:
 
 ---
 
+## 🚫 Spark Plan Constraints
+
+This project runs on the **Firebase Spark (free) plan**. The following are **not available**:
+- **Cloud Functions** — no server-side logic
+- **Firebase Storage** — base64 fallback in `firebase_service.dart` handles receipts
+- Item **1.3** (Base64 → Storage) is **Deferred** — the existing base64 fallback is sufficient for Spark
+
+All business-rule enforcement must be backed by `firestore.rules`, not client code or Cloud Functions.
+
+---
+
 ## Summary
 
-| Phase | Total Items | ✅ Done | 🔄 In Progress | ⏳ Pending |
-|-------|-------------|---------|----------------|------------|
-| **1. Critical** | 9 | 9 | 0 | 0 |
-| **2. Problematic** | 15 | 15 | 0 | 0 |
-| **3. Needs Attention** | 18 | 18 | 0 | 0 |
-| **4. Stubs** | 3 | 3 | 0 | 0 |
-| **Total** | **45** | **45** | **0** | **0** |
+| Phase | Total Items | ✅ Done | 🔄 In Progress | ⏳ Pending | ❌ Deferred |
+|-------|-------------|---------|----------------|------------|-------------|
+| **1. Critical** | 9 | 8 | 0 | 0 | 1 (1.3 — Spark) |
+| **2. Problematic** | 15 | 15 | 0 | 0 | 0 |
+| **3. Needs Attention** | 18 | 18 | 0 | 0 | 0 |
+| **4. Stubs** | 3 | 3 | 0 | 0 | 0 |
+| **Total** | **45** | **44** | **0** | **0** | **1** |
 
 ---
 
 ## Next Steps (Resume Instructions)
 
-1. `git add . && git commit -m "fix: security, interest rate, loan calculator, activity log, backup" && git push`
-2. Continue with remaining Phase 1 items (1.3, 1.4, 1.6)
-3. Then proceed through Phases 2 → 3 → 4
+1. `git add . && git commit -m "fix: app.dart redirect, bottom nav, CSV pagination, loan race conditions, bulk active-loan check, atomic approval" && git push`
+2. All 45 inventory items are resolved (44 done, 1 deferred for Spark plan)

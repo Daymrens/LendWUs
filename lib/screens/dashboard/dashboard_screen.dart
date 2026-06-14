@@ -157,7 +157,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     children: [
                       StatCard(
                         title: 'Total Fund',
-                        value: CurrencyFormatter.format(summary.totalContributions + summary.totalInterestEarned),
+                        value: CurrencyFormatter.format(summary.fundBalance),
                         isGradient: true,
                         icon: Icons.account_balance,
                         iconColor: AppColors.primary,

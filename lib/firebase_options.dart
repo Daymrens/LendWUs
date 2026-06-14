@@ -2,10 +2,11 @@
 // Replace with your generated file after creating a Firebase project.
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
+    if (kIsWeb) return web;
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
@@ -34,6 +35,15 @@ class DefaultFirebaseOptions {
     storageBucket: 'lmsystemm.firebasestorage.app',
     iosClientId: '55723804965-ha2d8ocfvjjluuknec78h6ko7qalc2pa.apps.googleusercontent.com',
     iosBundleId: 'com.example.sinkingFundApp',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBf-zD5S7bAcaOAroIgcoLKBB3BMcCrU5Q',
+    appId: '1:55723804965:web:3d694a841165a235e2b2cc',
+    messagingSenderId: '55723804965',
+    projectId: 'lmsystemm',
+    authDomain: 'lmsystemm.firebaseapp.com',
+    storageBucket: 'lmsystemm.firebasestorage.app',
   );
 
 }

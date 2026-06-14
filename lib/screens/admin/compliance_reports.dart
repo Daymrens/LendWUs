@@ -22,7 +22,13 @@ final complianceDataProvider = FutureProvider<Map<String, dynamic>>((ref) async 
   final totalContributions = contributions.fold<double>(0, (s, c) => s + c.amount);
   final totalLoansIssued = loans.fold<double>(0, (s, l) => s + l.principal);
   final totalRepaid = repayments.fold<double>(0, (s, r) => s + r.amountPaid);
-  final outstandingBalance = totalLoansIssued - totalRepaid;
+  double outstandingBalance = 0.0;
+  for (final loan in activeLoans) {
+    final loanRepayments = repayments.where((r) => r.loanId == loan.id);
+    final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
+    final totalDue = loan.principal + (loan.principal * loan.interestRate);
+    outstandingBalance += (totalDue - repaid).clamp(0.0, totalDue);
+  }
 
   return {
     'totalMembers': members.length,

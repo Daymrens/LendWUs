@@ -16,6 +16,9 @@ interface MemberData {
   joinedAt?: { toDate?: () => Date };
 }
 
+const formatCurrency = (n: number) =>
+  n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -117,15 +120,15 @@ const Profile: React.FC = () => {
         </div>
         <div className="mini-stat">
           <span className="mini-stat-label">Per Head</span>
-          <span className="mini-stat-value">&pound;{member?.amountPerHead?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&#x20B1;{member?.amountPerHead != null ? formatCurrency(member.amountPerHead) : "-"}</span>
         </div>
         <div className="mini-stat warning">
           <span className="mini-stat-label">Required</span>
-          <span className="mini-stat-value">&pound;{member?.totalRequired?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&#x20B1;{member?.totalRequired != null ? formatCurrency(member.totalRequired) : "-"}</span>
         </div>
         <div className="mini-stat accent">
           <span className="mini-stat-label">Balance</span>
-          <span className="mini-stat-value">&pound;{member?.balance?.toFixed(2) ?? "-"}</span>
+          <span className="mini-stat-value">&#x20B1;{member?.balance != null ? formatCurrency(member.balance) : "-"}</span>
         </div>
       </div>
 

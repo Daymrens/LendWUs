@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sinking_fund_app/core/utils/cutoff_calculator.dart';
 
@@ -195,6 +196,69 @@ void main() {
         prevCutoffDay: null,
       );
       expect(CutoffCalculator.statusText(info), 'Next cutoff in 12 days');
+    });
+  });
+
+  group('CutoffCalculator.statusColor', () {
+    const normal = Color(0xFF000000);
+    const nearDeadline = Color(0xFFFFA500);
+    const dueToday = Color(0xFFFF0000);
+    const error = Color(0xFF800000);
+
+    test('normal state returns normal color', () {
+      const info = CutoffInfo(
+        state: CutoffState.normal,
+        daysUntilNext: 12,
+        daysSincePrev: 0,
+        nextCutoffDay: 13,
+        prevCutoffDay: null,
+      );
+      expect(
+        CutoffCalculator.statusColor(info, normal: normal, nearDeadline: nearDeadline, dueToday: dueToday, error: error),
+        normal,
+      );
+    });
+
+    test('nearDeadline state returns nearDeadline color', () {
+      const info = CutoffInfo(
+        state: CutoffState.nearDeadline,
+        daysUntilNext: 2,
+        daysSincePrev: 0,
+        nextCutoffDay: 13,
+        prevCutoffDay: null,
+      );
+      expect(
+        CutoffCalculator.statusColor(info, normal: normal, nearDeadline: nearDeadline, dueToday: dueToday, error: error),
+        nearDeadline,
+      );
+    });
+
+    test('dueToday state returns dueToday color', () {
+      const info = CutoffInfo(
+        state: CutoffState.dueToday,
+        daysUntilNext: 0,
+        daysSincePrev: 0,
+        nextCutoffDay: 13,
+        prevCutoffDay: null,
+      );
+      expect(
+        CutoffCalculator.statusColor(info, normal: normal, nearDeadline: nearDeadline, dueToday: dueToday, error: error),
+        dueToday,
+      );
+    });
+
+    test('justPassed state returns error color', () {
+      const info = CutoffInfo(
+        state: CutoffState.justPassed,
+        daysUntilNext: 15,
+        daysSincePrev: 1,
+        nextCutoffDay: 28,
+        prevCutoffDay: 13,
+      );
+      expect(
+        CutoffCalculator.statusColor(info, normal: normal, nearDeadline: nearDeadline, dueToday: dueToday, error: error),
+        error,
+      );
     });
   });
 }

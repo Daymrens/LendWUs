@@ -8,6 +8,7 @@ import {
   Timestamp,
   doc,
   getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useMemberAuth } from "../../context/MemberAuthContext";
@@ -69,7 +70,6 @@ const Dashboard: React.FC = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
-  const [repaymentsData, setRepaymentsData] = useState<Array<{id:string; loanId:string; amountPaid:number; memberId:string}>>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -132,7 +132,22 @@ const Dashboard: React.FC = () => {
 
     unsubs.push(onSnapshot(
       query(collection(db, "loans"), where("memberId", "==", member.id)),
-      (snap) => { setLoans(snap.docs.map(d => ({ id: d.id, ...d.data() } as Loan))); },
+      async (snap) => {
+        const loanList = snap.docs.map(d => ({ id: d.id, ...d.data() } as Loan));
+        const withBalances = await Promise.all(loanList.map(async (loan) => {
+          if (loan.isFullyRepaid) {
+            const totalDue = loan.principal + (loan.principal * (loan.interestRate || 0));
+            return { ...loan, remainingBalance: 0, totalRepaid: totalDue };
+          }
+          const totalDue = loan.principal + (loan.principal * (loan.interestRate || 0));
+          const repayQ = query(collection(db, "repayments"), where("loanId", "==", loan.id));
+          const repaySnap = await getDocs(repayQ);
+          let repaid = 0;
+          repaySnap.docs.forEach(d => { repaid += Number(d.data().amountPaid) || 0; });
+          return { ...loan, remainingBalance: Math.max(0, totalDue - repaid), totalRepaid: repaid };
+        }));
+        setLoans(withBalances);
+      },
       (err) => { console.error("[Dashboard] loans error:", err); }
     ));
 
@@ -140,12 +155,6 @@ const Dashboard: React.FC = () => {
       query(collection(db, "payment_requests"), where("memberId", "==", member.id), orderBy("requestDate", "desc")),
       (snap) => { setPaymentRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as PaymentRequest))); },
       (err) => { console.error("[Dashboard] payment_requests error:", err); }
-    ));
-
-    unsubs.push(onSnapshot(
-      query(collection(db, "repayments"), where("memberId", "==", member.id)),
-      (snap) => { setRepaymentsData(snap.docs.map(d => ({ id: d.id, ...(d.data() as Record<string,unknown>) } as any))); },
-      (err) => { console.error("[Dashboard] repayments error:", err); }
     ));
 
     if (user?.uid) {
@@ -176,12 +185,8 @@ const Dashboard: React.FC = () => {
   const fullMonthlyRequired = perCutoffAmount * 2;
   const progress = fullMonthlyRequired > 0 ? Math.min(totalThisMonth / fullMonthlyRequired, 1) : 0;
 
-  const loanRepaymentMap: Record<string, number> = {};
-  repaymentsData.forEach((r) => {
-    if (r.loanId) loanRepaymentMap[r.loanId] = (loanRepaymentMap[r.loanId] || 0) + (Number(r.amountPaid) || 0);
-  });
   const totalInterestEarned = loans.reduce((s, l) => {
-    const repaid = loanRepaymentMap[l.id] || 0;
+    const repaid = (l as any).totalRepaid || 0;
     const interest = repaid - (Number(l.principal) || 0);
     return s + (interest > 0 ? interest : 0);
   }, 0);

@@ -14,19 +14,32 @@ final memberBalanceProvider = FutureProvider.autoDispose<List<Map<String, dynami
     final mid = member.id ?? '';
     if (mid.isEmpty) continue;
 
+    // Only approved payment requests count toward total paid
     final paymentSnap = await FirebaseService.firestore
         .collection('payment_requests')
         .where('memberId', isEqualTo: mid)
+        .where('status', isEqualTo: 'approved')
         .get();
 
-    final totalPaid = paymentSnap.docs.fold<double>(0.0, (sum, d) {
+    final totalPaidFromRequests = paymentSnap.docs.fold<double>(0.0, (sum, d) {
+      final amount = (d.data()['amount'] as num?)?.toDouble() ?? 0.0;
+      return sum + amount;
+    });
+
+    // Also include direct admin-recorded contributions
+    final contribSnap = await FirebaseService.firestore
+        .collection('contributions')
+        .where('memberId', isEqualTo: mid)
+        .get();
+
+    final totalFromContributions = contribSnap.docs.fold<double>(0.0, (sum, d) {
       final amount = (d.data()['amount'] as num?)?.toDouble() ?? 0.0;
       return sum + amount;
     });
 
     results.add({
       'member': member,
-      'totalPaid': totalPaid,
+      'totalPaid': totalPaidFromRequests + totalFromContributions,
       'balance': member.balance,
     });
   }

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "sinking_fund_logic.md",
+    "sinking_fund_app.md",
+    "firestore-schema.md",
+    "admin-runbook.md",
+    "CONTRIBUTING.md"
+  ]
+}

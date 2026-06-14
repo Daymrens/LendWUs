@@ -1,13 +1,37 @@
 {
   "short_name": "LendWUs",
   "name": "LendWUs - Group Sinking Fund Manager",
-  "description": "Manage your group sinking fund, track contributions, loans, and more.",
-  "start_url": "/ios",
+  "description": "Manage your group sinking fund, track contributions, loans, and returns in real time. Works offline as a PWA.",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1117",
   "theme_color": "#1a4d2e",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "scope": "/",
+  "id": "/",
+  "categories": ["finance", "productivity"],
+  "lang": "en-PH",
+  "dir": "ltr",
+  "display_override": ["standalone", "browser"],
+  "edge_side_panel": {},
+  "screenshots": [
+    {
+      "src": "/icons/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "LendWUs - Paluwagan Savings, Loans & Returns"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your fund dashboard",
+      "url": "/login",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -33,8 +57,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "categories": ["finance", "productivity"],
-  "lang": "en-US",
-  "dir": "ltr"
+  ]
 }

@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/payment_request.dart';
 import '../models/contribution.dart';
 import '../models/repayment.dart';
@@ -7,6 +8,7 @@ import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
 
 class PaymentRequestRepository {
+  static const int _defaultPageSize = 100;
   Future<String> createPaymentRequest(PaymentRequest request) async {
     final docRef = await FirebaseService.firestore
         .collection('payment_requests')
@@ -24,11 +26,15 @@ class PaymentRequestRepository {
     return docRef.id;
   }
 
-  Future<List<PaymentRequest>> getAllPaymentRequests() async {
-    final snapshot = await FirebaseService.firestore
+  Future<List<PaymentRequest>> getAllPaymentRequests({int? limit, DocumentSnapshot? startAfter}) async {
+    var query = FirebaseService.firestore
         .collection('payment_requests')
-        .orderBy('requestDate', descending: true)
-        .get();
+        .orderBy('requestDate', descending: true);
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+    query = query.limit(limit ?? _defaultPageSize);
+    final snapshot = await query.get();
     return snapshot.docs
         .map((doc) => PaymentRequest.fromMap({...doc.data(), 'id': doc.id}))
         .toList();

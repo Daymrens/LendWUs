@@ -53,9 +53,10 @@ export function useWebNotifications(userId: string | null | undefined) {
       }
     });
 
+    const seenSet = seenRef.current;
     return () => {
       unsub();
-      seenRef.current.clear();
+      seenSet.clear();
     };
   }, [permState, userId]);
 

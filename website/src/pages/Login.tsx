@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../firebase";
 import { useAuth } from "../context/AuthContext";
-import { Eye, EyeOff, Lock, AtSign, LogIn } from "lucide-react";
+import { Eye, EyeOff, Lock, AtSign } from "lucide-react";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");

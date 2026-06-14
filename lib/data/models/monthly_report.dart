@@ -37,15 +37,26 @@ class MonthlyReport {
         r.date.month == month && r.date.year == year);
 
     double interestGained = 0.0;
+    final processedLoans = <String>{};
     for (var repayment in repaid) {
-      final loan = loans.firstWhere((l) => l.id == repayment.loanId);
-      final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-      final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+      if (processedLoans.contains(repayment.loanId)) continue;
+      processedLoans.add(repayment.loanId);
+      final loan = loans.cast<Loan?>().firstWhere(
+        (l) => l?.id == repayment.loanId,
+        orElse: () => null,
+      );
+      if (loan == null) continue;
 
-      if (totalRepaid > loan.principal) {
-        final interest = totalRepaid - loan.principal;
-        interestGained += interest;
-      }
+      final allLoanRepayments = repayments.where((r) => r.loanId == loan.id);
+      final allTotalRepaid = allLoanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+      final allInterest = allTotalRepaid > loan.principal ? allTotalRepaid - loan.principal : 0.0;
+
+      final beforeRepayments = allLoanRepayments.where((r) =>
+          r.date.year < year || (r.date.year == year && r.date.month < month));
+      final beforeTotalRepaid = beforeRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+      final beforeInterest = beforeTotalRepaid > loan.principal ? beforeTotalRepaid - loan.principal : 0.0;
+
+      interestGained += allInterest - beforeInterest;
     }
 
     return MonthlyReport(

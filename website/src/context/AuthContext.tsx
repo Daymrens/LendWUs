@@ -59,7 +59,7 @@ async function findMemberByLinkedEmail(email: string): Promise<{ id: string; mem
     if (!snapshot.empty) {
       const doc = snapshot.docs[0];
       const data = doc.data();
-      return { id: doc.id, memberId: data.memberId || "", isActive: data.isActive !== false };
+      return { id: doc.id, memberId: data.memberId || "", isActive: (data.active ?? data.isActive) !== false };
     }
   } catch {}
   return null;
@@ -145,8 +145,8 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
     const memberDoc = await getDoc(doc(db, "members", data.memberId));
     if (memberDoc.exists()) {
       const mData = memberDoc.data();
-      if (mData?.isActive !== false) {
-        resolvedMemberDoc = { id: memberDoc.id, memberId: mData?.memberId || "", isActive: mData?.isActive !== false };
+      if ((mData?.active ?? mData?.isActive) !== false) {
+        resolvedMemberDoc = { id: memberDoc.id, memberId: mData?.memberId || "", isActive: (mData?.active ?? mData?.isActive) !== false };
       }
     }
     if (!resolvedMemberDoc) {
@@ -178,7 +178,7 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
     const memberSnap = await getDoc(doc(db, "members", resolvedMemberId!));
     if (memberSnap.exists()) {
       const mData = memberSnap.data();
-      if (mData?.isActive !== false) {
+      if ((mData?.active ?? mData?.isActive) !== false) {
         return {
           appUser: {
             uid: fbUser.uid,
@@ -224,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         signOut(auth);
       } else {
         const data = snapshot.data();
-        if (!data?.isActive) {
+        if (!(data?.active ?? data?.isActive)) {
           setError("Your account has been deactivated. Contact an admin.");
           setUser(null);
           setIsRecognized(false);
@@ -386,7 +386,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           amountPerHead: 500,
           totalRequired: 500,
           joinedAt: serverTimestamp(),
-          isActive: true,
+          active: true,
           memberId: customMemberId,
         });
 

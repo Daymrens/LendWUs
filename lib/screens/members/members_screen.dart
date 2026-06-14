@@ -40,9 +40,9 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
       body: membersWithStatus.when(
         data: (allMembers) {
           final filtered = _filterMembers(allMembers);
-          final activeCount = allMembers.where((m) => m.paymentStatus == 'PAID').length;
-          final pendingCount = allMembers.where((m) => m.paymentStatus == 'PENDING').length;
-          final overdueCount = allMembers.where((m) => m.paymentStatus == 'OVERDUE').length;
+          final activeCount = allMembers.where((m) => m.paymentStatus == 'Paid').length;
+          final pendingCount = allMembers.where((m) => m.paymentStatus == 'Pending').length;
+          final overdueCount = allMembers.where((m) => m.paymentStatus == 'Overdue').length;
           final totalContributions = allMembers.fold<double>(0.0, (sum, m) => sum + m.amountPaid);
 
           return Column(
@@ -116,7 +116,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
                         _chip('$overdueCount Overdue', AppColors.error),
                         const Spacer(),
                         Text(
-                          'Total: ${CurrencyFormatter.format(totalContributions)}',
+                          'This Month: ${CurrencyFormatter.format(totalContributions)}',
                           style: TextStyle(fontSize: 12, color: AppColors.textMuted),
                         ),
                       ],
@@ -185,13 +185,13 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
     var result = members;
     switch (_selectedTab) {
       case 1:
-        result = result.where((m) => m.paymentStatus == 'PAID').toList();
+        result = result.where((m) => m.paymentStatus == 'Paid').toList();
         break;
       case 2:
-        result = result.where((m) => m.paymentStatus == 'PENDING').toList();
+        result = result.where((m) => m.paymentStatus == 'Pending').toList();
         break;
       case 3:
-        result = result.where((m) => m.paymentStatus == 'OVERDUE').toList();
+        result = result.where((m) => m.paymentStatus == 'Overdue').toList();
         break;
     }
     if (_searchQuery.isNotEmpty) {

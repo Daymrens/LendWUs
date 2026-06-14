@@ -92,7 +92,7 @@ const Dashboard: React.FC = () => {
     members.forEach((m) => { memberNames[m.id] = (m.name as string) || m.id; });
 
     const totalMembers = members.length;
-    const activeMembers = members.filter((m) => m.isActive === true || m.isActive === 1).length;
+    const activeMembers = members.filter((m) => m.active === true || m.active === 1 || m.isActive === true || m.isActive === 1).length;
     const totalContributions = contributions.reduce((s, c) => s + (Number(c.amount)||0), 0);
     const totalLoansIssued = loans.reduce((s, l) => s + (Number(l.principal)||0), 0);
     const activeLoans = loans.filter((l) => l.isFullyRepaid !== true && l.isFullyRepaid !== 1).length;
@@ -121,7 +121,7 @@ const Dashboard: React.FC = () => {
       return s + (interest > 0 ? interest : 0);
     }, 0);
 
-    const activeMembersList = members.filter((m) => m.isActive === true || m.isActive === 1);
+    const activeMembersList = members.filter((m) => m.active === true || m.active === 1 || m.isActive === true || m.isActive === 1);
     const totalHeads = activeMembersList.reduce((s, m) => s + (Number(m.headsCount) || 1), 0);
     const perHeadShare = totalHeads > 0 ? totalInterest / totalHeads : 0;
 

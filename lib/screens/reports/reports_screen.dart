@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../data/models/contribution.dart';
 import '../../providers/fund_provider.dart';
 import '../../providers/loans_provider.dart';
 import '../../providers/members_provider.dart';
@@ -16,21 +17,53 @@ class ReportsScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportsScreenState extends ConsumerState<ReportsScreen> {
+  late DateTime _selectedMonth;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedMonth = DateTime(now.year, now.month, 1);
+  }
+
+  void _previousMonth() {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month - 1, 1);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+    });
+  }
+
+  bool get _isCurrentMonth {
+    final now = DateTime.now();
+    return _selectedMonth.month == now.month && _selectedMonth.year == now.year;
+  }
+
   Future<void> _refresh() async {
-    ref.invalidate(totalFundProvider);
+    ref.invalidate(totalContributionsProvider);
     ref.invalidate(totalLoansProvider);
     ref.invalidate(totalInterestProvider);
+    ref.invalidate(totalRepaymentsProvider);
     ref.invalidate(membersStreamProvider);
     ref.invalidate(loansStreamProvider);
+    ref.invalidate(contributionsStreamProvider);
+    ref.invalidate(repaymentsStreamProvider);
   }
 
   @override
   Widget build(BuildContext context) {
-    final totalContribution = ref.watch(totalFundProvider);
+    final totalContribution = ref.watch(totalContributionsProvider);
     final totalLoansIssued = ref.watch(totalLoansProvider);
     final totalInterest = ref.watch(totalInterestProvider);
+    final totalRepayments = ref.watch(totalRepaymentsProvider);
     final membersAsync = ref.watch(membersStreamProvider);
     final loansAsync = ref.watch(loansStreamProvider);
+    final contributionsAsync = ref.watch(contributionsStreamProvider);
+    final repaymentsAsync = ref.watch(repaymentsStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -44,88 +77,137 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Month navigation
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.chevron_left),
+                    onPressed: _previousMonth,
+                  ),
+                  const Gap(8),
+                  Text(
+                    '${_monthName(_selectedMonth.month)} ${_selectedMonth.year}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const Gap(8),
+                  IconButton(
+                    icon: const Icon(Icons.chevron_right),
+                    onPressed: _isCurrentMonth ? null : _nextMonth,
+                  ),
+                ],
+              ),
+            ),
+            const Gap(16),
             membersAsync.when(
               data: (members) => loansAsync.when(
-                data: (loans) {
-                  final activeMembers = members.where((m) => m.isActive).length;
-                  final activeLoans = loans.where((l) => !l.isFullyRepaid).length;
-                  final completedLoans = loans.where((l) => l.isFullyRepaid).length;
+                data: (loans) => contributionsAsync.when(
+                  data: (contributions) => repaymentsAsync.when(
+                    data: (repayments) {
+                      // Compute month-scoped values
+                      final monthContribs = contributions.where((c) =>
+                          c.date.month == _selectedMonth.month && c.date.year == _selectedMonth.year);
+                      final monthLoans = loans.where((l) =>
+                          l.issuedDate.month == _selectedMonth.month && l.issuedDate.year == _selectedMonth.year);
+                      final monthRepays = repayments.where((r) =>
+                          r.date.month == _selectedMonth.month && r.date.year == _selectedMonth.year);
 
-                  return GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
-                    childAspectRatio: 1.5,
-                    children: [
-                      ReportStatCard(
-                        title: 'Total Contribution',
-                        value: totalContribution.when(
-                          data: (a) => CurrencyFormatter.format(a),
-                          loading: () => '...',
-                          error: (_, __) => '\$0',
-                        ),
-                        color: AppColors.primary,
-                      ),
-                      ReportStatCard(
-                        title: 'Loans Issued',
-                        value: totalLoansIssued.when(
-                          data: (a) => CurrencyFormatter.format(a),
-                          loading: () => '...',
-                          error: (_, __) => '\$0',
-                        ),
-                        color: AppColors.secondary,
-                      ),
-                      ReportStatCard(
-                        title: 'Interest Gained',
-                        value: totalInterest.when(
-                          data: (a) => CurrencyFormatter.format(a),
-                          loading: () => '...',
-                          error: (_, __) => '\$0',
-                        ),
-                        color: AppColors.warning,
-                      ),
-                      ReportStatCard(
-                        title: 'Ending Balance',
-                        value: totalContribution.when(
-                          data: (contrib) => totalLoansIssued.when(
-                            data: (loans) => CurrencyFormatter.format(contrib - loans),
-                            loading: () => '...',
-                            error: (_, __) => '\$0',
+                      final monthContribTotal = monthContribs.fold<double>(0.0, (s, c) => s + c.amount);
+                      final monthLoanTotal = monthLoans.fold<double>(0.0, (s, l) => s + l.principal);
+
+                      double monthInterest = 0.0;
+                      for (final r in monthRepays) {
+                        final loan = loans.where((l) => l.id == r.loanId).firstOrNull;
+                        if (loan != null) {
+                          final allRepayments = repayments.where((r2) => r2.loanId == loan.id);
+                          final totalRepaid = allRepayments.fold<double>(0.0, (s, r2) => s + r2.amountPaid);
+                          final excess = totalRepaid - loan.principal;
+                          if (excess > 0) {
+                            // Only count interest from this month's repayments
+                            final beforeMonthRepaid = repayments
+                                .where((r2) => r2.loanId == loan.id &&
+                                    (r2.date.year < _selectedMonth.year ||
+                                     (r2.date.year == _selectedMonth.year && r2.date.month < _selectedMonth.month)))
+                                .fold<double>(0.0, (s, r2) => s + r2.amountPaid);
+                            final beforeExcess = beforeMonthRepaid - loan.principal;
+                            monthInterest += excess - (beforeExcess > 0 ? beforeExcess : 0);
+                          }
+                        }
+                      }
+                      if (monthInterest < 0) monthInterest = 0;
+
+                      final monthEndingBalance = monthContribTotal - monthLoanTotal + monthRepays.fold<double>(0.0, (s, r) => s + r.amountPaid);
+
+                      final activeMembers = members.where((m) => m.isActive).length;
+                      final activeLoans = loans.where((l) => !l.isFullyRepaid).length;
+                      final completedLoans = loans.where((l) => l.isFullyRepaid).length;
+
+                      return Column(
+                        children: [
+                          GridView.count(
+                            crossAxisCount: 2,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 12,
+                            crossAxisSpacing: 12,
+                            childAspectRatio: 1.5,
+                            children: [
+                              ReportStatCard(
+                                title: 'Total Contribution',
+                                value: CurrencyFormatter.format(monthContribTotal),
+                                color: AppColors.primary,
+                              ),
+                              ReportStatCard(
+                                title: 'Loans Issued',
+                                value: CurrencyFormatter.format(monthLoanTotal),
+                                color: AppColors.secondary,
+                              ),
+                              ReportStatCard(
+                                title: 'Interest Gained',
+                                value: CurrencyFormatter.format(monthInterest),
+                                color: AppColors.warning,
+                              ),
+                              ReportStatCard(
+                                title: 'Ending Balance',
+                                value: CurrencyFormatter.format(monthEndingBalance),
+                                color: AppColors.info,
+                              ),
+                              ReportStatCard(
+                                title: 'Active Members',
+                                value: '$activeMembers / ${members.length}',
+                                color: AppColors.primary,
+                              ),
+                              ReportStatCard(
+                                title: 'Loans Status',
+                                value: '$activeLoans active · $completedLoans paid',
+                                color: AppColors.secondary,
+                              ),
+                            ],
                           ),
-                          loading: () => '...',
-                          error: (_, __) => '\$0',
-                        ),
-                        color: AppColors.info,
-                      ),
-                      ReportStatCard(
-                        title: 'Active Members',
-                        value: '$activeMembers / ${members.length}',
-                        color: AppColors.primary,
-                      ),
-                      ReportStatCard(
-                        title: 'Loans Status',
-                        value: '$activeLoans active · $completedLoans paid',
-                        color: AppColors.secondary,
-                      ),
-                    ],
-                  );
-                },
+                          const Gap(24),
+                          Text('Member Contributions', style: Theme.of(context).textTheme.displayMedium),
+                          const Gap(16),
+                          _buildContributionsByMember(ref, contributions),
+                          const Gap(24),
+                          Text('Loan Summary', style: Theme.of(context).textTheme.displayMedium),
+                          const Gap(16),
+                          _buildLoanSummary(ref),
+                        ],
+                      );
+                    },
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
+                  ),
+                  loading: () => const SizedBox(),
+                  error: (_, __) => const SizedBox(),
+                ),
                 loading: () => const SizedBox(),
                 error: (_, __) => const SizedBox(),
               ),
               loading: () => const SizedBox(),
               error: (_, __) => const SizedBox(),
             ),
-            const Gap(24),
-            Text('Member Contributions', style: Theme.of(context).textTheme.displayMedium),
-            const Gap(16),
-            _buildContributionsByMember(ref),
-            const Gap(24),
-            Text('Loan Summary', style: Theme.of(context).textTheme.displayMedium),
-            const Gap(16),
-            _buildLoanSummary(ref),
           ],
         ),
       ),
@@ -133,13 +215,19 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     );
   }
 
-  Widget _buildContributionsByMember(WidgetRef ref) {
-    final contribsAsync = ref.watch(contributionsStreamProvider);
+  String _monthName(int month) {
+    const names = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    return names[month - 1];
+  }
+
+  Widget _buildContributionsByMember(WidgetRef ref, List<Contribution> allContributions) {
     final membersAsync = ref.watch(membersStreamProvider);
-    return contribsAsync.when(
-      data: (contributions) {
-        return membersAsync.when(
-          data: (members) {
+    final contributions = allContributions
+        .where((c) => c.date.month == _selectedMonth.month && c.date.year == _selectedMonth.year)
+        .toList();
+    return membersAsync.when(
+      data: (members) {
             final memberMap = {for (var m in members) m.id: m.name};
             Map<String, double> totals = {};
             for (var c in contributions) {
@@ -224,10 +312,6 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           loading: () => const SizedBox(),
           error: (_, __) => const SizedBox(),
         );
-      },
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
   }
 
   Widget _buildLoanSummary(WidgetRef ref) {

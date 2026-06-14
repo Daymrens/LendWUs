@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lendwus-v1';
+const CACHE_NAME = 'lendwus-v2';
 
 const STATIC_ASSETS = [
   '/',
@@ -9,17 +9,16 @@ const STATIC_ASSETS = [
   '/icons/icon-192x192.png',
   '/icons/icon-384x384.png',
   '/icons/icon-512x512.png',
-  '/static/js/main.js',
-  '/static/css/main.css',
+  '/icons/splash.svg',
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -41,6 +40,22 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Network-first for HTML/JS/CSS, cache-first for assets
+  if (url.pathname.match(/\.(html|js|css)$/)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((response) => {
@@ -51,10 +66,7 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return response;
-      }).catch(() => {
-        return cached;
-      });
-
+      }).catch(() => cached);
       return cached || fetchPromise;
     })
   );

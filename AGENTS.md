@@ -1,208 +1,194 @@
-# LendWUs Project Structure
+# AGENTS.md — LendWUs
 
-## Overview
-LendWUs is a group sinking fund management app with two codebases in one repo:
+A family-circle sinking fund (paluwagan) app: group savings, loans, and returns tracking.
 
-| Platform | Location | Tech Stack |
-|----------|----------|------------|
-| **Mobile App** | `/` (root) | Flutter + Dart, Firebase Auth, Firestore, Firebase Messaging |
-| **Web App** | `/website/` | React 18 + TypeScript, Firebase JS SDK v12, Recharts, react-router-dom v7 |
+- **Mobile**: Flutter + Dart
+- **Web**: React 18 + TypeScript marketing site
+- **Backend**: Firebase (Auth, Cloud Firestore, Hosting) — **Spark plan, no Cloud Functions**
 
-Both share the same Firebase project (`lmsystemm`, region `asia-east2`).
+## Setup
 
----
+```bash
+# Mobile deps
+flutter pub get
 
-## Mobile App (`/` - Flutter)
+# Website deps
+cd website && npm install
+```
 
-### Key Directories
+Firebase Console setup (project `lmsystemm`):
+- Enable **Email/Password** and **Google Sign-In** under Authentication providers.
+- Google Sign-In debug SHA-1: `B5:BD:8F:C3:D7:F9:E7:57:83:2B:C8:EE:5D:DC:56:2F:FA:36:BF:FB`
+
+Hardcoded admin emails (auto-linked on Google sign-in):
+- `act.drapor@gmail.com`
+- `daymrens@gmail.com`
+
+## Run
+
+```bash
+# Mobile app
+flutter run
+
+# Website (dev server)
+cd website && npm start
+
+# Website (build + deploy)
+cd website && npm run build
+npx firebase deploy --only hosting
+```
+
+## Build
+
+```bash
+# Debug APK
+flutter build apk --debug
+# Output: build/app/outputs/flutter-apk/app-debug.apk
+```
+
+## Lint / Analyze
+
+```bash
+# Dart static analysis (uses analysis_options.yaml)
+flutter analyze
+
+# Run tests
+flutter test
+```
+
+For the website, use whatever lint/test scripts are defined in `website/package.json` (e.g. `npm run lint`, `npm test`) if present.
+
+## Project Structure
+
 ```
 lib/
-  app.dart                  - GoRouter routes (~456 lines), theme + nav bars
-  core/
-    firebase/
-      firebase_service.dart - FirebaseService (static auth/firestore access, seedDefaults, uploadReceiptImage)
-    services/               - 7 services: security, notification_watcher, reminder_service,
-                              notification_service, email_notification_service, csv_export_service, storage_service
-    utils/                  - 7 utils: interest_calculator, firestore_helpers, export_utils,
-                              currency_formatter, cutoff_calculator, date_formatter, member_id_generator
-  data/
-    models/                 - 15 models: Member, Loan, Contribution, Repayment, ReturnsInfo, MonthlyReport,
-                              AppSettings, FundSummary, User, LoanRequest, PaymentRequest,
-                              MemberWithStatus, NotificationItem, ActivityLog, HeadChangeRequest
-    repositories/           - 12 repos: member, loan, contribution, activity_log, settings, returns,
-                              user, loan_request, fund, head_change_request, notification, payment_request
-  providers/                - 13 Riverpod providers (members_provider, loans_provider, auth_provider,
-                              fund_provider, reports_provider, settings_provider, theme_provider, etc.)
-  screens/
-    admin/                  - analytics_dashboard, export_screen, member_migration, bulk_loan_processing,
-                              compliance_reports, member_performance_analytics, admin_settings_screen,
-                              activity_feed_screen, admin_data_screen, approvals_screen,
-                              member_balance_screen, member_profile_screen
-    auth/                   - login_screen, welcome_screen (no "register" — it's welcome_screen)
-    contributions/          - contributions_screen
-    dashboard/              - dashboard_screen (admin)
-    loans/                  - loans_screen
-    member/                 - member_dashboard, member_contributions, member_loans, member_requests,
-                              loan_calculator, amortization_screen, member_pay_screen,
-                              member_loan_request_screen
-    members/                - members_screen
-    modals/                 - 8 modals: record_repayment, member_payment, issue_loan, member_head_change,
-                              new_contribution, add_member, member_loan_request, pending_approval_dialog
-    notifications/          - notifications_screen
-    onboarding/             - introduction_screen
-    profile/                - profile_screen, help_support_screen, about_screen,
-                              privacy_security_screen, edit_profile_screen
-    reports/                - reports_screen
-  widgets/                  - wave_nav_bar
+├── core/
+│   ├── theme/          # AppColors, dark theme
+│   ├── utils/          # CurrencyFormatter
+│   └── widgets/        # LendWUsLogo
+├── data/
+│   ├── models/         # Loan, Member, PaymentRequest, Repayment, etc.
+│   └── repositories/   # Firestore CRUD per collection
+├── providers/           # Riverpod providers
+└── screens/             # UI screens organized by role/feature
+
+website/
+├── public/
+└── src/
+    ├── App.tsx          # Single-page landing (nav, hero, features, etc.)
+    ├── App.css          # Fully responsive (mobile hamburger nav)
+    └── firebase.ts       # Firebase config
 ```
 
-### Routes (`app.dart`)
-Routes are split into 3 groups: public (no shell), admin shell, member shell.
+## Tech Stack & Conventions
 
-**Public (no shell):**
-| Route | Screen |
-|-------|--------|
-| `/login` | LoginScreen |
-| `/intro` | IntroductionScreen |
-| `/unrecognized` | UnrecognizedScreen |
-| `/help` | HelpSupportScreen |
-| `/about` | AboutScreen |
-| `/privacy-security` | PrivacySecurityScreen |
-| `/edit-profile` | EditProfileScreen |
-| `/notifications` | NotificationsScreen |
+| Layer      | Technology                            |
+| ---------- | -------------------------------------- |
+| Mobile     | Flutter & Dart                         |
+| Web        | React 18 + TypeScript                  |
+| State Mgmt | Riverpod (providers + StreamProvider)  |
+| Navigation | go_router                              |
+| Auth       | Firebase Auth (email + Google)         |
+| Database   | Cloud Firestore (NoSQL)                |
+| Backend    | Firebase Spark plan — no Functions     |
+| Hosting    | Firebase Hosting                       |
+| Charts     | fl_chart                                |
+| Icons      | lucide-react (website)                 |
 
-**Admin ShellRoute (BottomNavigationBar: Home, Members, Contribs, Loans, Reports, Profile, Activity):**
-| Route | Screen |
-|-------|--------|
-| `/` | DashboardScreen |
-| `/members` | MembersScreen |
-| `/contributions` | ContributionsScreen |
-| `/loans` | LoansScreen |
-| `/reports` | ReportsScreen |
-| `/approvals` | ApprovalsScreen |
-| `/settings` | AdminSettingsScreen |
-| `/data-management` | AdminDataScreen |
-| `/member-balances` | MemberBalanceScreen |
-| `/member-profile/:memberId` | AdminMemberProfileScreen |
-| `/profile` | ProfileScreen |
-| `/export` | ExportScreen |
-| `/activity` | ActivityFeedScreen |
-| `/analytics` | AnalyticsDashboard |
-| `/member-performance` | MemberPerformanceAnalytics |
-| `/member-migration` | MemberMigrationScreen |
-| `/bulk-loans` | BulkLoanProcessingScreen |
-| `/compliance-reports` | ComplianceReportsScreen |
+### Conventions
 
-**Member ShellRoute (BottomNavigationBar: Home, My Contribs, Loans, Requests, Profile):**
-| Route | Screen |
-|-------|--------|
-| `/member-home` | MemberDashboardScreen |
-| `/member-contributions` | MemberContributionsScreen |
-| `/member-loans` | MemberLoansScreen |
-| `/member-requests` | MemberRequestsScreen |
-| `/member-profile` | ProfileScreen |
-| `/loan-calculator` | LoanCalculatorScreen |
+- **Repository pattern**: all Firestore reads/writes go through `lib/data/repositories`, never directly from widgets or providers.
+- **State**: Riverpod providers in `lib/providers`; use `StreamProvider` for live Firestore data, `autoDispose` for screen-scoped providers holding listeners.
+- **Models**: define `fromJson`/`toJson` (or Firestore equivalents) with null-safe defaults — avoid `!` on Firestore document data.
+- **Theming**: use `AppColors` and the existing dark theme rather than hardcoded colors.
+- **Currency**: always go through `CurrencyFormatter`; the app supports PHP/USD/EUR via admin settings.
+- **No server-side validation**: since there are no Cloud Functions, business-rule enforcement (loan interest, returns calc, payment limits) must be backed by `firestore.rules`, not just client logic.
 
-### Key Models
-- **Member**: id?, memberId?, name, headsCount, amountPerHead, totalRequired, balance, avatarPath?, joinedAt, isActive, linkedEmail?
-- **Loan**: id?, memberId, principal, interestRate, issuedDate, dueDate, isFullyRepaid
-- **Contribution**: id?, memberId, amount, date, month, year, notes?, createdBy?
-- **Repayment**: id?, loanId, amountPaid, date
-- **ReturnsInfo**: totalReturns, totalHeads, perHeadShare (computed)
-- **MonthlyReport**: month, year, totalContribution, loansIssued, interestGained, endingBalance
-- Other models: AppSettings, FundSummary, User, LoanRequest, PaymentRequest, MemberWithStatus, NotificationItem, ActivityLog, HeadChangeRequest
+## Key Files
 
-### Commands
+- `firestore.rules` — security rules; review before changing any write path.
+- `firestore.indexes.json` — required for any new compound Firestore query.
+- `sinking_fund_logic.md` — domain logic reference (interest, returns, repayments).
+- `sinking_fund_app.md` — app/feature overview.
+- `analysis_options.yaml` — Dart analyzer config.
+- `scripts/seed_emulator.dart` — seeds the Firestore emulator with known test data matching `sinking_fund_logic.md` examples.
+
+## ⚠️ Spark Plan Constraints
+
+This project is on the **Firebase Spark (free) plan**. Do NOT:
+- Use **Cloud Functions** (no server-side logic)
+- Use **Firebase Storage** (base64 fallback for receipts instead)
+- Add any feature requiring a Blaze/Blaze plan service
+
+All business-rule enforcement must be in `firestore.rules`, not Cloud Functions or client-only code.
+
+## Target Platforms
+
+- Android (8.0+)
+- iOS
+- Web (marketing site only)
+
+## Debugging Setup
+
+When debugging a reported issue, prefer **verification over inference** — run things and look at real output rather than reasoning from source alone.
+
+### 1. Static analysis + tests first
+
+Before forming a hypothesis about a Dart/Flutter bug, run:
+
 ```bash
-flutter pub get
 flutter analyze
 flutter test
-flutter run          # mobile
-flutter run -d chrome # web (if web support enabled)
 ```
 
----
+If the bug has no failing test yet, **write one that reproduces it first** (in `test/`), confirm it fails for the expected reason, then fix until it passes. Don't mark a fix done without `flutter analyze` clean and `flutter test` passing.
 
-## Web App (`/website/` - React)
+### 2. Firebase Local Emulator Suite (for Firestore/rules/auth bugs)
 
-### Key Directories
-```
-website/src/
-  pages/
-    admin/          - 17 files: Dashboard, Members, MemberProfile, Approvals, Activity, Reports,
-                      DataManagement, Settings, Notifications, GlobalSearch, ExportPage,
-                      AnalyticsDashboard, MemberPerformance, MemberMigration, BulkLoanProcessing,
-                      ComplianceReports, Login (unused)
-    member/         - 14 files + modals/: Dashboard, Loans, Contributions, Requests, Profile,
-                      Notifications, EditProfile, HelpSupport, About, PrivacySecurity,
-                      Unrecognized, LoanCalculator, Login (unused)
-    Login.tsx       - The actual login component used by App.tsx
-  context/
-    AuthContext.tsx  - Auth provider (login, Google sign-in, join with group code, resolveUser)
-    MemberAuthContext.tsx - Thin re-export wrapper (unused directly)
-  utils/
-    export.ts       - downloadCSV helper
-    memberId.ts     - Member ID generation (LWS-######)
-  firebase.ts       - Firebase config (project: lmsystemm, region: asia-east2)
-  App.tsx           - All routes, AdminLayout, MemberLayout, LandingPage (578 lines)
-  App.css           - Dark theme, responsive layout, modals, tables (~2050 lines)
-```
+Most real bugs in this app involve Firestore — permission-denied errors, missing indexes, wrong query results, rules misbehaving, or stream timing issues. The emulator lets you see the *actual* Firestore response instead of guessing from `firestore.rules`.
 
-### Routes (`App.tsx`)
-All admin routes are wrapped in `<ProtectedRoute>` + `<AdminLayout>`; member routes in `<ProtectedMemberRoute>` + `<MemberLayout>`.
-
-| Route | Component | Auth |
-|-------|-----------|------|
-| `/` | LandingPage | Public |
-| `/login` | Login | Public |
-| `/admin` | Redirect → `/login` | — |
-| `/ios` | Redirect → `/login` | — |
-| `/member/login` | Redirect → `/login` | — |
-| `*` (catch-all) | Redirect → `/` | — |
-| `/admin/dashboard` | Dashboard | Admin |
-| `/admin/members` | Members | Admin |
-| `/admin/members/:id` | MemberProfile | Admin |
-| `/admin/approvals` | Approvals | Admin |
-| `/admin/activity` | Activity | Admin |
-| `/admin/settings` | Settings | Admin |
-| `/admin/reports` | Reports | Admin |
-| `/admin/data` | DataManagement | Admin |
-| `/admin/notifications` | Notifications | Admin |
-| `/admin/export` | ExportPage | Admin |
-| `/admin/analytics` | AnalyticsDashboard | Admin |
-| `/admin/member-performance` | MemberPerformance | Admin |
-| `/admin/member-migration` | MemberMigration | Admin |
-| `/admin/bulk-loans` | BulkLoanProcessing | Admin |
-| `/admin/compliance-reports` | ComplianceReports | Admin |
-| `/member/unrecognized` | MemberUnrecognized | Public |
-| `/member/dashboard` | MemberDashboard | Member |
-| `/member/loans` | MemberLoans | Member |
-| `/member/contributions` | MemberContributions | Member |
-| `/member/requests` | MemberRequests | Member |
-| `/member/profile` | MemberProfilePage | Member |
-| `/member/notifications` | MemberNotifications | Member |
-| `/member/edit-profile` | MemberEditProfile | Member |
-| `/member/help-support` | MemberHelpSupport | Member |
-| `/member/about` | MemberAbout | Member |
-| `/member/privacy-security` | MemberPrivacySecurity | Member |
-| `/member/loan-calculator` | LoanCalculator | Member |
-
-### Layouts
-- **AdminLayout** sidebar nav: Dashboard, Members, Approvals, Activity, Reports, Notifications, Export, Analytics, Performance, Migration, Bulk Loans, Compliance, Data Mgmt, Settings + search toggle + sign out
-- **MemberLayout** sidebar nav: Home, Loans, Contributions, Requests, Loan Calc, Notifications, Profile, Edit Profile, Privacy & Security, Help & Support, About + sign out
-
-### Authentication Flow
-1. User signs in via email/password or Google
-2. `resolveUser()` checks Firestore `users/{uid}` doc
-3. If no user doc: checks if email is in `app_settings/fund_settings.adminEmails[]` (creates admin doc), or searches `members` collection for `linkedEmail` match (creates member doc)
-4. If user exists: validates role, resolves member linkage (with repair fallback via `linkedEmail`)
-5. Member accounts watch their member doc via `onSnapshot` for deactivation detection
-6. `joinWithGroupCode("LENDWUS")` creates a member doc + `users/{uid}` doc in a Firestore transaction for signed-in Firebase users without an existing member record
-
-### Commands
+**Install** (one-time):
 ```bash
-cd website
-npm install    # install dependencies
-npm start      # dev server on localhost:3000
-npm run build  # production build
+npm install -g firebase-tools
 ```
+
+**Start emulators**:
+```bash
+firebase emulators:start --only firestore,auth
+```
+
+This uses the project's `firebase.json` config. Default ports: Firestore `8080`, Auth `9099`, Emulator UI `4000` (check `firebase.json` for actual configured ports).
+
+**Point the app at the emulator** — when running `flutter run` for debugging, the app needs `useFirestoreEmulator`/`useAuthEmulator` calls (typically in `main.dart`, gated behind a debug flag or environment check). If this isn't already wired up, add it behind `kDebugMode` rather than hardcoding for all builds.
+
+**Workflow for a Firestore/rules bug**:
+1. Start the emulator.
+2. Run `scripts/seed_emulator.dart` (see below) to populate known test data.
+3. Reproduce the reported action (loan issuance, repayment, approval, etc.) against the emulator.
+4. Read the actual error from the Emulator UI (`http://localhost:4000`) — for rules issues this shows exactly which `allow` clause failed and why.
+5. Fix `firestore.rules` or the client code, re-run the same repro, confirm the error is gone.
+
+**Workflow for a rules-only check** (no app needed):
+```bash
+firebase emulators:exec --only firestore "dart run scripts/seed_emulator.dart"
+```
+This starts the emulator, runs the script, and shuts down — good for quick repro without leaving emulators running.
+
+### 3. Get the real error, not a paraphrase
+
+Ask for (or capture) the full stack trace via `flutter logs` or the red error screen text verbatim — Dart stack traces point at the exact file/line/widget, which narrows the search dramatically compared to a symptom description like "the loan screen crashes."
+
+### 4. Domain logic bugs (interest, balances, returns)
+
+For bugs involving fund balance, loan interest, repayments, or returns:
+1. Read `sinking_fund_logic.md` for the expected formula/edge case.
+2. Use `scripts/seed_emulator.dart` to set up the exact scenario from the spec (or the user's reported numbers).
+3. Run the relevant provider/computation against that seeded data and compare actual vs. expected per the formula.
+4. If they diverge, the bug is in the implementation; if the spec itself doesn't cover the case (e.g. a new edge case), flag it and propose updating `sinking_fund_logic.md` too (see `CONTRIBUTING.md` → Domain Logic Changes).
+
+## Notes for Agents
+
+- This repo has no CI-configured test suite beyond `flutter test` / `test/` — run it after non-trivial Dart changes.
+- Don't add Cloud Functions–dependent features without flagging that the project is on the Firebase Spark (free) plan.
+- When touching Firestore queries, check `firestore.indexes.json` for a matching index or the query will fail in production.
+- Admin role is currently determined by hardcoded email list — if changing auth/role logic, update both client checks and `firestore.rules` consistently.

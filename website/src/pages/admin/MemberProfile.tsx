@@ -71,7 +71,7 @@ const MemberProfile: React.FC = () => {
         getDoc(doc(db, "members", id!)),
         getDocs(query(collection(db, "contributions"), where("memberId", "==", id))),
         getDocs(query(collection(db, "loans"), where("memberId", "==", id), orderBy("issuedDate", "desc"))),
-        getDocs(query(collection(db, "payment_requests"), where("memberId", "==", id), orderBy("requestDate", "desc"))),
+        getDocs(query(collection(db, "payment_requests"), where("memberId", "==", id))),
       ]);
       if (!memSnap.exists()) { setError("Member not found"); setLoading(false); return; }
       setMember({ id: memSnap.id, ...memSnap.data() });
@@ -134,7 +134,7 @@ const MemberProfile: React.FC = () => {
           <span><strong style={{ color: "#c9d1d9" }}>Per Head:</strong> ₱{fmt(member.amountPerHead || 0)}</span>
           <span><strong style={{ color: "#c9d1d9" }}>Required:</strong> ₱{fmt(member.totalRequired || 0)}</span>
           {member.linkedEmail && <span><strong style={{ color: "#c9d1d9" }}>Email:</strong> {member.linkedEmail}</span>}
-          <span><strong style={{ color: "#c9d1d9" }}>Status:</strong> {member.isActive ? <span style={{ color: "#22c55e" }}>Active</span> : <span style={{ color: "#ef4444" }}>Inactive</span>}</span>
+          <span><strong style={{ color: "#c9d1d9" }}>Status:</strong> {(member.active ?? member.isActive) ? <span style={{ color: "#22c55e" }}>Active</span> : <span style={{ color: "#ef4444" }}>Inactive</span>}</span>
           <span><strong style={{ color: "#c9d1d9" }}>Joined:</strong> {member.joinedAt?.toDate?.()?.toLocaleDateString() || "N/A"}</span>
         </div>
       </div>

@@ -116,7 +116,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
     final paymentRequest = PaymentRequest(
       memberId: memberId,
       loanId: widget.loanId,
-      amount: double.parse(_amountController.text),
+      amount: double.parse(_amountController.text.replaceAll(',', '')),
       receiptPath: _receiptImage?.path,
       receiptUrl: receiptUrl,
       status: PaymentStatus.pending,
@@ -182,7 +182,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                         radius: 20,
                         backgroundColor: AppColors.primary.withAlpha(25),
                         child: Text(
-                          (_member!.name ?? 'M')[0].toUpperCase(),
+                           _member!.name.isNotEmpty ? _member!.name[0].toUpperCase() : 'M',
                           style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                       ),
@@ -363,7 +363,8 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) return 'Please enter amount';
-                  final amount = double.tryParse(value);
+                  final cleaned = value.replaceAll(',', '');
+                  final amount = double.tryParse(cleaned);
                   if (amount == null) return 'Please enter valid amount';
                   if (amount <= 0) return 'Amount must be greater than zero';
                   return null;

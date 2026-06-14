@@ -38,3 +38,8 @@ final overdueLoansCountProvider = Provider<int>((ref) {
   final now = DateTime.now();
   return loans.where((l) => !l.isFullyRepaid && l.dueDate.isBefore(now)).length;
 });
+
+final totalRepaymentsProvider = FutureProvider<double>((ref) async {
+  final repo = ref.watch(loanRepositoryProvider);
+  return await repo.getTotalRepayments();
+});

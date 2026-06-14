@@ -77,8 +77,9 @@ class MemberLoansScreen extends ConsumerWidget {
                       )
                     : Column(
                         children: loans.map((loanData) {
-                          final loan = loanData['loan'] as Loan;
-                          final remainingBalance = loanData['remainingBalance'] as double;
+                          final loan = loanData['loan'] as Loan?;
+                          if (loan == null) return const SizedBox();
+                          final remainingBalance = (loanData['remainingBalance'] as num?)?.toDouble() ?? 0.0;
                           final totalDue = loan.principal + (loan.principal * loan.interestRate);
                           final progress = totalDue > 0 ? ((totalDue - remainingBalance) / totalDue).clamp(0.0, 1.0) : 0.0;
                           final now = DateTime.now();
@@ -100,7 +101,7 @@ class MemberLoansScreen extends ConsumerWidget {
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text('Loan #${loan.id!.length > 5 ? loan.id!.substring(0, 5) : loan.id}',
+                                          Text('Loan #${loan.id != null && loan.id!.length > 5 ? loan.id!.substring(0, 5) : (loan.id ?? '')}',
                                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                                           Text('${(loan.interestRate * 100).toStringAsFixed(0)}% interest',
                                             style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
@@ -222,7 +223,7 @@ class _RepaidLoansSection extends ConsumerWidget {
                   backgroundColor: AppColors.success,
                   child: Icon(Icons.check, color: Colors.white, size: 18),
                 ),
-                title: Text('Loan #${loan.id!.length > 5 ? loan.id!.substring(0, 5) : loan.id}',
+                title: Text('Loan #${loan.id != null && loan.id!.length > 5 ? loan.id!.substring(0, 5) : (loan.id ?? '')}',
                   style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                 subtitle: Text('Principal: ${CurrencyFormatter.format(loan.principal)} • ${(loan.interestRate * 100).toStringAsFixed(0)}%',
                   style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 12)),
@@ -232,7 +233,7 @@ class _RepaidLoansSection extends ConsumerWidget {
                     color: AppColors.success.withAlpha(25),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text('PAID',
+                  child: const Text('Paid',
                     style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
               ),
@@ -295,12 +296,21 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
 
   Future<void> _fetchRepayments() async {
     final repo = LoanRepository();
-    final repayments = await repo.getRepaymentsByLoan(widget.loan.id!);
-    if (mounted) {
-      setState(() {
-        _repayments = repayments;
-        _loadingRepayments = false;
-      });
+    final loanId = widget.loan.id;
+    if (loanId == null) {
+      if (mounted) setState(() => _loadingRepayments = false);
+      return;
+    }
+    try {
+      final repayments = await repo.getRepaymentsByLoan(loanId);
+      if (mounted) {
+        setState(() {
+          _repayments = repayments;
+          _loadingRepayments = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingRepayments = false);
     }
   }
 
@@ -337,7 +347,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Loan #${l.id!.length > 5 ? l.id!.substring(0, 5) : l.id}',
+                  'Loan #${l.id != null && l.id!.length > 5 ? l.id!.substring(0, 5) : (l.id ?? '')}',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 const SizedBox(height: 4),
@@ -380,7 +390,7 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
           _detailRow('Issued', DateFormatter.format(l.issuedDate)),
           _detailRow('Due Date', DateFormatter.format(l.dueDate)),
           if (l.isFullyRepaid)
-            _detailRow('Status', 'Fully Paid'),
+            _detailRow('Status', 'Paid'),
           const SizedBox(height: 16),
           Divider(height: 1, color: AppColors.surfaceAlt),
           const SizedBox(height: 12),

@@ -489,7 +489,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                         children: [
                           Text(CurrencyFormatter.format(contrib.amount),
                             style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text('#${contrib.id?.substring(0, 4) ?? ''}',
+                          Text('#${(contrib.id?.length ?? 0) >= 4 ? contrib.id!.substring(0, 4) : contrib.id ?? ''}',
                             style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
                         ],
                       ),

@@ -67,7 +67,16 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
         return;
       }
 
-      if (_dueDate.isBefore(DateTime.now())) {
+      final member = _selectedMember;
+      if (member == null || !member.isActive) {
+        setState(() {
+          _errorMessage = 'Member is not active';
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      if (!_dueDate.isAfter(DateTime.now())) {
         setState(() {
           _errorMessage = 'Due date must be in the future';
           _isSubmitting = false;
@@ -202,23 +211,26 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
                 ),
               ),
             members.when(
-              data: (list) => DropdownButtonFormField<String>(
-                decoration: InputDecoration(
-                  labelText: 'Member',
-                  prefixIcon: const Icon(Icons.person, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppColors.surfaceAlt,
-                ),
-                items: list.map((member) {
-                  return DropdownMenuItem(
-                    value: member.id,
-                    child: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
-                  );
-                }).toList(),
-                onChanged: (value) => setState(() => _selectedMemberId = value),
-                validator: (value) => value == null ? 'Select a member' : null,
-              ),
+              data: (list) {
+                final activeMembers = list.where((m) => m.isActive).toList();
+                return DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    labelText: 'Member',
+                    prefixIcon: const Icon(Icons.person, size: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: AppColors.surfaceAlt,
+                  ),
+                  items: activeMembers.map((member) {
+                    return DropdownMenuItem(
+                      value: member.id,
+                      child: Text(member.name, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    );
+                  }).toList(),
+                  onChanged: (value) => setState(() => _selectedMemberId = value),
+                  validator: (value) => value == null ? 'Select a member' : null,
+                );
+              },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (_, __) => const Text('Error loading members'),
             ),
@@ -303,7 +315,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
                   final date = await showDatePicker(
                     context: context,
                     initialDate: _dueDate,
-                    firstDate: DateTime.now(),
+                    firstDate: DateTime.now().add(const Duration(days: 1)),
                     lastDate: DateTime.now().add(const Duration(days: 365)),
                   );
                   if (date != null) {

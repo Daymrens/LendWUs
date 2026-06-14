@@ -113,6 +113,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
     await loanRepo.addRepayment(repayment);
     ref.invalidate(totalInterestProvider);
     ref.invalidate(fundSummaryProvider);
+    ref.invalidate(totalRepaymentsProvider);
 
     if (mounted) Navigator.pop(context);
   }

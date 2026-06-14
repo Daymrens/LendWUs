@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan_request.dart';
 import '../models/loan.dart';
 import 'notification_repository.dart';
@@ -98,18 +99,94 @@ class LoanRequestRepository {
     final data = requestSnap.data()!;
     if (data['status'] != 'pending') return false;
     final memberId = data['memberId'] as String;
+    final principal = (data['amount'] as num).toDouble();
+    final dueDate = parseFirestoreDate(data['dueDate']);
+
+    // --- Eligibility checks (§3, §5.2) ---
+    if (principal <= 0) {
+      await _rejectRequest(requestRef, notes,
+          reason: 'Loan amount must be greater than zero');
+      return false;
+    }
+
+    if (!dueDate.isAfter(DateTime.now())) {
+      await _rejectRequest(requestRef, notes,
+          reason: 'Due date must be in the future');
+      return false;
+    }
+
+    final memberSnap = await firestore.collection('members').doc(memberId).get();
+    final memberData = memberSnap.data();
+    if (memberData == null || memberData['isActive'] != true) {
+      await _rejectRequest(requestRef, notes,
+          reason: 'Member is not active');
+      return false;
+    }
 
     // Pre-check for active loans to avoid creating duplicates when two
-    // admins approve concurrent requests. Race-safe within the transaction
-    // is enforced by the unique-id loan doc; this check short-circuits the
-    // common case without needing an extra round-trip.
+    // admins approve concurrent requests. The transaction below re-checks
+    // the request status to prevent double-approval of the same request.
     final existingActive = await firestore
         .collection('loans')
         .where('memberId', isEqualTo: memberId)
         .where('isFullyRepaid', isEqualTo: false)
         .limit(1)
         .get();
-    if (existingActive.docs.isNotEmpty) return false;
+    if (existingActive.docs.isNotEmpty) {
+      await _rejectRequest(requestRef, notes,
+          reason: 'Member already has an unpaid loan');
+      return false;
+    }
+
+    // Compute availableToLoan: fundBalance - outstanding from non-repaid loans
+    // NOTE: This check runs outside the transaction because Firestore
+    // transactions cannot read entire collections (only individual docs).
+    // A concurrent admin approval could slightly alter the balance between
+    // this check and the transaction below — this is a known limitation
+    // of the Spark plan (no Cloud Functions for server-side enforcement).
+    // The transaction re-verifies the request status to prevent
+    // double-approval of the same request.
+    final contribSnap = await firestore.collection('contributions').get();
+    final loanSnap = await firestore.collection('loans').get();
+    final repaySnap = await firestore.collection('repayments').get();
+
+    final totalContributions = contribSnap.docs.fold<double>(
+        0.0, (sum, d) => sum + ((d.data()['amount'] as num?)?.toDouble() ?? 0));
+    final totalLoansIssued = loanSnap.docs.fold<double>(
+        0.0, (sum, d) => sum + ((d.data()['principal'] as num?)?.toDouble() ?? 0));
+    final totalRepayments = repaySnap.docs.fold<double>(
+        0.0, (sum, d) => sum + ((d.data()['amountPaid'] as num?)?.toDouble() ?? 0));
+    final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
+
+    double outstanding = 0.0;
+    final repayByLoan = <String, List<double>>{};
+    for (final doc in repaySnap.docs) {
+      final r = doc.data();
+      final loanId = r['loanId'] as String?;
+      final amount = (r['amountPaid'] as num?)?.toDouble() ?? 0;
+      repayByLoan.putIfAbsent(loanId!, () => []).add(amount);
+    }
+    for (final doc in loanSnap.docs) {
+      final l = doc.data();
+      if (l['isFullyRepaid'] == true) continue;
+      final loanPrincipal = (l['principal'] as num?)?.toDouble() ?? 0;
+      final rate = (l['interestRate'] as num?)?.toDouble() ?? 0;
+      final loanId = doc.id;
+      final totalRepaid =
+          (repayByLoan[loanId] ?? []).fold<double>(0.0, (s, a) => s + a);
+      final totalDue = loanPrincipal + (loanPrincipal * rate);
+      final remaining = totalDue - totalRepaid;
+      if (remaining > 0) outstanding += remaining;
+    }
+
+    final availableToLoan = fundBalance - outstanding;
+    if (principal > availableToLoan) {
+      await _rejectRequest(requestRef, notes,
+          reason: 'Insufficient fund balance');
+      return false;
+    }
+
+    // --- End eligibility checks ---
 
     // Pre-generate a loan doc reference so the create + request update can be atomic.
     final loanRef = firestore.collection('loans').doc();
@@ -122,9 +199,9 @@ class LoanRequestRepository {
 
       final loan = Loan(
         memberId: memberId,
-        principal: (fresh['amount'] as num).toDouble(),
+        principal: principal,
         interestRate: ((fresh['interestRate'] as num?)?.toDouble() ?? 0) / 100,
-        dueDate: parseFirestoreDate(fresh['dueDate']),
+        dueDate: dueDate,
         issuedDate: DateTime.now(),
         isFullyRepaid: false,
       );
@@ -140,7 +217,7 @@ class LoanRequestRepository {
 
     if (!approved) return false;
 
-    final amountLabel = CurrencyFormatter.format((data['amount'] as num).toDouble());
+    final amountLabel = CurrencyFormatter.format(principal);
     NotificationRepository.notifyMember(
       memberId,
       'Loan Approved',
@@ -148,6 +225,15 @@ class LoanRequestRepository {
       type: 'loan_request_approved',
     );
     return true;
+  }
+
+  Future<void> _rejectRequest(DocumentReference requestRef, String? notes,
+      {required String reason}) async {
+    await requestRef.update({
+      'status': 'rejected',
+      'processedAt': DateTime.now().toIso8601String(),
+      'notes': notes ?? reason,
+    });
   }
 
   Future<bool> rejectLoanRequest(String requestId, {String? notes}) async {

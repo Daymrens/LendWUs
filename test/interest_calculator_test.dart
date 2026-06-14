@@ -168,5 +168,35 @@ void main() {
     test('isLoanFullyRepaid returns false when total repaid < total due', () {
       expect(InterestCalculator.isLoanFullyRepaid(testLoan, testRepayments), false);
     });
+
+    test('isLoanFullyRepaid returns true when total repaid exactly equals total due', () {
+      final exactRepayments = [
+        Repayment(loanId: 'loan1', amountPaid: 11000.0, date: DateTime.now()),
+      ];
+      expect(InterestCalculator.isLoanFullyRepaid(testLoan, exactRepayments), true);
+    });
+  });
+
+  group('InterestCalculator.calculateMonthlyPayment', () {
+    test('calculates monthly payment for a standard loan', () {
+      final payment = InterestCalculator.calculateMonthlyPayment(10000, 0.12, 12);
+      expect(payment, closeTo(888.49, 0.01));
+    });
+
+    test('returns principal / term when interest rate is zero', () {
+      final payment = InterestCalculator.calculateMonthlyPayment(12000, 0.0, 12);
+      expect(payment, 1000.0);
+    });
+
+    test('handles single month term (principal + monthly interest)', () {
+      final payment = InterestCalculator.calculateMonthlyPayment(5000, 0.12, 1);
+      // 5000 * 1.01 = 5050 (principal + 1% monthly interest)
+      expect(payment, closeTo(5050.0, 0.01));
+    });
+
+    test('handles zero rate with single month', () {
+      final payment = InterestCalculator.calculateMonthlyPayment(5000, 0.0, 1);
+      expect(payment, 5000.0);
+    });
   });
 }

@@ -47,6 +47,12 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
     final repaymentsAsync = ref.watch(repaymentsStreamProvider);
     final paymentsAsync = ref.watch(paymentRequestsStreamProvider);
 
+    final streamErrors = <String>[];
+    if (contributionsAsync.hasError) streamErrors.add('contributions');
+    if (loansAsync.hasError) streamErrors.add('loans');
+    if (repaymentsAsync.hasError) streamErrors.add('repayments');
+    if (paymentsAsync.hasError) streamErrors.add('payment requests');
+
     return memberAsync.when(
       data: (member) {
         if (member == null) {
@@ -64,6 +70,7 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
         final memberLoans = allLoans.where((l) => l.memberId == widget.memberId).toList();
         final totalLoans = memberLoans.fold<double>(0.0, (s, l) => s + l.principal);
         final activeLoans = memberLoans.where((l) => !l.isFullyRepaid).length;
+        final overdueLoans = memberLoans.where((l) => !l.isFullyRepaid && l.dueDate.isBefore(DateTime.now())).length;
 
         final loanIds = memberLoans.map((l) => l.id).whereType<String>().toSet();
         final allRepayments = [...?repaymentsAsync.asData?.value];
@@ -98,11 +105,33 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
           body: Column(
             children: [
               _MemberHeader(member: member),
+              if (streamErrors.isNotEmpty)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.warning.withAlpha(128)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: AppColors.warning, size: 16),
+                      const Gap(8),
+                      Expanded(
+                        child: Text('Error loading ${streamErrors.join(', ')}',
+                          style: const TextStyle(color: AppColors.warning, fontSize: 12)),
+                      ),
+                    ],
+                  ),
+                ),
               _StatsRow(
                 totalContributions: totalContribs,
                 totalLoans: totalLoans,
                 activeLoans: activeLoans,
                 totalRepaid: totalRepaid,
+                overdueLoans: overdueLoans,
               ),
               const Gap(8),
               TabBar(
@@ -165,7 +194,7 @@ class _MemberHeader extends StatelessWidget {
             radius: 36,
             backgroundColor: AppColors.primary.withAlpha(30),
             child: Text(
-              member.name[0].toUpperCase(),
+              member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
               style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 28),
             ),
           ),
@@ -246,16 +275,27 @@ class _StatsRow extends StatelessWidget {
   final double totalLoans;
   final int activeLoans;
   final double totalRepaid;
+  final int overdueLoans;
 
   const _StatsRow({
     required this.totalContributions,
     required this.totalLoans,
     required this.activeLoans,
     required this.totalRepaid,
+    this.overdueLoans = 0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final activeColor = overdueLoans > 0
+        ? AppColors.error
+        : activeLoans > 0
+            ? AppColors.warning
+            : AppColors.textMuted;
+    final activeValue = overdueLoans > 0
+        ? '$overdueLoans overdue'
+        : '$activeLoans';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: Row(
@@ -264,7 +304,7 @@ class _StatsRow extends StatelessWidget {
           const Gap(8),
           Expanded(child: _StatTile(label: 'Total Loans', value: CurrencyFormatter.format(totalLoans), icon: Icons.account_balance, color: AppColors.warning)),
           const Gap(8),
-          Expanded(child: _StatTile(label: 'Active Loans', value: '$activeLoans', icon: Icons.trending_up, color: activeLoans > 0 ? AppColors.warning : AppColors.textMuted)),
+          Expanded(child: _StatTile(label: 'Active Loans', value: activeValue, icon: Icons.trending_up, color: activeColor)),
           const Gap(8),
           Expanded(child: _StatTile(label: 'Repayments', value: CurrencyFormatter.format(totalRepaid), icon: Icons.receipt, color: AppColors.secondary)),
         ],
@@ -359,12 +399,32 @@ class _LoansTab extends StatelessWidget {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final loan = sorted[index];
+        final isOverdue = !loan.isFullyRepaid && loan.dueDate.isBefore(DateTime.now());
+        final daysOverdue = isOverdue ? DateTime.now().difference(loan.dueDate).inDays : 0;
         final loanRepayments = repayments.where((r) => r.loanId == loan.id).toList();
         final totalPaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
-        final remaining = (loan.principal + (loan.principal * loan.interestRate / 100)) - totalPaid;
+        final remaining = (loan.principal + (loan.principal * loan.interestRate)) - totalPaid;
+
+        Color statusColor;
+        String statusLabel;
+        if (loan.isFullyRepaid) {
+          statusColor = AppColors.primary;
+          statusLabel = 'Paid';
+        } else if (isOverdue) {
+          statusColor = AppColors.error;
+          statusLabel = '$daysOverdue d overdue';
+        } else {
+          statusColor = AppColors.warning;
+          statusLabel = 'Active';
+        }
 
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: isOverdue
+              ? BoxDecoration(
+                  border: Border(left: BorderSide(color: AppColors.error, width: 3)),
+                )
+              : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -375,13 +435,13 @@ class _LoansTab extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: (loan.isFullyRepaid ? AppColors.primary : AppColors.warning).withAlpha(25),
+                      color: statusColor.withAlpha(25),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      loan.isFullyRepaid ? 'Paid' : 'Active',
+                      statusLabel,
                       style: TextStyle(
-                        color: loan.isFullyRepaid ? AppColors.primary : AppColors.warning,
+                        color: statusColor,
                         fontSize: 11, fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -389,12 +449,12 @@ class _LoansTab extends StatelessWidget {
                 ],
               ),
               const Gap(4),
-              Text('Interest: ${loan.interestRate}%', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              Text('Interest: ${(loan.interestRate * 100).toStringAsFixed(1)}%', style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
               Text('Issued: ${DateFormat('MMM d, yyyy').format(loan.issuedDate)}', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               Text('Due: ${DateFormat('MMM d, yyyy').format(loan.dueDate)}', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
               if (!loan.isFullyRepaid)
                 Text('Remaining: ${CurrencyFormatter.format(remaining > 0 ? remaining : 0)}',
-                  style: TextStyle(color: remaining > 0 ? AppColors.warning : AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: isOverdue ? AppColors.error : remaining > 0 ? AppColors.warning : AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
         );

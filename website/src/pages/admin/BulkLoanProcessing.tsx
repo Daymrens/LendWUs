@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { collection, writeBatch, doc, getDocs, query, where, Timestamp } from "firebase/firestore";
+import { collection, writeBatch, doc, getDocs, query, where, limit, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 
 interface MemberData {
   id: string;
   name: string;
   memberId?: string;
-  isActive: boolean;
+  active: boolean;
 }
 
 const BulkLoanProcessing: React.FC = () => {
@@ -14,13 +14,13 @@ const BulkLoanProcessing: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState<{ memberId: string; principal: string; interestRate: string; dueDate: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ success: number; failed: number } | null>(null);
+  const [result, setResult] = useState<{ success: number; failed: number; failedMembers?: string[] } | null>(null);
   const [quickAmount, setQuickAmount] = useState("");
   const [quickRate, setQuickRate] = useState("5");
   const [quickTermMonths, setQuickTermMonths] = useState("6");
 
   useEffect(() => {
-    getDocs(query(collection(db, "members"), where("isActive", "==", true)))
+    getDocs(query(collection(db, "members"), where("active", "==", true)))
       .then(snap => {
         const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as MemberData));
         setMembers(list);
@@ -50,29 +50,47 @@ const BulkLoanProcessing: React.FC = () => {
 
   const submitAll = async () => {
     setSubmitting(true);
-    const batch = writeBatch(db);
-    let success = 0;
-    let failed = 0;
+    const blockedMembers = new Set<string>();
+    const failedMembers: string[] = [];
 
     for (const entry of entries) {
+      const name = getMemberName(entry.memberId);
       const principal = parseFloat(entry.principal);
       const rate = parseFloat(entry.interestRate);
       if (!principal || principal <= 0 || !rate || rate <= 0) {
-        failed++;
+        failedMembers.push(`${name}: invalid amount or rate`);
+        blockedMembers.add(entry.memberId);
         continue;
       }
-
-      let dueDate: Date;
-      if (entry.dueDate) {
-        dueDate = new Date(entry.dueDate);
-      } else {
-        dueDate = new Date();
-        dueDate.setMonth(dueDate.getMonth() + parseInt(quickTermMonths) || 6);
+      const activeLoanSnap = await getDocs(query(
+        collection(db, "loans"),
+        where("memberId", "==", entry.memberId),
+        where("isFullyRepaid", "==", false),
+        limit(1),
+      ));
+      if (!activeLoanSnap.empty) {
+        failedMembers.push(`${name}: active loan exists`);
+        blockedMembers.add(entry.memberId);
       }
+    }
 
-      try {
-        const loanRef = doc(collection(db, "loans"));
-        batch.set(loanRef, {
+    const valid = entries.filter(e => !blockedMembers.has(e.memberId));
+    let success = 0;
+    let failed = failedMembers.length;
+
+    if (valid.length > 0) {
+      const batch = writeBatch(db);
+      for (const entry of valid) {
+        const principal = parseFloat(entry.principal);
+        const rate = parseFloat(entry.interestRate);
+        let dueDate: Date;
+        if (entry.dueDate) {
+          dueDate = new Date(entry.dueDate);
+        } else {
+          dueDate = new Date();
+          dueDate.setMonth(dueDate.getMonth() + (parseInt(quickTermMonths) || 6));
+        }
+        batch.set(doc(collection(db, "loans")), {
           memberId: entry.memberId,
           principal,
           interestRate: rate / 100,
@@ -81,21 +99,17 @@ const BulkLoanProcessing: React.FC = () => {
           isFullyRepaid: false,
         });
         success++;
+      }
+      try {
+        await batch.commit();
       } catch (err) {
-        console.error("Failed to create loan for", entry.memberId, err);
-        failed++;
+        console.error("Batch commit failed", err);
+        failed = valid.length;
+        success = 0;
       }
     }
 
-    try {
-      await batch.commit();
-    } catch (err) {
-      console.error("Batch commit failed", err);
-      failed = entries.length;
-      success = 0;
-    }
-
-    setResult({ success, failed });
+    setResult({ success, failed, failedMembers });
     setSubmitting(false);
   };
 
@@ -222,6 +236,11 @@ const BulkLoanProcessing: React.FC = () => {
             }}>
               {result.success} loan{result.success !== 1 ? "s" : ""} created successfully
               {result.failed > 0 && `, ${result.failed} failed`}
+              {result.failedMembers && result.failedMembers.length > 0 && (
+                <div style={{ marginTop: 4, fontSize: 12, opacity: 0.85 }}>
+                  {result.failedMembers.map((m, i) => <div key={i}>{m}</div>)}
+                </div>
+              )}
             </div>
           )}
         </div>

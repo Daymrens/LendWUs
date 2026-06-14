@@ -60,6 +60,7 @@ Future<void> bootstrapOnboardingFlag(WidgetRef ref) async {
 final goRouterProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(currentUserProvider);
   final settingsAsync = ref.watch(settingsProvider);
+  final onboardingComplete = ref.watch(onboardingCompleteProvider);
 
   return GoRouter(
     navigatorKey: notificationNavKey,
@@ -69,8 +70,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final user = authNotifier.state;
       final isRecognized = authNotifier.isRecognized;
       final isAdmin = authNotifier.isAdmin;
-
-      final onboardingComplete = ref.read(onboardingCompleteProvider);
 
       final location = state.matchedLocation;
       final isLoggingIn = location == '/login';
@@ -131,7 +130,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       if (isRecognized && isAdmin && isMemberRoute) {
         return '/';
       }
-      if (isRecognized && !isAdmin && !isPublicRoute && !isMemberRoute && location != '/') {
+      if (isRecognized && !isAdmin && !isPublicRoute && !isMemberRoute && !isLoggingIn) {
         return '/member-home';
       }
 
@@ -367,7 +366,104 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
     if (location == '/loans') return 3;
     if (location == '/reports') return 4;
     if (location == '/profile') return 5;
-    return 0;
+    return 6;
+  }
+
+  void _onNavTap(BuildContext context, int index) {
+    switch (index) {
+      case 0:
+        context.go('/');
+        break;
+      case 1:
+        context.go('/members');
+        break;
+      case 2:
+        context.go('/contributions');
+        break;
+      case 3:
+        context.go('/loans');
+        break;
+      case 4:
+        context.go('/reports');
+        break;
+      case 5:
+        context.go('/profile');
+        break;
+      case 6:
+        _showMoreMenu(context);
+        break;
+    }
+  }
+
+  void _showMoreMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text('More Options',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                _moreTile(ctx, Icons.approval, 'Approvals', () { Navigator.pop(ctx); context.push('/approvals'); }),
+                _moreTile(ctx, Icons.settings, 'Settings', () { Navigator.pop(ctx); context.push('/settings'); }),
+                _moreTile(ctx, Icons.storage, 'Data Mgmt', () { Navigator.pop(ctx); context.push('/data-management'); }),
+                _moreTile(ctx, Icons.account_balance_wallet, 'Balances', () { Navigator.pop(ctx); context.push('/member-balances'); }),
+                _moreTile(ctx, Icons.add_circle, 'Bulk Loans', () { Navigator.pop(ctx); context.push('/bulk-loans'); }),
+                _moreTile(ctx, Icons.verified, 'Compliance', () { Navigator.pop(ctx); context.push('/compliance-reports'); }),
+                _moreTile(ctx, Icons.swap_horiz, 'Migration', () { Navigator.pop(ctx); context.push('/member-migration'); }),
+                _moreTile(ctx, Icons.notifications_active, 'Notify', () { Navigator.pop(ctx); context.push('/send-notification'); }),
+                _moreTile(ctx, Icons. history, 'Activity', () { Navigator.pop(ctx); context.push('/activity'); }),
+                _moreTile(ctx, Icons.search, 'Search', () { Navigator.pop(ctx); context.push('/search'); }),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _moreTile(BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 24, color: AppColors.primary),
+            const SizedBox(height: 6),
+            Text(label, textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurface)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -379,58 +475,18 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
         children: [
           BottomNavigationBar(
             currentIndex: _getSelectedIndex(),
-            onTap: (index) {
-              switch (index) {
-                case 0:
-                  context.go('/');
-                  break;
-                case 1:
-                  context.go('/members');
-                  break;
-                case 2:
-                  context.go('/contributions');
-                  break;
-                case 3:
-                  context.go('/loans');
-                  break;
-                case 4:
-                  context.go('/reports');
-                  break;
-                case 5:
-                  context.go('/profile');
-                  break;
-              }
-            },
+            onTap: (index) => _onNavTap(context, index),
             type: BottomNavigationBarType.fixed,
             items: const [
-              BottomNavigationBarItem(
-                icon: Icon(Icons.dashboard),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.people),
-                label: 'Members',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.attach_money),
-                label: 'Contribs',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.account_balance),
-                label: 'Loans',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.assessment),
-                label: 'Reports',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.person),
-                label: 'Profile',
-              ),
+              BottomNavigationBarItem(icon: Icon(Icons.dashboard), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Members'),
+              BottomNavigationBarItem(icon: Icon(Icons.attach_money), label: 'Contribs'),
+              BottomNavigationBarItem(icon: Icon(Icons.account_balance), label: 'Loans'),
+              BottomNavigationBarItem(icon: Icon(Icons.assessment), label: 'Reports'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+              BottomNavigationBarItem(icon: Icon(Icons.more_horiz), label: 'More'),
             ],
           ),
-
-
         ],
       ),
     );

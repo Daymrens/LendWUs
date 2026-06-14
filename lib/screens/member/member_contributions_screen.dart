@@ -43,14 +43,19 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     final settings = settingsAsync.asData?.value;
 
     final now = DateTime.now();
+    final members = [...?ref.watch(membersStreamProvider).asData?.value];
+    final member = members.cast<Member?>().firstWhere((m) => m?.id == memberId, orElse: () => null);
     final thisMonth = contributions.where((c) =>
       c.date.month == now.month && c.date.year == now.year
     ).toList();
     final totalThisMonth = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
     final totalAll = contributions.fold<double>(0.0, (s, c) => s + c.amount);
-    final requiredPerHead = settings?.minPaymentPerHead ?? 0;
-    final members = [...?ref.watch(membersStreamProvider).asData?.value];
-    final member = members.cast<Member?>().firstWhere((m) => m?.id == memberId, orElse: () => null);
+    final memberHeads = member?.headsCount ?? 1;
+    final memberAmountPerHead = member?.amountPerHead ?? settings?.minPaymentPerHead ?? 0;
+    final memberTotalRequired = member?.totalRequired ?? 0.0;
+    final requiredAmount = memberTotalRequired > 0
+        ? memberTotalRequired
+        : memberHeads * memberAmountPerHead;
     final balance = member?.balance ?? 0.0;
 
     return Scaffold(
@@ -86,7 +91,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildProgressCard(totalThisMonth, totalAll, requiredPerHead, contributions.length, balance, settings?.cutoffDay1 ?? 13, settings?.cutoffDay2 ?? 28),
+                  _buildProgressCard(totalThisMonth, totalAll, requiredAmount, contributions.length, balance, settings?.cutoffDay1 ?? 13, settings?.cutoffDay2 ?? 28),
                   const Gap(20),
                   _buildStatCards(contributions, totalThisMonth, totalAll),
                   const Gap(24),
@@ -313,9 +318,19 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
       return c.date.month == lm.month && c.date.year == lm.year;
     }).toList();
     final totalLastMonth = lastMonth.fold<double>(0.0, (s, c) => s + c.amount);
-    final percentChange = totalLastMonth > 0
-      ? ((totalThisMonth - totalLastMonth) / totalLastMonth * 100)
-      : 0.0;
+    String changeLabel;
+    Color changeColor;
+    if (totalLastMonth <= 0 && totalThisMonth > 0) {
+      changeLabel = '+100% vs last';
+      changeColor = AppColors.primary;
+    } else if (totalLastMonth > 0) {
+      final pct = ((totalThisMonth - totalLastMonth) / totalLastMonth * 100);
+      changeLabel = '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% vs last';
+      changeColor = pct >= 0 ? AppColors.primary : AppColors.warning;
+    } else {
+      changeLabel = 'No data last month';
+      changeColor = AppColors.textMuted;
+    }
     final avg = data.isEmpty ? 0.0 : totalAll / data.length;
 
     return GridView.count(
@@ -329,8 +344,8 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
         _statCard(
           'This Month',
           CurrencyFormatter.format(totalThisMonth),
-          percentChange >= 0 ? '+${percentChange.toStringAsFixed(1)}% vs last' : '${percentChange.toStringAsFixed(1)}% vs last',
-          percentChange >= 0 ? AppColors.primary : AppColors.warning,
+          changeLabel,
+          changeColor,
           Icons.calendar_month,
         ),
         _statCard(

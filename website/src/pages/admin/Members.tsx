@@ -24,7 +24,7 @@ interface Member {
   totalRequired: number;
   balance: number;
   joinedAt: Timestamp;
-  isActive: boolean;
+  active: boolean;
   linkedEmail?: string;
 }
 
@@ -55,8 +55,8 @@ const Members: React.FC = () => {
 
   useEffect(() => {
     let result = [...members];
-    if (tab === 1) result = result.filter(m => m.isActive);
-    if (tab === 2) result = result.filter(m => !m.isActive);
+    if (tab === 1) result = result.filter(m => m.active);
+    if (tab === 2) result = result.filter(m => !m.active);
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(m => m.name.toLowerCase().includes(q));
@@ -73,15 +73,18 @@ const Members: React.FC = () => {
       setMembers(list);
 
       const now = new Date();
-      const thisMonth = now.getMonth() + 1;
-      const thisYear = now.getFullYear();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
       // Get contributions for this month to compute paid vs partial
-      const contribSnap = await getDocs(
-        query(collection(db, "contributions"), where("month", "==", thisMonth), where("year", "==", thisYear))
-      );
+      const contribSnap = await getDocs(collection(db, "contributions"));
+      const thisMonthContribs = contribSnap.docs.filter(d => {
+        const c = d.data();
+        const dte = c.date?.toDate?.();
+        return dte && dte >= monthStart && dte <= monthEnd;
+      });
       const memberMonthTotal: Record<string, number> = {};
-      contribSnap.docs.forEach(d => {
+      thisMonthContribs.forEach(d => {
         const c = d.data() as Record<string, unknown>;
         const mid = c.memberId as string;
         memberMonthTotal[mid] = (memberMonthTotal[mid] || 0) + (Number(c.amount) || 0);
@@ -120,7 +123,7 @@ const Members: React.FC = () => {
           ...data,
           memberId,
           joinedAt: Timestamp.now(),
-          isActive: true,
+          active: true,
           balance: 0,
         });
       }
@@ -135,7 +138,7 @@ const Members: React.FC = () => {
 
   const handleToggleActive = async (m: Member) => {
     try {
-      await updateDoc(doc(db, "members", m.id), { isActive: !m.isActive });
+      await updateDoc(doc(db, "members", m.id), { active: !m.active });
       loadMembers();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to update";
@@ -195,7 +198,7 @@ const Members: React.FC = () => {
         const l = d.data(); rows.push({ Date: l.issuedDate?.toDate?.()?.toLocaleDateString() || "", Type: "Loan", Amount: l.principal, Status: l.isFullyRepaid ? "Repaid" : "Active" });
       });
       paySnap.docs.forEach(d => {
-        const p = d.data(); rows.push({ Date: p.requestDate?.toDate?.()?.toLocaleDateString() || "", Type: p.type === "loan" ? "Repayment" : "Payment", Amount: p.amount, Status: p.status });
+        const p = d.data(); rows.push({ Date: p.createdAt?.toDate?.()?.toLocaleDateString() || "", Type: "Payment", Amount: p.amount, Status: p.status });
       });
       rows.sort((a, b) => String(a.Date).localeCompare(String(b.Date)));
       downloadCSV(rows, `statement_${m.name.replace(/\s+/g, "_")}`);
@@ -210,7 +213,7 @@ const Members: React.FC = () => {
   };
 
   const totalContributions = members.reduce((s, m) => s + (m.totalRequired ?? 0), 0);
-  const activeCount = members.filter(m => m.isActive).length;
+  const activeCount = members.filter(m => m.active).length;
 
   if (loading) return <div className="admin-loading"><div className="spinner" /><p>Loading members...</p></div>;
   if (error) return <div className="admin-error"><p>Error: {error}</p><button className="btn btn-primary" onClick={loadMembers}>Retry</button></div>;
@@ -251,7 +254,7 @@ const Members: React.FC = () => {
       ) : (
         <div className="members-list">
           {filtered.map(m => (
-            <div key={m.id} className={`member-card ${!m.isActive ? "inactive" : ""}`}>
+            <div key={m.id} className={`member-card ${!m.active ? "inactive" : ""}`}>
               <div className="member-info">
                 <div className="member-name">
                   <span className="member-name-link" onClick={() => navigate(`/admin/members/${m.id}`)}>{m.name}</span>
@@ -261,7 +264,7 @@ const Members: React.FC = () => {
                 <div className="member-details">
                   {m.linkedEmail && <span>{m.linkedEmail}</span>}
                   <span>{m.headsCount} head{m.headsCount > 1 ? "s" : ""}</span>
-                  {!m.isActive && <span className="badge badge-inactive">Inactive</span>}
+                  {!m.active && <span className="badge badge-inactive">Inactive</span>}
                 </div>
                 <div className="member-details">
                   <span>₱{(m.amountPerHead ?? 0).toLocaleString()}/head</span>
@@ -276,9 +279,9 @@ const Members: React.FC = () => {
                 <button className="btn-icon" title="Edit" onClick={() => { setEditMember(m); setShowModal(true); }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
-                <button className="btn-icon" title={m.isActive ? "Deactivate" : "Activate"} onClick={() => handleToggleActive(m)}>
+                <button className="btn-icon" title={m.active ? "Deactivate" : "Activate"} onClick={() => handleToggleActive(m)}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    {m.isActive
+                    {m.active
                       ? <><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></>
                       : <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
                     }

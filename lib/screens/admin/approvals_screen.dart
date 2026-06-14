@@ -914,26 +914,38 @@ class _HeadChangeApprovalCardState extends ConsumerState<_HeadChangeApprovalCard
     }
 
     setState(() => _busy = true);
-    final repo = ref.read(headChangeRequestRepositoryProvider);
-    final user = ref.read(currentUserProvider).state;
-    final rejected = await repo.rejectHeadChangeRequest(
-      request.id!,
-      processedBy: user?.username ?? 'Admin',
-      notes: notesController.text,
-    );
-    notesController.dispose();
-
-    ref.invalidate(pendingHeadChangesProvider);
-
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(rejected ? 'Head change rejected' : 'Head change already processed'),
-          backgroundColor: rejected ? Colors.red : Colors.orange,
-        ),
+    try {
+      final repo = ref.read(headChangeRequestRepositoryProvider);
+      final user = ref.read(currentUserProvider).state;
+      final rejected = await repo.rejectHeadChangeRequest(
+        request.id!,
+        processedBy: user?.username ?? 'Admin',
+        notes: notesController.text,
       );
+
+      ref.invalidate(pendingHeadChangesProvider);
+
+      if (!mounted) return;
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(rejected ? 'Head change rejected' : 'Head change already processed'),
+            backgroundColor: rejected ? Colors.red : Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error rejecting head change: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      notesController.dispose();
+      if (mounted) setState(() => _busy = false);
     }
   }
 }

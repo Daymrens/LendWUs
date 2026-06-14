@@ -47,7 +47,7 @@ const Reports: React.FC = () => {
           month: key, contributions: 0, contributionCount: 0,
           loansIssued: 0, loanCount: 0, repayments: 0, repaymentCount: 0,
           totalMembers: members.length,
-          activeMembers: members.filter((m: Record<string,unknown>) => m.isActive === true || m.isActive === 1).length,
+          activeMembers: members.filter((m: Record<string,unknown>) => m.active === true || m.active === 1 || m.isActive === true || m.isActive === 1).length,
         };
       }
 

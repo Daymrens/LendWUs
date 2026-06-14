@@ -1,4 +1,5 @@
 import '../models/contribution.dart';
+import '../models/fund_summary.dart';
 import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
@@ -37,7 +38,7 @@ class FundRepository {
     return docRef.id;
   }
 
-  Future<double> getTotalFund() async {
+  Future<double> getTotalContributions() async {
     final contributions = await getAllContributions();
     return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
   }
@@ -58,6 +59,17 @@ class FundRepository {
     return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
   }
 
+  Future<FundSummary> getFundSummary() async {
+    final contributions = await getAllContributions();
+    final loans = await _loanRepo.getAllLoans();
+    final repayments = await _loanRepo.getAllRepayments();
+    return FundSummary.compute(
+      contributions: contributions,
+      loans: loans,
+      repayments: repayments,
+    );
+  }
+
   Future<double> getTotalRepayments() async {
     final snapshot = await FirebaseService.firestore.collection('repayments').get();
     return snapshot.docs.fold<double>(
@@ -67,19 +79,7 @@ class FundRepository {
   }
 
   Future<double> getAvailableToLoan() async {
-    final totalContributions = await getTotalFund();
-    final loans = await _loanRepo.getAllLoans();
-    final repayments = await getTotalRepayments();
-
-    final totalLoansIssued = loans.fold<double>(0.0, (sum, l) => sum + l.principal);
-    final fundBalance = totalContributions - totalLoansIssued + repayments;
-
-    final activeLoans = loans.where((l) => !l.isFullyRepaid && l.id != null).toList();
-    final balances = await Future.wait(
-      activeLoans.map((loan) => _loanRepo.getRemainingBalance(loan.id!)),
-    );
-    final outstanding = balances.fold<double>(0.0, (sum, b) => sum + b);
-
-    return fundBalance - outstanding;
+    final summary = await getFundSummary();
+    return summary.availableToLoan;
   }
 }

@@ -84,4 +84,16 @@ void main() {
       expect(CurrencyFormatter.formatCentavos(1245000), contains('12,450.00'));
     });
   });
+
+  group('CurrencyFormatter.currencySymbol', () {
+    test('returns current symbol', () {
+      CurrencyFormatter.updateConfiguration('\u20B1', 'PHP');
+      expect(CurrencyFormatter.currencySymbol, '\u20B1');
+    });
+
+    test('updates symbol on configuration change', () {
+      CurrencyFormatter.updateConfiguration('\$', 'USD');
+      expect(CurrencyFormatter.currencySymbol, '\$');
+    });
+  });
 }
