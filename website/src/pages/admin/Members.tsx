@@ -318,6 +318,7 @@ const MemberModal: React.FC<MemberModalProps> = ({ member, onSave, onClose }) =>
   const [heads, setHeads] = useState(String(member?.headsCount || 1));
   const [amountPerHead, setAmountPerHead] = useState(String(member?.amountPerHead || 0));
   const [email, setEmail] = useState(member?.linkedEmail || "");
+  const [balance, setBalance] = useState(String(member?.balance ?? 0));
   const [totalRequired, setTotalRequired] = useState(String(member?.totalRequired || 0));
   const [submitting, setSubmitting] = useState(false);
 
@@ -338,6 +339,7 @@ const MemberModal: React.FC<MemberModalProps> = ({ member, onSave, onClose }) =>
         amountPerHead: Number(amountPerHead),
         totalRequired: Number(totalRequired),
         linkedEmail: email.trim() || undefined,
+        ...(member ? { balance: Number(balance) || 0 } : {}),
       });
     } finally {
       setSubmitting(false);
@@ -376,6 +378,12 @@ const MemberModal: React.FC<MemberModalProps> = ({ member, onSave, onClose }) =>
             <label>Linked Email (optional)</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} />
           </div>
+          {member && (
+            <div className="form-group">
+              <label>Balance (credit)</label>
+              <input type="number" min="0" step="0.01" value={balance} onChange={e => setBalance(e.target.value)} />
+            </div>
+          )}
           <div className="modal-actions">
             <button type="button" className="btn btn-outline" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>

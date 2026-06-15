@@ -1,15 +1,19 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/member.dart';
+import 'activity_log_repository.dart';
 import 'loan_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/member_id_generator.dart';
 
 class MemberRepository {
   final LoanRepository _loanRepo;
+  final ActivityLogRepository _activityLog;
   static const int _defaultPageSize = 100;
 
-  MemberRepository({LoanRepository? loanRepo}) : _loanRepo = loanRepo ?? LoanRepository();
+  MemberRepository({LoanRepository? loanRepo, ActivityLogRepository? activityLog})
+      : _loanRepo = loanRepo ?? LoanRepository(),
+        _activityLog = activityLog ?? ActivityLogRepository();
 
   Future<List<Member>> getAllMembers({int? limit, DocumentSnapshot? startAfter}) async {
     Query<Map<String, dynamic>> query = FirebaseService.firestore.collection('members');
@@ -66,12 +70,24 @@ class MemberRepository {
         .update({'linkedEmail': email});
   }
 
+  Future<void> updateMemberBalance(String memberId, double balance) async {
+    await FirebaseService.firestore
+        .collection('members')
+        .doc(memberId)
+        .update({'balance': balance});
+  }
+
   Future<void> deleteMember(String id) async {
     if (await _loanRepo.hasActiveLoan(id)) {
       throw Exception('Cannot remove member with outstanding loan');
     }
 
     final firestore = FirebaseService.firestore;
+
+    final memberSnap = await firestore.collection('members').doc(id).get();
+    final memberData = memberSnap.data();
+    final memberName = memberData?['name'] as String? ?? 'Unknown';
+    final memberIdField = memberData?['memberId'] as String?;
 
     final pendingPayments = await firestore
         .collection('payment_requests')
@@ -94,6 +110,19 @@ class MemberRepository {
     }
 
     await firestore.collection('members').doc(id).delete();
+
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'member_deleted',
+      entityType: 'member',
+      entityId: id,
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'memberName': memberName,
+        'memberId': memberIdField,
+      },
+    );
   }
 
   Stream<List<Member>> watchAllMembers() {

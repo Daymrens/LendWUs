@@ -4,6 +4,7 @@ import 'package:gap/gap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/currency_formatter.dart';
 import '../../../data/models/member_with_status.dart';
+import '../../../providers/loans_provider.dart';
 import '../../modals/add_member_modal.dart';
 import 'link_user_sheet.dart';
 
@@ -38,6 +39,9 @@ class MemberTileWithStatus extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final member = memberStatus.member;
     final progress = memberStatus.progress;
+    final loans = [...?ref.watch(loansStreamProvider).asData?.value];
+    final hasOverdueLoan = loans.any((l) =>
+      l.memberId == member.id && !l.isFullyRepaid && l.dueDate.isBefore(DateTime.now()));
 
     Color statusColor;
     switch (memberStatus.statusColor) {
@@ -144,6 +148,24 @@ class MemberTileWithStatus extends ConsumerWidget {
           const Gap(12),
           Column(
             children: [
+              if (hasOverdueLoan)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withAlpha(40),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.error.withAlpha(100)),
+                  ),
+                  child: Text(
+                    'OVERDUE',
+                    style: TextStyle(
+                      color: AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(

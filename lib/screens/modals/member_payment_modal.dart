@@ -232,11 +232,6 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final minAmount = settings?.minPaymentPerHead ?? 500.0;
     final maxAmount = settings?.maxPaymentPerHead ?? 1000.0;
 
-    if (!_amountInitialized && _amountController.text.isEmpty) {
-      _amountController.text = minAmount.toStringAsFixed(2);
-      _amountInitialized = true;
-    }
-
     final contributionsAsync = ref.watch(contributionsStreamProvider);
     final contribs = [...?contributionsAsync.asData?.value];
     final now = DateTime.now();
@@ -258,12 +253,8 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final cutoffDay1 = settings?.cutoffDay1 ?? 13;
     final cutoffDay2 = settings?.cutoffDay2 ?? 28;
 
-    // Dynamic quick amounts based on pay mode
-    final rawAmounts = payAdvance
-      ? [perCutoffAmount * 0.5, perCutoffAmount * 0.75, perCutoffAmount, perCutoffAmount * 1.25]
-      : met
-        ? [fullMonthlyRequired * 0.5, fullMonthlyRequired * 0.75, fullMonthlyRequired, fullMonthlyRequired * 1.25]
-        : [fullMonthlyRequired * 0.25, fullMonthlyRequired * 0.5, fullMonthlyRequired * 0.75, fullMonthlyRequired];
+    // Dynamic quick amounts always based on per-cutoff amount (amountPerHead × headsCount)
+    final rawAmounts = [perCutoffAmount * 0.25, perCutoffAmount * 0.5, perCutoffAmount * 0.75, perCutoffAmount];
     final quickAmounts = rawAmounts.map((a) => (a * 100).round() / 100).toList();
 
     if (!_amountInitialized) {

@@ -12,7 +12,7 @@ const Login: React.FC = () => {
   const [localError, setLocalError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const { login, signInWithGoogle } = useAuth();
+  const { login, signInWithGoogle, error: authError } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,7 +76,7 @@ const Login: React.FC = () => {
           <p className="app-login-subtitle">Financial management simplified</p>
         </div>
 
-        {localError && <div className="form-error">{localError}</div>}
+        {(localError || authError) && <div className="form-error">{localError || authError}</div>}
         {resetSent && <div className="form-success" style={{ color: "#22c55e", fontSize: 13, marginBottom: 16, textAlign: "center" }}>Reset link sent! Check your email.</div>}
 
         <form onSubmit={handleSubmit} className="app-login-form">

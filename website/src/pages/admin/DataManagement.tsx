@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { collection, getDocs, deleteDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, deleteDoc, doc, getDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "../../firebase";
 import { downloadCSV } from "../../utils/export";
 import { backfillMissingMemberIds } from "../../utils/memberId";
@@ -12,7 +12,7 @@ const DataManagement: React.FC = () => {
   const [memberMap, setMemberMap] = useState<Record<string,string>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [confirming, setConfirming] = useState<{ collection: string; id: string } | null>(null);
+  const [confirming, setConfirming] = useState<{ collection: string; id: string; memberId?: string; amount?: number } | null>(null);
   const [backfilling, setBackfilling] = useState(false);
   const [backfillResult, setBackfillResult] = useState<string | null>(null);
 
@@ -39,9 +39,20 @@ const DataManagement: React.FC = () => {
     finally { setLoading(false); }
   };
 
-  const handleDelete = async (collectionName: string, id: string) => {
+  const handleDelete = async (collectionName: string, id: string, memberId?: string, amount?: number) => {
     try {
       await deleteDoc(doc(db, collectionName, id));
+      if (collectionName === "contributions" && memberId && amount && amount > 0) {
+        const memberRef = doc(db, "members", memberId);
+        const memberSnap = await getDoc(memberRef);
+        if (memberSnap.exists()) {
+          const currentBalance = Number(memberSnap.data().balance) || 0;
+          if (currentBalance > 0) {
+            const deduction = amount < currentBalance ? amount : currentBalance;
+            await updateDoc(memberRef, { balance: currentBalance - deduction });
+          }
+        }
+      }
       setConfirming(null);
       loadAll();
     } catch (err: unknown) { alert(err instanceof Error ? err.message : "Delete failed"); }
@@ -185,7 +196,7 @@ const DataManagement: React.FC = () => {
                     <td className="text-success fw-bold">₱{(Number(row.amount) || 0).toLocaleString()}</td>
                     <td className="text-muted">{fmtDate(row.date)}</td>
                     <td><span className="period-badge">{String(row.month ?? "")}/{String(row.year ?? "")}</span></td>
-                    <td><button className="btn-icon danger" onClick={() => setConfirming({ collection: "contributions", id: row.id as string })} title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
+                    <td><button className="btn-icon danger" onClick={() => setConfirming({ collection: "contributions", id: row.id as string, memberId: row.memberId as string, amount: Number(row.amount) || 0 })} title="Delete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>
                   </>
                 )}
                 {tab === 1 && (
@@ -227,7 +238,7 @@ const DataManagement: React.FC = () => {
             </div>
             <div className="modal-actions" style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button className="btn btn-outline btn-sm" onClick={() => setConfirming(null)}>Cancel</button>
-              <button className="btn btn-sm" onClick={() => handleDelete(confirming.collection, confirming.id)} style={{ background: "#ef4444", color: "#fff", border: "none" }}>Delete</button>
+              <button className="btn btn-sm" onClick={() => handleDelete(confirming.collection, confirming.id, confirming.memberId, confirming.amount)} style={{ background: "#ef4444", color: "#fff", border: "none" }}>Delete</button>
             </div>
           </div>
         </div>

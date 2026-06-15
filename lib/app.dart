@@ -26,6 +26,7 @@ import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/changelog_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/member/member_pay_screen.dart';
+import 'screens/member/loan_calculator.dart';
 import 'data/models/payment_request.dart';
 
 import 'screens/admin/approvals_screen.dart';
@@ -37,6 +38,7 @@ import 'screens/admin/bulk_loan_processing.dart';
 import 'screens/admin/compliance_reports.dart';
 import 'screens/admin/member_migration.dart';
 import 'screens/admin/send_notification_screen.dart';
+import 'screens/admin/backup_screen.dart';
 import 'screens/maintenance_screen.dart';
 import 'screens/activity/activity_feed_screen.dart';
 import 'screens/search/global_search_screen.dart';
@@ -79,7 +81,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location == '/member-contributions' ||
           location == '/member-loans' ||
           location == '/member-requests' ||
-          location == '/member-profile';
+          location == '/member-profile' ||
+          location == '/member-loan-calculator';
       final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
           location == '/biometric-verify' ||
           location == '/changelog' ||
@@ -265,6 +268,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const ActivityFeedScreen(),
           ),
           GoRoute(
+            path: '/backups',
+            builder: (context, state) => const BackupScreen(),
+          ),
+          GoRoute(
             path: '/search',
             builder: (context, state) => const GlobalSearchScreen(),
           ),
@@ -294,6 +301,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/member-profile',
             builder: (context, state) => const ProfileScreen(),
+          ),
+          GoRoute(
+            path: '/member-loan-calculator',
+            builder: (context, state) => const LoanCalculatorScreen(),
           ),
         ],
       ),

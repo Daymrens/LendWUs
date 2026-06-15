@@ -47,7 +47,7 @@ const LoanRequestModal: React.FC<LoanRequestModalProps> = ({
       await addDoc(collection(db, "loan_requests"), {
         memberId: memberDocId,
         amount: amt,
-        interestRate: interestRate / 100,
+        interestRate: interestRate,
         dueDate: Timestamp.fromDate(new Date(dueDate)),
         status: "pending",
         requestedAt: Timestamp.now(),

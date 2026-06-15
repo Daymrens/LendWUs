@@ -227,6 +227,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
               trailing: const Icon(Icons.chevron_right),
               onTap: () => context.push('/send-notification'),
             ),
+            ListTile(
+              leading: const Icon(Icons.backup),
+              title: const Text('Backups'),
+              subtitle: const Text('Create, list, and manage data backups'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push('/backups'),
+            ),
           ],
           ListTile(
             leading: const Icon(Icons.notifications),
@@ -247,6 +254,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen>
             style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
           const Gap(16),
+          ListTile(
+            leading: const Icon(Icons.calculate_outlined),
+            title: const Text('Loan Calculator'),
+            subtitle: const Text('Estimate monthly payments and interest'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push('/member-loan-calculator'),
+          ),
           ListTile(
             leading: const Icon(Icons.help_outline),
             title: const Text('Help & Support'),

@@ -1,8 +1,13 @@
 import '../models/head_change_request.dart';
+import 'activity_log_repository.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 
 class HeadChangeRequestRepository {
+  final ActivityLogRepository _activityLog;
+
+  HeadChangeRequestRepository({ActivityLogRepository? activityLog})
+      : _activityLog = activityLog ?? ActivityLogRepository();
   Future<String> createHeadChangeRequest(HeadChangeRequest request) async {
     final docRef = await FirebaseService.firestore
         .collection('head_change_requests')
@@ -122,6 +127,19 @@ class HeadChangeRequestRepository {
 
     if (result == null) return false;
 
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'head_change_approved',
+      entityType: 'head_change',
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'memberId': result.memberId,
+        'previousHeads': result.currentHeads,
+        'newHeads': result.requestedHeads,
+      },
+    );
+
     NotificationRepository.notifyMember(
       result.memberId,
       'Head Change Approved',
@@ -150,6 +168,21 @@ class HeadChangeRequestRepository {
     });
 
     if (request == null) return false;
+
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'head_change_rejected',
+      entityType: 'head_change',
+      entityId: requestId,
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'memberId': request.memberId,
+        'currentHeads': request.currentHeads,
+        'requestedHeads': request.requestedHeads,
+        'reason': notes,
+      },
+    );
 
     final reason = notes != null && notes.isNotEmpty ? ': $notes' : '';
     NotificationRepository.notifyMember(

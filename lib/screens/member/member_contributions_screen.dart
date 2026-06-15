@@ -223,9 +223,11 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     }
     nextCutoff ??= cutoffs.first;
     final daysUntilNext = nextCutoff - today;
+    final paymentMet = requiredPerHead > 0 && totalThisMonth >= requiredPerHead;
     String cutoffLabel;
     Color cutoffColor;
-    if (daysUntilNext <= 0) { cutoffLabel = 'Due today'; cutoffColor = AppColors.warning; }
+    if (paymentMet) { cutoffLabel = '✓ Paid'; cutoffColor = AppColors.primary; }
+    else if (daysUntilNext <= 0) { cutoffLabel = 'Due today'; cutoffColor = AppColors.warning; }
     else if (daysUntilNext <= 3) { cutoffLabel = '$daysUntilNext days to cutoff'; cutoffColor = Colors.orange; }
     else if (daysUntilNext <= 7) { cutoffLabel = '$daysUntilNext days to cutoff'; cutoffColor = AppColors.success; }
     else { cutoffLabel = 'Cutoff in $daysUntilNext days'; cutoffColor = AppColors.textMuted; }

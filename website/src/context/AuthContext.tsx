@@ -49,7 +49,9 @@ async function checkAdminEmail(email: string): Promise<boolean> {
       const adminEmails = settingsDoc.data()?.adminEmails || [];
       return adminEmails.includes(email);
     }
-  } catch {}
+  } catch (err) {
+    console.error("[Auth] checkAdminEmail error:", err);
+  }
   return false;
 }
 
@@ -61,7 +63,9 @@ async function findMemberByLinkedEmail(email: string): Promise<{ id: string; mem
       const data = doc.data();
       return { id: doc.id, memberId: data.memberId || "", isActive: (data.active ?? data.isActive) !== false };
     }
-  } catch {}
+  } catch (err) {
+    console.error("[Auth] findMemberByLinkedEmail error:", err);
+  }
   return null;
 }
 
@@ -196,6 +200,38 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
     }
   }
 
+  // Fallback: check if a member doc exists with this auth UID as its doc ID
+  try {
+    const uidMemberSnap = await getDoc(doc(db, "members", fbUser.uid));
+    if (uidMemberSnap.exists()) {
+      const mData = uidMemberSnap.data();
+      if ((mData?.active ?? mData?.isActive) !== false) {
+        await setDoc(doc(db, "users", fbUser.uid), {
+          username: fbUser.displayName || email.split("@")[0],
+          email,
+          role: "member",
+          memberId: uidMemberSnap.id,
+          photoUrl: fbUser.photoURL || "",
+          createdAt: new Date().toISOString(),
+        });
+        return {
+          appUser: {
+            uid: fbUser.uid,
+            email,
+            role: "member",
+            username: fbUser.displayName || email.split("@")[0],
+            memberId: uidMemberSnap.id,
+            customMemberId: mData.memberId,
+            photoUrl: fbUser.photoURL || undefined,
+          },
+          recognized: true,
+        };
+      }
+    }
+  } catch (err) {
+    console.error("[Auth] member-by-uid fallback error:", err);
+  }
+
   return { appUser: null, recognized: false, error: "No member profile linked. Contact admin." };
 }
 
@@ -301,14 +337,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startMemberWatcher(appUser.memberId);
       }
 
+      if (!appUser) {
+        return { success: false, error: resolveError || "Account not recognized. Contact admin." };
+      }
       if (!recognized) {
-        return { success: true, role: appUser?.role };
+        return { success: true, role: appUser.role };
       }
       if (resolveError) {
         await signOut(auth);
         return { success: false, error: resolveError };
       }
-      return { success: true, role: appUser?.role };
+      return { success: true, role: appUser.role };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
       setError(message);
@@ -335,14 +374,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         startMemberWatcher(appUser.memberId);
       }
 
+      if (!appUser) {
+        return { success: false, error: resolveError || "Account not recognized. Contact admin." };
+      }
       if (!recognized) {
-        return { success: true, role: appUser?.role };
+        return { success: true, role: appUser.role };
       }
       if (resolveError) {
         await signOut(auth);
         return { success: false, error: resolveError };
       }
-      return { success: true, role: appUser?.role };
+      return { success: true, role: appUser.role };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Google sign-in failed";
       setError(message);
@@ -355,7 +397,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     setLoading(true);
 
-    if (code.toUpperCase() !== "LENDWUS") {
+    let expectedCode = "LENDWUS";
+    try {
+      const settingsSnap = await getDoc(doc(db, "app_settings", "fund_settings"));
+      if (settingsSnap.exists() && settingsSnap.data().groupCode) {
+        expectedCode = String(settingsSnap.data().groupCode).toUpperCase();
+      }
+    } catch { /* fallback to default */ }
+
+    if (code.toUpperCase() !== expectedCode) {
       setError("Invalid group code. Please try again.");
       setLoading(false);
       return { success: false, error: "Invalid group code." };

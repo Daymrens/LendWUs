@@ -238,8 +238,9 @@ const Activity: React.FC = () => {
   };
 
   const statusColor = (s: string) => {
-    if (s === "approved" || s === "repaid") return "success";
+    if (s === "approved" || s === "repaid" || s === "disbursed") return "success";
     if (s === "pending") return "pending";
+    if (s === "active") return "info";
     return "error";
   };
 

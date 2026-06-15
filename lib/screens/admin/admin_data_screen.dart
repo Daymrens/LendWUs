@@ -568,6 +568,14 @@ Future<void> _deleteContribution(BuildContext context, WidgetRef ref, Contributi
   );
   if (confirmed == true) {
     await ref.read(contributionRepositoryProvider).deleteContribution(item.id!);
+    final member = await ref.read(memberRepositoryProvider).getMemberById(item.memberId);
+    if (member != null && member.balance > 0) {
+      final deduction = item.amount < member.balance ? item.amount : member.balance;
+      await ref.read(memberRepositoryProvider).updateMemberBalance(
+        item.memberId,
+        member.balance - deduction,
+      );
+    }
     ref.invalidate(_contributionsListProvider);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contribution deleted')));
@@ -740,6 +748,7 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
   final nameCtl = TextEditingController(text: item.name);
   final headsCtl = TextEditingController(text: item.headsCount.toString());
   final amountCtl = TextEditingController(text: item.amountPerHead.toString());
+  final balanceCtl = TextEditingController(text: item.balance.toStringAsFixed(2));
   final formKey = GlobalKey<FormState>();
 
   final result = await showDialog<bool>(
@@ -780,6 +789,12 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
                 return null;
               },
             ),
+            const Gap(12),
+            TextFormField(
+              controller: balanceCtl,
+              decoration: const InputDecoration(labelText: 'Balance (credit)'),
+              keyboardType: TextInputType.number,
+            ),
           ],
         ),
       ),
@@ -802,6 +817,7 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
     item.headsCount = int.parse(headsCtl.text);
     item.amountPerHead = double.parse(amountCtl.text);
     item.totalRequired = item.headsCount * item.amountPerHead;
+    item.balance = double.tryParse(balanceCtl.text) ?? 0.0;
     await ref.read(memberRepositoryProvider).updateMember(item);
     ref.invalidate(_membersListProvider);
     if (context.mounted) {

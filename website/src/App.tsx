@@ -28,6 +28,8 @@ import MemberHelpSupport from './pages/member/HelpSupport';
 import MemberAbout from './pages/member/About';
 import MemberChangelog from './pages/member/Changelog';
 import MemberPrivacySecurity from './pages/member/PrivacySecurity';
+import MemberBalances from './pages/member/MemberBalances';
+import ComplianceReportsPage from './pages/admin/ComplianceReports';
 import MemberUnrecognized from './pages/member/Unrecognized';
 import {
   ArrowRight,
@@ -40,9 +42,14 @@ import {
   Zap,
   Menu,
   X,
-  Search
+  Search,
+  ChevronDown,
+  Star,
+  MessageCircle
 } from 'lucide-react';
 import { useWebNotifications } from './hooks/useWebNotifications';
+import { useScrollReveal } from './hooks/useScrollReveal';
+import { useCountUp } from './hooks/useCountUp';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -134,6 +141,49 @@ const LandingPage: React.FC = () => {
   const [contactPhone, setContactPhone] = useState('+63 991 718 5691');
   const featuresRef = React.useRef<HTMLElement>(null);
   const year = new Date().getFullYear();
+  const [mockupScreen, setMockupScreen] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = React.useRef<HTMLDivElement>(null);
+  const [pageLoaded, setPageLoaded] = useState(false);
+  const [activeSection, setActiveSection] = useState('');
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrollY, setScrollY] = useState(0);
+
+  useEffect(() => { setPageLoaded(true); }, []);
+
+  useEffect(() => {
+    const sections = ['features', 'preview', 'how-it-works', 'download'];
+    const observers = sections.map(id => {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id); },
+        { threshold: 0.3, rootMargin: '-60px 0px 0px 0px' }
+      );
+      obs.observe(el);
+      return obs;
+    });
+    return () => observers.forEach(o => o?.disconnect());
+  }, []);
+
+  const handleRipple: React.MouseEventHandler<HTMLButtonElement> = (e) => {
+    const btn = e.currentTarget;
+    const ripple = document.createElement('span');
+    const rect = btn.getBoundingClientRect();
+    const size = Math.max(rect.width, rect.height);
+    ripple.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px`;
+    ripple.className = 'btn-ripple';
+    btn.appendChild(ripple);
+    ripple.addEventListener('animationend', () => ripple.remove());
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMockupScreen(prev => (prev + 1) % 3);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     getDoc(doc(db, 'app_settings', 'fund_settings')).then(snap => {
@@ -147,11 +197,49 @@ const LandingPage: React.FC = () => {
     }).catch(() => {});
 
     const handleScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(max > 0 ? (window.scrollY / max) * 100 : 0);
+      setScrollY(window.scrollY);
       setShowScrollTop(window.scrollY > 500);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    const el = statsRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setStatsVisible(true); obs.unobserve(el); } },
+      { threshold: 0.4 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const { ref: featuresReveal, visible: featuresVisible } = useScrollReveal();
+  const { ref: previewsReveal, visible: previewsVisible } = useScrollReveal();
+  const { ref: howReveal, visible: howVisible } = useScrollReveal();
+  const { ref: downloadReveal, visible: downloadVisible } = useScrollReveal();
+
+  const countTransparency = useCountUp(100, 2000, statsVisible);
+  const countFees = useCountUp(0, 1500, statsVisible);
+
+  const faqItems = [
+    { q: 'What is a sinking fund / paluwagan?', a: 'A group savings pool where members contribute regularly (per head). Members can borrow from the pool with interest. At year-end, all earned interest is distributed back to members proportionally by head count.' },
+    { q: 'How do I join an existing fund?', a: 'Download the mobile app, sign up with email or Google, and enter the group invite code provided by your admin. You\'ll be linked to your fund group immediately.' },
+    { q: 'How are loans processed?', a: 'Members submit loan requests through the app. The admin reviews eligibility (sufficient fund balance, no existing unpaid loan, active member) and approves or rejects. Interest is simple, set by the admin.' },
+    { q: 'Can I make partial loan repayments?', a: 'Yes. Partial repayments are allowed. The remaining balance stays open until fully repaid. Overpayments are credited as advance credit on your account.' },
+    { q: 'How do year-end returns work?', a: 'All interest earned from loans throughout the year is pooled. At year-end, it\'s divided by total active heads and distributed per member based on their head count.' },
+    { q: 'Is my data secure?', a: 'Yes. All data is stored in Firebase Cloud Firestore with authenticated access only. Receipt uploads are encrypted. Your financial information is never shared outside your fund group.' },
+  ];
+
+  const testimonials = [
+    { name: 'Maria Santos', role: 'Member, 2 heads', quote: 'No more messy spreadsheets! I can see my contribution status, loan balance, and returns all in one place.', avatar: 'MS' },
+    { name: 'Juan Dela Cruz', role: 'Fund Admin', quote: 'Approving loans and tracking payments used to take hours. Now it\'s done in seconds. The batch operations are game-changing.', avatar: 'JD' },
+    { name: 'Elena Rodriguez', role: 'Member, 3 heads', quote: 'The partial repayment feature saved me. I could pay what I could when I could, and the app tracked everything perfectly.', avatar: 'ER' },
+  ];
 
   const handleDownload = async () => {
     try {
@@ -160,26 +248,42 @@ const LandingPage: React.FC = () => {
     window.open(apkUrl, '_blank');
   };
 
+  const smoothScrollTo = (targetY: number) => {
+    const start = window.scrollY;
+    const diff = targetY - start;
+    const duration = Math.min(Math.abs(diff) * 0.5, 800);
+    const startTime = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - t, 3);
+      window.scrollTo(0, start + diff * ease);
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  };
+
   const scrollToFeatures = () => {
-    featuresRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (featuresRef.current) smoothScrollTo(featuresRef.current.offsetTop - 80);
   };
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    smoothScrollTo(0);
   };
 
   const iconProps = { size: 16, color: '#2ecc71', 'aria-hidden': 'true' as const };
 
   return (
-    <div className="app">
+    <div className={`app${pageLoaded ? ' loaded' : ''}`}>
+      <div className="reading-progress" style={{ width: `${scrollProgress}%` }} aria-hidden="true" />
       <nav className="navbar" aria-label="Main navigation">
         <div className="container">
           <a href="/" className="logo">Lend<span>WUs</span></a>
           <div className={`nav-links ${menuOpen ? 'open' : ''}`}>
-            <a href="#features" onClick={() => setMenuOpen(false)}>Features</a>
-            <a href="#preview" onClick={() => setMenuOpen(false)}>App Preview</a>
-            <a href="#how-it-works" onClick={() => setMenuOpen(false)}>How it Works</a>
-            <a href="#download" onClick={() => setMenuOpen(false)}>Download</a>
+            <a href="#features" className={activeSection === 'features' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Features</a>
+            <a href="#preview" className={activeSection === 'preview' ? 'active' : ''} onClick={() => setMenuOpen(false)}>App Preview</a>
+            <a href="#how-it-works" className={activeSection === 'how-it-works' ? 'active' : ''} onClick={() => setMenuOpen(false)}>How it Works</a>
+            <a href="#download" className={activeSection === 'download' ? 'active' : ''} onClick={() => setMenuOpen(false)}>Download</a>
             <button
               className="btn btn-outline btn-sm"
               onClick={() => window.location.href = '/login'}
@@ -202,7 +306,7 @@ const LandingPage: React.FC = () => {
       </nav>
 
       <main>
-        <header className="hero" id="top">
+        <header className="hero" id="top" style={{ '--scroll-y': `${scrollY * 0.15}px` } as React.CSSProperties}>
           <div className="container">
             <div className="hero-content">
               <div className="badge">
@@ -223,11 +327,11 @@ const LandingPage: React.FC = () => {
               <div className="hero-btns">
                 <button
                   className="btn btn-primary"
-                  onClick={() => window.location.href = '/login'}
+                  onClick={(e) => { handleRipple(e); window.location.href = '/login'; }}
                 >
-                  Open Web App <ArrowRight size={20} aria-hidden="true" />
+                  Open Web App <ArrowRight size={20} aria-hidden="true" className="btn-arrow" />
                 </button>
-                <button className="btn btn-outline" onClick={scrollToFeatures}>
+                <button className="btn btn-outline" onClick={(e) => { handleRipple(e); scrollToFeatures(); }}>
                   See How It Works
                 </button>
               </div>
@@ -238,87 +342,204 @@ const LandingPage: React.FC = () => {
               </div>
             </div>
             <div className="hero-visual">
+              {/* Floating badges */}
+              <div className="phone-float-badge badge-1" aria-hidden="true">
+                <span className="float-badge-icon">💰</span>
+                <span className="float-badge-value">₱124.5K</span>
+                <span className="float-badge-label">Total Fund</span>
+              </div>
+              <div className="phone-float-badge badge-2" aria-hidden="true">
+                <span className="float-badge-icon">👥</span>
+                <span className="float-badge-value">12</span>
+                <span className="float-badge-label">Members</span>
+              </div>
+              <div className="phone-float-badge badge-3" aria-hidden="true">
+                <span className="float-badge-icon">📈</span>
+                <span className="float-badge-value">+₱2.2K</span>
+                <span className="float-badge-label">Interest</span>
+              </div>
+
+              {/* Phone frame */}
               <div className="phone-mockup" aria-hidden="true">
-                <div className="phone-screen dashboard-preview">
-                  <div className="app-header">
-                    <div className="app-title">Dashboard</div>
-                    <div className="user-avatar" />
-                  </div>
-                  <div className="app-stats">
-                    <div className="stat-card gradient-1">
-                      <div className="stat-label">Total Fund</div>
-                      <div className="stat-value">₱124,500.00</div>
+                <div className="phone-buttons-left" />
+                <div className="phone-button-right" />
+                <div className="phone-screen">
+                  {/* Screen 0: Dashboard */}
+                  <div className={`mockup-screen ${mockupScreen === 0 ? 'active' : ''}`}>
+                    <div className="app-header">
+                      <div className="app-title">Dashboard</div>
+                      <div className="user-avatar" />
                     </div>
-                    <div className="stat-card">
-                      <div className="stat-label">Active Members</div>
-                      <div className="stat-value">12</div>
+                    <div className="app-stats">
+                      <div className="stat-card gradient-1">
+                        <div className="stat-label">Total Fund</div>
+                        <div className="stat-value">₱124,500.00</div>
+                      </div>
+                      <div className="stat-card">
+                        <div className="stat-label">Active Members</div>
+                        <div className="stat-value">12</div>
+                      </div>
+                      <div className="stat-card">
+                        <div className="stat-label">Total Loans</div>
+                        <div className="stat-value">₱45,000.00</div>
+                      </div>
+                      <div className="stat-card">
+                        <div className="stat-label">Interest Earned</div>
+                        <div className="stat-value">₱2,250.00</div>
+                      </div>
                     </div>
-                    <div className="stat-card">
-                      <div className="stat-label">Total Loans</div>
-                      <div className="stat-value">₱45,000.00</div>
-                    </div>
-                    <div className="stat-card">
-                      <div className="stat-label">Interest Earned</div>
-                      <div className="stat-value">₱2,250.00</div>
-                    </div>
-                  </div>
-                  <div className="preview-section-title">Recent Activity</div>
-                  <div className="app-list">
-                    {[
-                      { title: 'Loan Repayment', sub: 'Approved • Juan', amount: '+₱1,500', type: 'success' },
-                      { title: 'New Contribution', sub: 'Pending • Maria', amount: '+₱500', type: 'pending' },
-                      { title: 'Loan Issued', sub: 'Active • Pedro', amount: '-₱5,000', type: 'error' }
-                    ].map((item, i) => (
-                      <div key={i} className="list-item">
-                        <div className={`item-icon ${item.type}`} />
-                        <div className="item-info">
-                          <div className="item-title">{item.title}</div>
-                          <div className="item-subtitle">{item.sub}</div>
+                    <div className="preview-section-title">Recent Activity</div>
+                    <div className="app-list">
+                      {[
+                        { title: 'Loan Repayment', sub: 'Approved • Juan', amount: '+₱1,500', type: 'success' },
+                        { title: 'New Contribution', sub: 'Pending • Maria', amount: '+₱500', type: 'pending' },
+                        { title: 'Loan Issued', sub: 'Active • Pedro', amount: '-₱5,000', type: 'error' }
+                      ].map((item, i) => (
+                        <div key={i} className="list-item">
+                          <div className={`item-icon ${item.type}`} />
+                          <div className="item-info">
+                            <div className="item-title">{item.title}</div>
+                            <div className="item-subtitle">{item.sub}</div>
+                          </div>
+                          <div className={`item-amount ${item.type === 'success' ? 'text-success' : item.type === 'error' ? 'text-error' : 'text-pending'}`}>
+                            {item.amount}
+                          </div>
                         </div>
-                        <div className={`item-amount ${item.type === 'success' ? 'text-success' : item.type === 'error' ? 'text-error' : 'text-pending'}`}>
-                          {item.amount}
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Screen 1: Loans */}
+                  <div className={`mockup-screen ${mockupScreen === 1 ? 'active' : ''}`}>
+                    <div className="app-header">
+                      <div className="app-title">My Loans</div>
+                      <div className="user-avatar" />
+                    </div>
+                    <div className="mockup-loan-card">
+                      <div className="mockup-loan-top">
+                        <span className="mockup-loan-id">Loan #482A</span>
+                        <span className="mockup-loan-status">Active</span>
+                      </div>
+                      <div className="mockup-loan-balance">₱5,250.00</div>
+                      <div className="mockup-loan-label">Remaining Balance</div>
+                      <div className="mockup-loan-bar">
+                        <div className="mockup-loan-progress" style={{ width: '65%' }} />
+                      </div>
+                      <div className="mockup-loan-details">
+                        <div>
+                          <span className="mockup-detail-label">Principal</span>
+                          <span className="mockup-detail-value">₱5,000.00</span>
+                        </div>
+                        <div>
+                          <span className="mockup-detail-label">Interest</span>
+                          <span className="mockup-detail-value">5%</span>
+                        </div>
+                        <div>
+                          <span className="mockup-detail-label">Due Date</span>
+                          <span className="mockup-detail-value">Jul 15, 2026</span>
                         </div>
                       </div>
-                    ))}
+                      <div className="mockup-btn-primary">Repay Now</div>
+                    </div>
+                    <div className="preview-section-title" style={{ marginTop: 12 }}>Payment History</div>
+                    <div className="app-list">
+                      {[
+                        { title: 'Payment #1', sub: 'Jun 1, 2026', amount: '₱1,500', type: 'success' },
+                        { title: 'Payment #2', sub: 'Jun 15, 2026', amount: '₱1,500', type: 'success' },
+                      ].map((item, i) => (
+                        <div key={i} className="list-item" style={{ padding: '8px 10px' }}>
+                          <div className={`item-icon ${item.type}`} />
+                          <div className="item-info">
+                            <div className="item-title">{item.title}</div>
+                            <div className="item-subtitle">{item.sub}</div>
+                          </div>
+                          <div className="item-amount text-success">{item.amount}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Screen 2: Activity / Notifications */}
+                  <div className={`mockup-screen ${mockupScreen === 2 ? 'active' : ''}`}>
+                    <div className="app-header">
+                      <div className="app-title">Activity</div>
+                      <div className="user-avatar" />
+                    </div>
+                    <div className="mockup-notif-list">
+                      {[
+                        { icon: '✅', text: 'Loan approved', sub: 'Your loan request was approved', time: '2m ago' },
+                        { icon: '💰', text: 'Payment confirmed', sub: '₱500 contribution recorded', time: '1h ago' },
+                        { icon: '🔄', text: 'Head count updated', sub: 'Changed to 2 heads', time: '3h ago' },
+                        { icon: '📊', text: 'Monthly report ready', sub: 'June 2026 report available', time: '1d ago' },
+                        { icon: '⭐', text: 'Interest earned', sub: '₱85.00 added to returns pool', time: '2d ago' },
+                      ].map((item, i) => (
+                        <div key={i} className="mockup-notif-item">
+                          <span className="mockup-notif-icon">{item.icon}</span>
+                          <div className="mockup-notif-body">
+                            <div className="mockup-notif-title">{item.text}</div>
+                            <div className="mockup-notif-sub">{item.sub}</div>
+                          </div>
+                          <span className="mockup-notif-time">{item.time}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
+                <div className="phone-home-indicator" />
+              </div>
+
+              {/* Carousel dots */}
+              <div className="carousel-dots">
+                {[0, 1, 2].map(i => (
+                  <button
+                    key={i}
+                    className={`carousel-dot ${mockupScreen === i ? 'active' : ''}`}
+                    onClick={() => setMockupScreen(i)}
+                    aria-label={`Screen ${i + 1}`}
+                  />
+                ))}
               </div>
             </div>
           </div>
         </header>
 
-        <section id="features" className="features" ref={featuresRef} aria-labelledby="features-title">
-          <div className="container">
-            <div className="section-header">
-              <h2 id="features-title" className="section-title">Everything Your <span className="highlight">Paluwagan</span> Needs</h2>
-              <p className="section-subtitle">From member contributions to loan disbursement and year-end returns — no spreadsheets, no confusion.</p>
-            </div>
-            <div className="feature-grid">
-              <div className="feature-card">
-                <div className="feature-icon"><TrendingUp size={22} color="#2ecc71" aria-hidden="true" /></div>
-                <h3>Contribution Tracking</h3>
-                <p>Members submit monthly payments per head with receipt uploads. Admins approve in one tap — every contribution is recorded instantly.</p>
+        <div className="bg-pattern" aria-hidden="true" />
+        <div className="bg-gradient-blur" aria-hidden="true" />
+        <div ref={featuresReveal} className={`reveal ${featuresVisible ? 'visible' : ''}`}>
+          <section id="features" className="features" ref={featuresRef} aria-labelledby="features-title">
+            <div className="container">
+              <div className="section-header">
+                <h2 id="features-title" className="section-title">Everything Your <span className="highlight">Paluwagan</span> Needs</h2>
+                <p className="section-subtitle">From member contributions to loan disbursement and year-end returns — no spreadsheets, no confusion.</p>
               </div>
-              <div className="feature-card">
-                <div className="feature-icon"><SettingsIcon size={22} color="#2ecc71" aria-hidden="true" /></div>
-                <h3>Loan Management</h3>
-                <p>Members request loans; admins set interest rates and due dates. Automated balance tracking with partial repayment support.</p>
+              <div className="feature-grid">
+                <div className="feature-card">
+                  <div className="feature-icon"><TrendingUp size={22} color="#2ecc71" aria-hidden="true" /></div>
+                  <h3>Contribution Tracking</h3>
+                  <p>Members submit monthly payments per head with receipt uploads. Admins approve in one tap — every contribution is recorded instantly.</p>
+                </div>
+                <div className="feature-card">
+                  <div className="feature-icon"><SettingsIcon size={22} color="#2ecc71" aria-hidden="true" /></div>
+                  <h3>Loan Management</h3>
+                  <p>Members request loans; admins set interest rates and due dates. Automated balance tracking with partial repayment support.</p>
+                </div>
+                <div className="feature-card">
+                  <div className="feature-icon"><Zap size={22} color="#2ecc71" aria-hidden="true" /></div>
+                  <h3>Fast Onboarding</h3>
+                  <p>New members join with a group invite code. No manual data entry — they register, set their heads, and start contributing immediately.</p>
+                </div>
+                <div className="feature-card">
+                  <div className="feature-icon"><ShieldCheck size={22} color="#2ecc71" aria-hidden="true" /></div>
+                  <h3>Year-End Returns</h3>
+                  <p>Interest earned from loans is distributed back to members per head. The app computes each member's share automatically.</p>
+                </div>
               </div>
-              <div className="feature-card">
-                <div className="feature-icon"><Zap size={22} color="#2ecc71" aria-hidden="true" /></div>
-                <h3>Fast Onboarding</h3>
-                <p>New members join with a group invite code. No manual data entry — they register, set their heads, and start contributing immediately.</p>
-              </div>
-              <div className="feature-card">
-                <div className="feature-icon"><ShieldCheck size={22} color="#2ecc71" aria-hidden="true" /></div>
-                <h3>Year-End Returns</h3>
-                <p>Interest earned from loans is distributed back to members per head. The app computes each member's share automatically.</p>
-              </div>
-            </div>
           </div>
         </section>
+        </div>
 
-        <section id="preview" className="previews" aria-labelledby="preview-title">
+        <div ref={previewsReveal} className={`reveal ${previewsVisible ? 'visible' : ''}`}>
+          <section id="preview" className="previews" aria-labelledby="preview-title">
           <div className="container">
             <div className="section-header">
               <h2 id="preview-title" className="section-title">Built for <span className="highlight">Admins &amp; Members</span></h2>
@@ -388,12 +609,13 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </section>
+        </div>
 
-        <section className="stats-section" aria-label="Key metrics">
+        <section className="stats-section" ref={statsRef} aria-label="Key metrics">
           <div className="container">
             <div className="stat-grid">
               <div className="stat-item">
-                <div className="stat-number">100%</div>
+                <div className="stat-number">{countTransparency}%</div>
                 <div className="stat-desc">Transparent Tracking</div>
               </div>
               <div className="stat-item">
@@ -401,46 +623,221 @@ const LandingPage: React.FC = () => {
                 <div className="stat-desc">Balance Sync</div>
               </div>
               <div className="stat-item">
-                <div className="stat-number">₱0</div>
+                <div className="stat-number">₱{countFees}</div>
                 <div className="stat-desc">Hidden Fees</div>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="how-it-works" className="how-it-works" aria-labelledby="how-title">
+        <div ref={howReveal} className={`reveal ${howVisible ? 'visible' : ''}`}>
+          <section id="how-it-works" className="how-it-works" aria-labelledby="how-title">
           <div className="container">
             <h2 id="how-title" className="section-title">How It <span className="highlight">Works</span></h2>
-            <div className="steps">
-              <div className="step">
-                <div className="step-num" aria-hidden="true">1</div>
-                <h3>Join Your Group</h3>
-                <p>New members sign up and enter the group invite code to link to their fund circle.</p>
+            <p className="section-subtitle" style={{ marginBottom: 'var(--space-16)' }}>Three simple steps to get your fund running.</p>
+            <div className="steps-flow">
+              <div className="step-row">
+                <div className="step-visual">
+                  <div className="phone-mockup xs-mockup" aria-hidden="true">
+                    <div className="phone-buttons-left" />
+                    <div className="phone-button-right" />
+                    <div className="phone-screen">
+                      <div className="app-header">
+                        <div className="app-title">Welcome</div>
+                      </div>
+                      <div className="onboard-content">
+                        <div className="onboard-icon">👋</div>
+                        <div className="onboard-heading">Join Your Fund</div>
+                        <div className="onboard-input"><span className="input-placeholder">Email</span></div>
+                        <div className="onboard-input"><span className="input-placeholder">&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;</span></div>
+                        <div className="onboard-code-label">Group Code</div>
+                        <div className="onboard-code-box">LENDWUS</div>
+                        <div className="onboard-btn">Sign Up</div>
+                        <div className="onboard-footer">Already a member? Sign In</div>
+                      </div>
+                    </div>
+                    <div className="phone-home-indicator" />
+                  </div>
+                </div>
+                <div className="step-info">
+                  <div className="step-badge">Step 1</div>
+                  <h3>Join Your Group</h3>
+                  <p>New members sign up with email or Google, enter the group invite code <strong>LENDWUS</strong>, and get linked to your fund circle instantly. No manual data entry needed.</p>
+                  <ul className="step-checklist">
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Self-onboarding with group code</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Email &amp; Google Sign-In</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Auto-linked to fund group</li>
+                  </ul>
+                </div>
               </div>
-              <div className="step">
-                <div className="step-num" aria-hidden="true">2</div>
-                <h3>Contribute &amp; Track</h3>
-                <p>Pay your monthly share per head via GCash and upload the receipt. Admins approve in real time.</p>
+
+              <div className="step-connector" aria-hidden="true">
+                <div className="connector-dot" />
+                <div className="connector-line" />
               </div>
-              <div className="step">
-                <div className="step-num" aria-hidden="true">3</div>
-                <h3>Borrow &amp; Earn</h3>
-                <p>Members can request loans from the pool. Interest paid flows back to everyone as year-end returns.</p>
+
+              <div className="step-row reverse">
+                <div className="step-visual">
+                  <div className="phone-mockup xs-mockup" aria-hidden="true">
+                    <div className="phone-buttons-left" />
+                    <div className="phone-button-right" />
+                    <div className="phone-screen">
+                      <div className="app-header">
+                        <div className="app-title">Contribute</div>
+                        <div className="user-avatar" />
+                      </div>
+                      <div className="contribute-content">
+                        <div className="contrib-month">June 2026</div>
+                        <div className="contrib-heads">2 Heads · ₱500 required</div>
+                        <div className="contrib-progress-row">
+                          <div className="contrib-progress-bar">
+                            <div className="contrib-progress-fill" style={{ width: '70%' }} />
+                          </div>
+                          <span className="contrib-progress-text">₱350 / ₱500</span>
+                        </div>
+                        <div className="contrib-input-row">
+                          <span className="contrib-currency">₱</span>
+                          <div className="contrib-amount-box">350.00</div>
+                        </div>
+                        <div className="contrib-receipt-btn">📎 Add Receipt</div>
+                        <div className="contrib-submit-btn">Submit Payment</div>
+                        <div className="contrib-history-label">Recent Payments</div>
+                        <div className="contrib-history-item">
+                          <span>May 2026</span><span>₱500</span><span className="contrib-paid">Paid</span>
+                        </div>
+                        <div className="contrib-history-item">
+                          <span>Apr 2026</span><span>₱500</span><span className="contrib-paid">Paid</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="phone-home-indicator" />
+                  </div>
+                </div>
+                <div className="step-info">
+                  <div className="step-badge">Step 2</div>
+                  <h3>Contribute &amp; Track</h3>
+                  <p>Members submit monthly payments per head with a receipt upload. Admins approve in one tap — every contribution is recorded instantly with full history.</p>
+                  <ul className="step-checklist">
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Receipt upload for each payment</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Monthly progress tracking</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Admin approval workflow</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="step-connector" aria-hidden="true">
+                <div className="connector-dot" />
+                <div className="connector-line" />
+              </div>
+
+              <div className="step-row">
+                <div className="step-visual">
+                  <div className="phone-mockup xs-mockup" aria-hidden="true">
+                    <div className="phone-buttons-left" />
+                    <div className="phone-button-right" />
+                    <div className="phone-screen">
+                      <div className="app-header">
+                        <div className="app-title">Loans</div>
+                        <div className="user-avatar" />
+                      </div>
+                      <div className="loan-content">
+                        <div className="loan-available-card">
+                          <div className="loan-avail-label">Available to Borrow</div>
+                          <div className="loan-avail-amount">₱12,450.00</div>
+                        </div>
+                        <div className="loan-request-btn">Request a Loan</div>
+                        <div className="loan-active-label">Active Loans</div>
+                        <div className="loan-active-card">
+                          <div className="loan-active-top">
+                            <span>Loan #482A</span>
+                            <span className="loan-active-badge">Active</span>
+                          </div>
+                          <div className="loan-active-balance">₱5,250.00</div>
+                          <div className="loan-active-bar">
+                            <div className="loan-active-progress" style={{ width: '65%' }} />
+                          </div>
+                          <div className="loan-active-due">Due Jul 15, 2026</div>
+                        </div>
+                        <div className="loan-interest-note">Interest earned → Year-end returns</div>
+                      </div>
+                    </div>
+                    <div className="phone-home-indicator" />
+                  </div>
+                </div>
+                <div className="step-info">
+                  <div className="step-badge">Step 3</div>
+                  <h3>Borrow &amp; Earn</h3>
+                  <p>Members can request loans from the fund pool with simple interest. All interest paid flows back to everyone as year-end returns based on head count.</p>
+                  <ul className="step-checklist">
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Request loans with simple interest</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Partial repayments anytime</li>
+                    <li><CheckCircle size={14} color="#2ecc71" aria-hidden="true" /> Year-end returns per head share</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </section>
+        </div>
 
+        <section id="testimonials" className="testimonials" aria-labelledby="testimonials-title">
+          <div className="container">
+            <div className="section-header">
+              <h2 id="testimonials-title" className="section-title">What <span className="highlight">Members</span> Say</h2>
+              <p className="section-subtitle">Real feedback from real fund members.</p>
+            </div>
+            <div className="testimonials-grid">
+              {testimonials.map((t, i) => (
+                <div key={i} className="testimonial-card">
+                  <div className="testimonial-quote"><MessageCircle size={20} aria-hidden="true" /></div>
+                  <p className="testimonial-text">"{t.quote}"</p>
+                  <div className="testimonial-author">
+                    <div className="testimonial-avatar">{t.avatar}</div>
+                    <div>
+                      <div className="testimonial-name">{t.name}</div>
+                      <div className="testimonial-role">{t.role}</div>
+                    </div>
+                    <div className="testimonial-stars">{[...Array(5)].map((_, j) => <Star key={j} size={12} fill="#f0c040" color="#f0c040" aria-hidden="true" />)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section id="faq" className="faq" aria-labelledby="faq-title">
+          <div className="container">
+            <div className="section-header">
+              <h2 id="faq-title" className="section-title">Frequently Asked <span className="highlight">Questions</span></h2>
+              <p className="section-subtitle">Everything you need to know about LendWUs.</p>
+            </div>
+            <div className="faq-list">
+              {faqItems.map((item, i) => (
+                <div key={i} className={`faq-item ${openFaq === i ? 'open' : ''}`}>
+                  <button className="faq-question" onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}>
+                    <span>{item.q}</span>
+                    <ChevronDown size={18} className={`faq-chevron ${openFaq === i ? 'rotated' : ''}`} aria-hidden="true" />
+                  </button>
+                  <div className="faq-answer">
+                    <p>{item.a}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div ref={downloadReveal} className={`reveal ${downloadVisible ? 'visible' : ''}`}>
         <section id="download" className="download" aria-labelledby="download-title">
           <div className="container">
             <div className="download-box">
               <h2 id="download-title">Ready to Start Your Paluwagan?</h2>
               <p>Access LendWUs from any device. iOS users can add to home screen for a native app-like experience.</p>
               <div className="download-btns">
-                <button className="btn btn-primary" onClick={() => window.location.href = '/login'}>
-                  <Smartphone size={20} aria-hidden="true" /> Open Web App
+                <button className="btn btn-primary" onClick={(e) => { handleRipple(e); window.location.href = '/login'; }}>
+                  <Smartphone size={20} aria-hidden="true" /> Open Web App <ArrowRight size={16} aria-hidden="true" className="btn-arrow" />
                 </button>
-                <button className="btn btn-outline" onClick={handleDownload}>
+                <button className="btn btn-outline" onClick={(e) => { handleRipple(e); handleDownload(); }}>
                   <Download size={20} aria-hidden="true" /> Android APK ({apkVersion})
                 </button>
               </div>
@@ -457,6 +854,7 @@ const LandingPage: React.FC = () => {
             </div>
           </div>
         </section>
+        </div>
       </main>
 
       <footer className="footer">
@@ -468,6 +866,8 @@ const LandingPage: React.FC = () => {
           <nav className="footer-links" aria-label="Footer navigation">
             <a href="#features">Features</a>
             <a href="#preview">Preview</a>
+            <a href="#testimonials">Testimonials</a>
+            <a href="#faq">FAQ</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#download">Download</a>
           </nav>
@@ -616,6 +1016,7 @@ const App: React.FC = () => {
       <Route path="/admin/activity" element={<ProtectedRoute><AdminLayout><Activity /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute><AdminLayout><Settings /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
+      <Route path="/admin/compliance" element={<ProtectedRoute><AdminLayout><ComplianceReportsPage /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/data" element={<ProtectedRoute><AdminLayout><DataManagement /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/notifications" element={<ProtectedRoute><AdminLayout><Notifications /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/bulk-loans" element={<ProtectedRoute><AdminLayout><BulkLoanProcessing /></AdminLayout></ProtectedRoute>} />
@@ -628,6 +1029,7 @@ const App: React.FC = () => {
       <Route path="/member/loans" element={<ProtectedMemberRoute><MemberLayout><MemberLoans /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/contributions" element={<ProtectedMemberRoute><MemberLayout><MemberContributions /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/balances" element={<ProtectedMemberRoute><MemberLayout><MemberBalances /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/profile" element={<ProtectedMemberRoute><MemberLayout><MemberProfilePage /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/notifications" element={<ProtectedMemberRoute><MemberLayout><MemberNotifications /></MemberLayout></ProtectedMemberRoute>} />
        <Route path="/member/edit-profile" element={<Navigate to="/member/profile" replace />} />

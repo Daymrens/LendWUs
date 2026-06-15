@@ -139,11 +139,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [met, totalRequired, perCutoffAmount, defaultAdvance]);
 
-  const quickAmounts = payAdvance
-    ? [50, 75, 100, 125].map(pct => (perCutoffAmount * pct) / 100)
-    : met
-      ? [50, 75, 100, 125].map(pct => (totalRequired * pct) / 100)
-      : [25, 50, 75, 100].map(pct => (totalRequired * pct) / 100);
+  const quickAmounts = [25, 50, 75, 100].map(pct => (perCutoffAmount * pct) / 100);
 
   return (
     <div className="modal-overlay" onClick={onClose}>

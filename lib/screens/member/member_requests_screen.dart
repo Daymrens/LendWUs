@@ -631,7 +631,7 @@ class _LoanRequestsTabState extends ConsumerState<_LoanRequestsTab> {
                               ),
                             ),
                             Text(
-                              '${(request.interestRate * 100).toStringAsFixed(1)}% interest',
+                              '${request.interestRate.toStringAsFixed(1)}% interest',
                               style: TextStyle(color: AppColors.textMuted, fontSize: 12),
                             ),
                           ],
@@ -1123,7 +1123,7 @@ class _LoanDetailSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${(r.interestRate * 100).toStringAsFixed(1)}% interest',
+                  '${r.interestRate.toStringAsFixed(1)}% interest',
                   style: TextStyle(color: AppColors.textMuted, fontSize: 13),
                 ),
               ],

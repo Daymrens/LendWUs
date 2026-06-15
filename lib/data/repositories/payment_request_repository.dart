@@ -2,12 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/payment_request.dart';
 import '../models/contribution.dart';
 import '../models/repayment.dart';
+import 'activity_log_repository.dart';
 import 'loan_repository.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
 
 class PaymentRequestRepository {
+  final ActivityLogRepository _activityLog;
+
+  PaymentRequestRepository({ActivityLogRepository? activityLog})
+      : _activityLog = activityLog ?? ActivityLogRepository();
   static const int _defaultPageSize = 100;
   Future<String> createPaymentRequest(PaymentRequest request) async {
     final docRef = await FirebaseService.firestore
@@ -202,6 +207,20 @@ class PaymentRequestRepository {
         await loanRepo.addRepayment(repayment);
       }
 
+      final user = FirebaseService.auth.currentUser;
+      _activityLog.logActivity(
+        action: 'payment_approved',
+        entityType: 'payment',
+        entityId: requestId,
+        performedBy: user?.uid,
+        performedByName: user?.displayName,
+        details: {
+          'memberId': request.memberId,
+          'amount': request.amount,
+          'type': request.type.name,
+        },
+      );
+
       final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
       final amountLabel = CurrencyFormatter.format(request.amount);
       NotificationRepository.notifyMember(
@@ -241,6 +260,21 @@ class PaymentRequestRepository {
     });
 
     if (request == null) return false;
+
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'payment_rejected',
+      entityType: 'payment',
+      entityId: requestId,
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'memberId': request.memberId,
+        'amount': request.amount,
+        'type': request.type.name,
+        'reason': notes,
+      },
+    );
 
     final typeLabel = request.type == PaymentType.contribution ? 'Payment' : 'Repayment';
     final amountLabel = CurrencyFormatter.format(request.amount);

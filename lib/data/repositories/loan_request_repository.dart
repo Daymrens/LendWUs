@@ -1,12 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/loan_request.dart';
 import '../models/loan.dart';
+import 'activity_log_repository.dart';
 import 'notification_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/firestore_helpers.dart';
 
 class LoanRequestRepository {
+  final ActivityLogRepository _activityLog;
+
+  LoanRequestRepository({ActivityLogRepository? activityLog})
+      : _activityLog = activityLog ?? ActivityLogRepository();
   Future<String> createLoanRequest(LoanRequest request) async {
     final docRef = await FirebaseService.firestore
         .collection('loan_requests')
@@ -100,6 +105,7 @@ class LoanRequestRepository {
     if (data['status'] != 'pending') return false;
     final memberId = data['memberId'] as String;
     final principal = (data['amount'] as num).toDouble();
+    final interestRate = (data['interestRate'] as num?)?.toDouble() ?? 0;
     final dueDate = parseFirestoreDate(data['dueDate']);
 
     // --- Eligibility checks (§3, §5.2) ---
@@ -217,6 +223,20 @@ class LoanRequestRepository {
 
     if (!approved) return false;
 
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'loan_approved',
+      entityType: 'loan',
+      entityId: loanRef.id,
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'principal': principal,
+        'dueDate': dueDate.toIso8601String(),
+        'interestRate': interestRate,
+      },
+    );
+
     final amountLabel = CurrencyFormatter.format(principal);
     NotificationRepository.notifyMember(
       memberId,
@@ -254,6 +274,20 @@ class LoanRequestRepository {
     });
 
     if (request == null) return false;
+
+    final user = FirebaseService.auth.currentUser;
+    _activityLog.logActivity(
+      action: 'loan_rejected',
+      entityType: 'loan_request',
+      entityId: requestId,
+      performedBy: user?.uid,
+      performedByName: user?.displayName,
+      details: {
+        'memberId': request.memberId,
+        'amount': request.amount,
+        'reason': notes,
+      },
+    );
 
     final amountLabel = CurrencyFormatter.format(request.amount);
     final reason = notes != null && notes.isNotEmpty ? ': $notes' : '';

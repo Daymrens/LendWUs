@@ -105,13 +105,6 @@
         { "fieldPath": "loanId", "order": "ASCENDING" },
         { "fieldPath": "date", "order": "ASCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "users",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "memberId", "order": "ASCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

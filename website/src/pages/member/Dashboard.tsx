@@ -17,6 +17,7 @@ import PaymentModal from "./modals/PaymentModal";
 import LoanRequestModal from "./modals/LoanRequestModal";
 import HeadChangeModal from "./modals/HeadChangeModal";
 import RepaymentModal from "./modals/RepaymentModal";
+import { computeCutoff, CutoffState } from "../../utils/cutoffCalculator";
 
 interface Contribution {
   id: string;
@@ -171,7 +172,7 @@ const Dashboard: React.FC = () => {
   const totalContributions = contributions.reduce((s, c) => s + (Number(c.amount) || 0), 0);
   const activeLoans = loans.filter(l => !l.isFullyRepaid);
   const pendingCount = paymentRequests.filter(p => p.status === "pending").length;
-  const totalPending = pendingCount + 0;
+  const totalPending = pendingCount;
 
   const thisMonth = contributions.filter(c => {
     const d = c.date?.toDate?.();
@@ -192,21 +193,11 @@ const Dashboard: React.FC = () => {
   }, 0);
   const perHeadShare = totalHeadsCount > 0 ? totalInterestEarned / totalHeadsCount : 0;
 
-  // Cutoff calculation
-  const today = now.getDate();
-  const cutoffs = [cutoffDay1, cutoffDay2].sort((a, b) => a - b);
-  let nextCutoff = cutoffs.find(c => c >= today);
-  if (!nextCutoff) nextCutoff = cutoffs[0] + (new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate());
-  let daysUntilNext = nextCutoff - today;
-  if (daysUntilNext < 0) daysUntilNext += new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-  let cutoffLabel: string;
-  let cutoffColor: string;
-  if (daysUntilNext <= 0) { cutoffLabel = "Due today"; cutoffColor = "#ef4444"; }
-  else if (daysUntilNext <= 3) { cutoffLabel = `${daysUntilNext} days to cutoff`; cutoffColor = "#f59e0b"; }
-  else if (daysUntilNext <= 7) { cutoffLabel = `${daysUntilNext} days to cutoff`; cutoffColor = "#22c55e"; }
-  else { cutoffLabel = `Cutoff in ${daysUntilNext} days`; cutoffColor = "#8b949e"; }
-  const cutoffPct = Math.max(0, Math.min(100, ((cutoffDay1 - daysUntilNext) / cutoffDay1) * 100));
+  const paymentMet = fullMonthlyRequired > 0 && totalThisMonth >= fullMonthlyRequired;
+  const cutoffInfo = computeCutoff(now, cutoffDay1, cutoffDay2);
+  const cutoffLabel = paymentMet ? "✓ Paid" : cutoffInfo.statusText;
+  const cutoffColor = paymentMet ? "#22c55e" : cutoffInfo.statusColor;
+  const cutoffProgress = Math.max(0, Math.min(100, (1 - Math.max(0, cutoffInfo.daysUntilNext) / 30) * 100));
 
   if (loading) return (
     <div className="admin-page">
@@ -280,7 +271,7 @@ const Dashboard: React.FC = () => {
         <div className="chart-card" style={{ border: `1px solid ${cutoffColor}33`, position: "relative", overflow: "hidden" }}>
           <div style={{
             position: "absolute", top: 0, left: 0, bottom: 0,
-            width: `${cutoffPct}%`, background: `${cutoffColor}0d`,
+            width: `${cutoffProgress}%`, background: `${cutoffColor}0d`,
             transition: "width 0.5s ease",
           }} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -288,16 +279,16 @@ const Dashboard: React.FC = () => {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cutoffColor} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>Next Cutoff</span>
             </div>
-            <span className={`chip ${daysUntilNext <= 0 ? "inactive-chip" : daysUntilNext <= 3 ? "badge-orange" : "active-chip"}`}>
+            <span className={`chip ${paymentMet ? "active-chip" : cutoffInfo.state === CutoffState.dueToday ? "inactive-chip" : cutoffInfo.state === CutoffState.nearDeadline ? "badge-orange" : "active-chip"}`}>
               {cutoffLabel}
             </span>
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: cutoffColor, marginBottom: 8 }}>
-            {daysUntilNext <= 0 ? "Due Today" : `${daysUntilNext} day${daysUntilNext !== 1 ? "s" : ""}`}
+            {paymentMet ? "✓ All Paid" : cutoffInfo.state === CutoffState.dueToday ? "Due Today" : `${cutoffInfo.daysUntilNext} day${cutoffInfo.daysUntilNext !== 1 ? "s" : ""}`}
           </div>
           <div style={{ height: 4, background: "#1c2128", borderRadius: 2, overflow: "hidden" }}>
             <div style={{
-              width: `${Math.min(100, ((cutoffDay1 - Math.max(0, daysUntilNext)) / cutoffDay1) * 100)}%`,
+              width: `${cutoffProgress}%`,
               height: "100%", background: cutoffColor, borderRadius: 2,
               transition: "width 0.5s ease",
             }} />
