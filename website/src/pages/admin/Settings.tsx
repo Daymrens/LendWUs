@@ -23,6 +23,7 @@ interface AppSettings {
   downloadCount: number;
   isMaintenanceMode: boolean;
   maintenanceMessage: string;
+  paymentTatHours?: number;
 }
 
 const currencies = [
@@ -55,19 +56,14 @@ const DEFAULT_SETTINGS: AppSettings = {
   downloadCount: 0,
   isMaintenanceMode: false,
   maintenanceMessage: "",
+  paymentTatHours: 24,
 };
 
 const SECTIONS = [
-  { id: "limits", label: "Payment Limits", icon: "\u{1F4B1}" },
-  { id: "currency", label: "Currency", icon: "\u{1F4B6}" },
-  { id: "interest", label: "Loan Interest", icon: "\u{1F4C8}" },
-  { id: "cutoffs", label: "Cutoff Dates", icon: "\u{1F4C5}" },
-  { id: "qr", label: "QR Payment", icon: "\u{1F4F7}" },
-  { id: "apk", label: "APK Download", icon: "\u{1F4E5}" },
-  { id: "contact", label: "Contact Info", icon: "\u{1F4DE}" },
-  { id: "maintenance", label: "Maintenance", icon: "\u26A0\uFE0F" },
-  { id: "admins", label: "Admin Emails", icon: "\u{1F464}" },
-  { id: "treasurer", label: "Treasurers", icon: "\u{1F3E6}" },
+  { id: "fund", label: "Fund Settings", icon: "\u{1F4B0}" },
+  { id: "roles", label: "Roles", icon: "\u{1F465}" },
+  { id: "payment", label: "Payment Info", icon: "\u{1F4F7}" },
+  { id: "advanced", label: "Advanced", icon: "\u2699\uFE0F" },
 ];
 
 const Settings: React.FC = () => {
@@ -78,8 +74,9 @@ const Settings: React.FC = () => {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [newAdminEmail, setNewAdminEmail] = useState("");
   const [newTreasurerEmail, setNewTreasurerEmail] = useState("");
-  const [activeSection, setActiveSection] = useState("limits");
+  const [activeSection, setActiveSection] = useState("fund");
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -104,7 +101,7 @@ const Settings: React.FC = () => {
     try {
       await setDoc(doc(db, "app_settings", "fund_settings"), settings);
       setOriginal({ ...settings });
-      setMessage({ ok: true, text: "Settings saved successfully" });
+      setMessage({ ok: true, text: "Settings saved" });
     } catch (err: unknown) {
       setMessage({ ok: false, text: err instanceof Error ? err.message : "Failed to save" });
     } finally {
@@ -150,13 +147,13 @@ const Settings: React.FC = () => {
       const snapshot = await uploadBytes(storageRef, file);
       const downloadUrl = await getDownloadURL(snapshot.ref);
       set("qrImageUrl", downloadUrl);
-      setMessage({ ok: true, text: "QR code uploaded to storage" });
+      setMessage({ ok: true, text: "QR uploaded to storage" });
     } catch {
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === "string") {
           set("qrImageUrl", reader.result);
-          setMessage({ ok: true, text: "QR code saved as base64 (Spark plan fallback)" });
+          setMessage({ ok: true, text: "QR saved as base64 (Spark fallback)" });
         }
       };
       reader.readAsDataURL(file);
@@ -173,7 +170,7 @@ const Settings: React.FC = () => {
   return (
     <div className="admin-page">
       <div className="page-header">
-        <h1>Admin Settings</h1>
+        <h1>Settings</h1>
         <button className="btn btn-primary btn-sm" onClick={handleSave} disabled={saving || !hasChanges}>
           {saving ? "Saving..." : hasChanges ? "Save Changes" : "Saved"}
         </button>
@@ -186,7 +183,7 @@ const Settings: React.FC = () => {
       )}
 
       {hasChanges && (
-        <div className="unsaved-bar">
+        <div className="unsaved-bar" style={{ marginBottom: 16 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           You have unsaved changes
         </div>
@@ -207,59 +204,41 @@ const Settings: React.FC = () => {
         </nav>
 
         <div className="settings-form">
-          <div ref={el => sectionRefs.current["limits"] = el} className="settings-section">
+          {/* Fund Settings */}
+          <div ref={el => sectionRefs.current["fund"] = el} className="settings-section">
             <div className="settings-section-header">
               <span className="settings-section-icon">{SECTIONS[0].icon}</span>
-              <h2>Payment per Head Limits</h2>
+              <h2>Fund Settings</h2>
             </div>
+            <p className="form-hint">Payment limits, interest rate, cutoff dates, and approval turnaround.</p>
+
             <div className="form-row">
               <div className="form-group">
-                <label>Minimum ({settings.currencySymbol})</label>
+                <label>Min Payment ({settings.currencySymbol})</label>
                 <input type="number" min="0" step="0.01" value={settings.minPaymentPerHead} onChange={e => set("minPaymentPerHead", Number(e.target.value))} />
               </div>
               <div className="form-group">
-                <label>Maximum ({settings.currencySymbol})</label>
+                <label>Max Payment ({settings.currencySymbol})</label>
                 <input type="number" min="0" step="0.01" value={settings.maxPaymentPerHead} onChange={e => set("maxPaymentPerHead", Number(e.target.value))} />
               </div>
             </div>
-          </div>
 
-          <div ref={el => sectionRefs.current["currency"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[1].icon}</span>
-              <h2>Currency Settings</h2>
-            </div>
             <div className="form-group">
-              <label>Select Currency</label>
+              <label>Interest Rate (%)</label>
+              <input type="number" min="0" step="0.1" value={settings.loanInterestPercent} onChange={e => set("loanInterestPercent", Number(e.target.value))} />
+              <span className="form-hint">Default for new loans</span>
+            </div>
+
+            <div className="form-group">
+              <label>Currency</label>
               <select value={settings.currencyCode} onChange={e => {
                 const c = currencies.find(c => c.code === e.target.value);
                 if (c) setSettings(prev => ({ ...prev, currencyCode: c.code, currencySymbol: c.symbol }));
               }}>
-                {currencies.map(c => (
-                  <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>
-                ))}
+                {currencies.map(c => <option key={c.code} value={c.code}>{c.code} ({c.symbol})</option>)}
               </select>
             </div>
-          </div>
 
-          <div ref={el => sectionRefs.current["interest"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[2].icon}</span>
-              <h2>Loan Interest</h2>
-            </div>
-            <div className="form-group">
-              <label>Interest Rate (%)</label>
-              <input type="number" min="0" step="0.1" value={settings.loanInterestPercent} onChange={e => set("loanInterestPercent", Number(e.target.value))} />
-              <span className="form-hint">Default interest rate for new loans</span>
-            </div>
-          </div>
-
-          <div ref={el => sectionRefs.current["cutoffs"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[3].icon}</span>
-              <h2>Monthly Cutoff Dates</h2>
-            </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Payments are due on these days each month.</p>
             <div className="form-row">
               <div className="form-group">
                 <label>1st Cutoff Day</label>
@@ -270,14 +249,68 @@ const Settings: React.FC = () => {
                 <input type="number" min="1" max="31" value={settings.cutoffDay2} onChange={e => set("cutoffDay2", Number(e.target.value))} />
               </div>
             </div>
+
+            <div className="form-group">
+              <label>Approval TAT (hours)</label>
+              <input type="number" min="1" value={settings.paymentTatHours ?? 24} onChange={e => set("paymentTatHours", Number(e.target.value))} />
+              <span className="form-hint">Estimated processing time for requests</span>
+            </div>
           </div>
 
-          <div ref={el => sectionRefs.current["qr"] = el} className="settings-section">
+          {/* Roles */}
+          <div ref={el => sectionRefs.current["roles"] = el} className="settings-section">
             <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[4].icon}</span>
-              <h2>QR Payment Info</h2>
+              <span className="settings-section-icon">{SECTIONS[1].icon}</span>
+              <h2>Roles</h2>
             </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Members see this when paying contributions.</p>
+
+            <div className="form-group">
+              <label>Admin Emails</label>
+              <p className="form-hint" style={{ marginBottom: 8 }}>Full admin access on sign-in.</p>
+              <div className="admin-email-row">
+                <input type="email" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="admin@example.com" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAdminEmail(); } }} />
+                <button type="button" className="btn btn-primary btn-sm" onClick={addAdminEmail}>Add</button>
+              </div>
+              <div className="admin-emails-list">
+                {settings.adminEmails.map(email => (
+                  <span key={email} className="admin-email-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {email}
+                    <button type="button" onClick={() => removeAdminEmail(email)} title="Remove">&times;</button>
+                  </span>
+                ))}
+                {settings.adminEmails.length === 0 && <span className="form-hint">None configured</span>}
+              </div>
+            </div>
+
+            <div className="form-group" style={{ marginTop: 24 }}>
+              <label>Treasurer Emails</label>
+              <p className="form-hint" style={{ marginBottom: 8 }}>Can confirm bank receipts on payment requests (but not approve).</p>
+              <div className="admin-email-row">
+                <input type="email" value={newTreasurerEmail} onChange={e => setNewTreasurerEmail(e.target.value)} placeholder="treasurer@example.com" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTreasurerEmail(); } }} />
+                <button type="button" className="btn btn-primary btn-sm" onClick={addTreasurerEmail}>Add</button>
+              </div>
+              <div className="admin-emails-list">
+                {settings.treasurerEmails.map(email => (
+                  <span key={email} className="admin-email-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {email}
+                    <button type="button" onClick={() => removeTreasurerEmail(email)} title="Remove">&times;</button>
+                  </span>
+                ))}
+                {settings.treasurerEmails.length === 0 && <span className="form-hint">None configured</span>}
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Info */}
+          <div ref={el => sectionRefs.current["payment"] = el} className="settings-section">
+            <div className="settings-section-header">
+              <span className="settings-section-icon">{SECTIONS[2].icon}</span>
+              <h2>Payment Info</h2>
+            </div>
+            <p className="form-hint">Members see this when making contributions.</p>
+
             <div className="form-group">
               <label>Account Name</label>
               <input type="text" value={settings.qrAccountName} onChange={e => set("qrAccountName", e.target.value)} placeholder="e.g. LendWUs Group Fund" />
@@ -303,111 +336,54 @@ const Settings: React.FC = () => {
             </div>
           </div>
 
-          <div ref={el => sectionRefs.current["apk"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[5].icon}</span>
-              <h2>APK Download</h2>
+          {/* Advanced */}
+          <div ref={el => sectionRefs.current["advanced"] = el} className="settings-section">
+            <div
+              className="settings-section-header"
+              onClick={() => setAdvancedExpanded(!advancedExpanded)}
+              style={{ cursor: "pointer" }}
+            >
+              <span className="settings-section-icon">{SECTIONS[3].icon}</span>
+              <h2 style={{ flex: 1 }}>Advanced</h2>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: advancedExpanded ? "rotate(180deg)" : "none", transition: "transform .2s" }}>
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Configure the Android APK download link and version shown on the landing page.</p>
-            <div className="form-group">
-              <label>APK Download URL</label>
-              <input type="url" value={settings.apkDownloadUrl} onChange={e => set("apkDownloadUrl", e.target.value)} placeholder="e.g. https://www.mediafire.com/file/..." />
-            </div>
-            <div className="form-group">
-              <label>APK Version</label>
-              <input type="text" value={settings.apkVersion} onChange={e => set("apkVersion", e.target.value)} placeholder="e.g. v3.1" />
-            </div>
-            <div className="form-group">
-              <label>Download Count</label>
-              <div className="download-count-display">{settings.downloadCount ?? 0}</div>
-              <span className="form-hint">Total APK downloads (auto-tracked)</span>
-            </div>
-          </div>
 
-          <div ref={el => sectionRefs.current["contact"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[6].icon}</span>
-              <h2>Contact Information</h2>
-            </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Shown in the footer of the landing page.</p>
-            <div className="form-group">
-              <label>Contact Email</label>
-              <input type="email" value={settings.contactEmail} onChange={e => set("contactEmail", e.target.value)} placeholder="e.g. support@lendwus.com" />
-            </div>
-            <div className="form-group">
-              <label>Contact Phone</label>
-              <input type="tel" value={settings.contactPhone} onChange={e => set("contactPhone", e.target.value)} placeholder="e.g. +63 991 718 5691" />
-            </div>
-          </div>
+            {advancedExpanded && (
+              <>
+                <div className="form-group">
+                  <label>Maintenance Mode</label>
+                  <p className="form-hint">When enabled, members see a maintenance screen.</p>
+                  <label className="switch-label" style={{ marginTop: 8 }}>
+                    <input type="checkbox" checked={settings.isMaintenanceMode} onChange={e => set("isMaintenanceMode", e.target.checked)} />
+                    <span className="switch-slider" />
+                    <span style={{ marginLeft: 10, fontWeight: 600 }}>Enable</span>
+                  </label>
+                  {settings.isMaintenanceMode && (
+                    <div style={{ marginTop: 12 }}>
+                      <textarea className="send-notif-textarea" value={settings.maintenanceMessage} onChange={e => set("maintenanceMessage", e.target.value)} placeholder="Message shown to members (optional)" rows={2} />
+                    </div>
+                  )}
+                </div>
 
-          <div ref={el => sectionRefs.current["maintenance"] = el} className="settings-section" style={{ borderColor: settings.isMaintenanceMode ? "#e74c3c" : undefined }}>
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[7].icon}</span>
-              <h2 style={{ color: settings.isMaintenanceMode ? "#e74c3c" : undefined }}>Maintenance Mode</h2>
-            </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>When enabled, members will see a maintenance screen and cannot use the app.</p>
-            <div className="form-group">
-              <label className="switch-label">
-                <input type="checkbox" checked={settings.isMaintenanceMode} onChange={e => set("isMaintenanceMode", e.target.checked)} />
-                <span className="switch-slider" />
-                <span style={{ marginLeft: 10, fontWeight: 600 }}>Enable Maintenance Mode</span>
-              </label>
-            </div>
-            {settings.isMaintenanceMode && (
-              <div className="form-group">
-                <label>Maintenance Message</label>
-                <textarea className="send-notif-textarea" value={settings.maintenanceMessage} onChange={e => set("maintenanceMessage", e.target.value)} placeholder="Message shown to members (optional)" rows={3} />
-              </div>
-            )}
-          </div>
+                <div className="form-group" style={{ marginTop: 24 }}>
+                  <label>APK Download</label>
+                  <p className="form-hint">Configures the Android APK link on the landing page.</p>
+                  <input type="url" value={settings.apkDownloadUrl} onChange={e => set("apkDownloadUrl", e.target.value)} placeholder="https://www.mediafire.com/file/..." style={{ marginTop: 8 }} />
+                  <input type="text" value={settings.apkVersion} onChange={e => set("apkVersion", e.target.value)} placeholder="v3.1" style={{ marginTop: 8 }} />
+                  <div className="download-count-display" style={{ marginTop: 8 }}>
+                    Downloads: {settings.downloadCount ?? 0}
+                  </div>
+                </div>
 
-          <div ref={el => sectionRefs.current["admins"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[8].icon}</span>
-              <h2>Admin Emails</h2>
-            </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Users with these emails are recognized as admins on login.</p>
-            <div className="admin-email-row">
-              <input type="email" value={newAdminEmail} onChange={e => setNewAdminEmail(e.target.value)} placeholder="admin@example.com" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addAdminEmail(); } }} />
-              <button type="button" className="btn btn-primary btn-sm" onClick={addAdminEmail}>Add</button>
-            </div>
-            {settings.adminEmails.length === 0 ? (
-              <span className="form-hint">No admin emails configured.</span>
-            ) : (
-              <div className="admin-emails-list">
-                {settings.adminEmails.map(email => (
-                  <span key={email} className="admin-email-chip">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    {email}
-                    <button type="button" onClick={() => removeAdminEmail(email)} title="Remove">&times;</button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div ref={el => sectionRefs.current["treasurer"] = el} className="settings-section">
-            <div className="settings-section-header">
-              <span className="settings-section-icon">{SECTIONS[9].icon}</span>
-              <h2>Treasurer Emails</h2>
-            </div>
-            <p className="form-hint" style={{ marginBottom: 12 }}>Users with these emails receive notifications for payment requests and can confirm bank receipt. They cannot approve requests — only admins can.</p>
-            <div className="admin-email-row">
-              <input type="email" value={newTreasurerEmail} onChange={e => setNewTreasurerEmail(e.target.value)} placeholder="treasurer@example.com" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTreasurerEmail(); } }} />
-              <button type="button" className="btn btn-primary btn-sm" onClick={addTreasurerEmail}>Add</button>
-            </div>
-            {settings.treasurerEmails.length === 0 ? (
-              <span className="form-hint">No treasurer emails configured.</span>
-            ) : (
-              <div className="admin-emails-list">
-                {settings.treasurerEmails.map(email => (
-                  <span key={email} className="admin-email-chip">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    {email}
-                    <button type="button" onClick={() => removeTreasurerEmail(email)} title="Remove">&times;</button>
-                  </span>
-                ))}
-              </div>
+                <div className="form-group" style={{ marginTop: 24 }}>
+                  <label>Contact Info</label>
+                  <p className="form-hint">Shown in the landing page footer.</p>
+                  <input type="email" value={settings.contactEmail} onChange={e => set("contactEmail", e.target.value)} placeholder="support@lendwus.com" style={{ marginTop: 8 }} />
+                  <input type="tel" value={settings.contactPhone} onChange={e => set("contactPhone", e.target.value)} placeholder="+63 991 718 5691" style={{ marginTop: 8 }} />
+                </div>
+              </>
             )}
           </div>
 

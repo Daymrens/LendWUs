@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/models/app_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/services/csv_export_service.dart';
 import '../../core/utils/currency_formatter.dart';
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {
@@ -49,6 +47,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   ];
 
   bool _initialized = false;
+  bool _showAdvanced = false;
+  bool _rolesExpanded = false;
+  bool _paymentExpanded = false;
 
   @override
   void initState() {
@@ -108,7 +109,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin Settings'),
+        title: const Text('Settings'),
       ),
       body: settingsAsync.when(
         data: (settings) {
@@ -118,494 +119,22 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Text(
-                  'Fund Configuration',
-                  style: Theme.of(context).textTheme.displayMedium,
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Payment per Head Limits',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _minPaymentController,
-                                decoration: InputDecoration(
-                                  labelText: 'Minimum',
-                                  prefixText: '$_selectedCurrencySymbol ',
-                                  border: const OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
-                                  if (double.tryParse(value) == null) return 'Invalid';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const Gap(16),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _maxPaymentController,
-                                decoration: InputDecoration(
-                                  labelText: 'Maximum',
-                                  prefixText: '$_selectedCurrencySymbol ',
-                                  border: const OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
-                                  if (double.tryParse(value) == null) return 'Invalid';
-                                  final min = double.tryParse(_minPaymentController.text) ?? 0;
-                                  if (double.parse(value) < min) return 'Must be >= Min';
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Currency Settings',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(16),
-                        DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(
-                            labelText: 'Select Currency',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: _currencies.map((c) {
-                            return DropdownMenuItem<String>(
-                              value: c['code'],
-                              child: Text('${c['code']} (${c['symbol']})'),
-                            );
-                          }).toList(),
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() {
-                                _selectedCurrencyCode = value;
-                                _selectedCurrencySymbol = _currencies.firstWhere((c) => c['code'] == value)['symbol']!;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Loan Interest',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(16),
-                        TextFormField(
-                          controller: _loanInterestController,
-                          decoration: const InputDecoration(
-                            labelText: 'Interest Rate',
-                            suffixText: '%',
-                            border: OutlineInputBorder(),
-                            helperText: 'Default interest rate for new loans',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return 'Required';
-                            if (double.tryParse(value) == null) return 'Invalid';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Monthly Cutoff Dates',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('Payments are due on these days each month. Members can pay early or on time.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _cutoffDay1Controller,
-                                decoration: const InputDecoration(
-                                  labelText: '1st Cutoff Day',
-                                  border: OutlineInputBorder(),
-                                  helperText: 'e.g. 13',
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
-                                  final day = int.tryParse(value);
-                                  if (day == null || day < 1 || day > 31) return '1-31';
-                                  return null;
-                                },
-                              ),
-                            ),
-                            const Gap(16),
-                            Expanded(
-                              child: TextFormField(
-                                controller: _cutoffDay2Controller,
-                                decoration: const InputDecoration(
-                                  labelText: '2nd Cutoff Day',
-                                  border: OutlineInputBorder(),
-                                  helperText: 'e.g. 28',
-                                ),
-                                keyboardType: TextInputType.number,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) return 'Required';
-                                  final day = int.tryParse(value);
-                                  if (day == null || day < 1 || day > 31) return '1-31';
-                                  return null;
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Admin Emails',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('Emails listed here will have automatic admin access on Google Sign-In.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        ..._adminEmails.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final email = entry.value;
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(email),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-                              onPressed: () {
-                                setState(() {
-                                  _adminEmails.removeAt(index);
-                                });
-                              },
-                            ),
-                          );
-                        }),
-                        const Gap(8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _adminEmailController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Add Admin Email',
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Press Enter to add',
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                onFieldSubmitted: (value) {
-                                  final email = value.trim();
-                                  if (email.isNotEmpty && email.contains('@') && !_adminEmails.contains(email)) {
-                                    setState(() {
-                                      _adminEmails.add(email);
-                                      _adminEmailController.clear();
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Treasurer Emails',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('Emails listed here will have automatic treasurer role on Google Sign-In. The treasurer receives notifications for payment requests and can confirm bank receipt.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        ..._treasurerEmails.asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final email = entry.value;
-                          return ListTile(
-                            dense: true,
-                            contentPadding: EdgeInsets.zero,
-                            title: Text(email),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
-                              onPressed: () {
-                                setState(() {
-                                  _treasurerEmails.removeAt(index);
-                                });
-                              },
-                            ),
-                          );
-                        }),
-                        const Gap(8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _treasurerEmailController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Add Treasurer Email',
-                                  border: OutlineInputBorder(),
-                                  helperText: 'Press Enter to add',
-                                ),
-                                keyboardType: TextInputType.emailAddress,
-                                onFieldSubmitted: (value) {
-                                  final email = value.trim();
-                                  if (email.isNotEmpty && email.contains('@') && !_treasurerEmails.contains(email)) {
-                                    setState(() {
-                                      _treasurerEmails.add(email);
-                                      _treasurerEmailController.clear();
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'QR Payment Info',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('Account details shown to members for QR payment.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        TextFormField(
-                          controller: _qrNameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Account Name',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const Gap(12),
-                        TextFormField(
-                          controller: _qrNumberController,
-                          decoration: const InputDecoration(
-                            labelText: 'Account Number',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                        const Gap(16),
-                        if (_qrImageUrl.isNotEmpty)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceAlt,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.memory(
-                                    base64Decode(_qrImageUrl.split(',').last),
-                                    height: 150,
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                                const Gap(8),
-                                TextButton.icon(
-                                  onPressed: () => setState(() => _qrImageUrl = ''),
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
-                                  label: const Text('Remove', style: TextStyle(color: AppColors.error)),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          OutlinedButton.icon(
-                            onPressed: _pickQrImage,
-                            icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-                            label: const Text('Upload QR Image'),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Approval Turnaround Time',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('Estimated processing time for member payment and loan requests.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        TextFormField(
-                          controller: _paymentTatController,
-                          decoration: const InputDecoration(
-                            labelText: 'TAT (hours)',
-                            suffixText: 'hours',
-                            border: OutlineInputBorder(),
-                            helperText: 'e.g. 24 = within 24 hours',
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) return 'Required';
-                            final hrs = int.tryParse(value);
-                            if (hrs == null || hrs < 1) return 'Enter valid hours (>= 1)';
-                            return null;
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Gap(24),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Maintenance Mode',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const Gap(8),
-                        Text('When enabled, members will see a maintenance screen and cannot use the app. Admins can still access the app normally.',
-                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-                        ),
-                        const Gap(16),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Enable Maintenance Mode'),
-                          value: _isMaintenanceMode,
-                          onChanged: (val) => setState(() => _isMaintenanceMode = val),
-                        ),
-                        if (_isMaintenanceMode) ...[
-                          const Gap(12),
-                          TextFormField(
-                            controller: _maintenanceMessageController,
-                            decoration: const InputDecoration(
-                              labelText: 'Maintenance Message',
-                              border: OutlineInputBorder(),
-                              helperText: 'Message shown to members (optional)',
-                            ),
-                            maxLines: 3,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
+                _buildFundRulesCard(),
+                const Gap(16),
+                _buildRolesCard(),
+                const Gap(16),
+                _buildPaymentInfoCard(),
+                const Gap(16),
+                _buildMaintenanceCard(),
                 const Gap(32),
                 SizedBox(
                   width: double.infinity,
+                  height: 48,
                   child: ElevatedButton(
                     onPressed: _saveSettings,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                     child: const Text('Save Settings'),
                   ),
                 ),
@@ -616,27 +145,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                     title: const Text('Data Management'),
                     subtitle: const Text('Edit, add, delete transactions and clear all data'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/data-management'),
+                    onTap: () => Navigator.pushNamed(context, '/data-management'),
                   ),
                 ),
-                const Gap(16),
-                Text('Export Data', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-                const Gap(8),
-                Row(
-                  children: [
-                    Expanded(child: _exportButton('Contributions', Icons.attach_money, () => CsvExportService().exportContributions())),
-                    const Gap(8),
-                    Expanded(child: _exportButton('Loans', Icons.account_balance, () => CsvExportService().exportLoans())),
-                  ],
-                ),
-                const Gap(8),
-                Row(
-                  children: [
-                    Expanded(child: _exportButton('Members', Icons.people, () => CsvExportService().exportMembers())),
-                    const Gap(8),
-                    Expanded(child: _exportButton('Payments', Icons.receipt, () => CsvExportService().exportPaymentRequests())),
-                  ],
-                ),
+                const Gap(32),
               ],
             ),
           );
@@ -645,6 +157,366 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );
+  }
+
+  Widget _buildFundRulesCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.account_balance, color: AppColors.primary, size: 20),
+                const Gap(8),
+                Text('Fund Rules',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const Gap(4),
+            Text('Payment limits, interest rate, cutoff dates, and turnaround time.',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+            const Gap(20),
+            _sectionLabel('Payment per Head', Icons.attach_money),
+            const Gap(8),
+            Row(
+              children: [
+                Expanded(child: TextFormField(
+                  controller: _minPaymentController,
+                  decoration: const InputDecoration(labelText: 'Minimum', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                )),
+                const Gap(12),
+                Expanded(child: TextFormField(
+                  controller: _maxPaymentController,
+                  decoration: const InputDecoration(labelText: 'Maximum', border: OutlineInputBorder()),
+                  keyboardType: TextInputType.number,
+                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                )),
+              ],
+            ),
+            const Gap(20),
+            _sectionLabel('Loan Interest', Icons.trending_up),
+            const Gap(8),
+            TextFormField(
+              controller: _loanInterestController,
+              decoration: const InputDecoration(
+                labelText: 'Interest Rate', suffixText: '%', border: OutlineInputBorder(),
+                helperText: 'Default rate for new loans',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+            ),
+            const Gap(20),
+            _sectionLabel('Currency', Icons.monetization_on),
+            const Gap(8),
+            DropdownButtonFormField<String>(
+              decoration: const InputDecoration(border: OutlineInputBorder()),
+              items: _currencies.map((c) => DropdownMenuItem(value: c['code'], child: Text('${c['code']} (${c['symbol']})'))).toList(),
+              onChanged: (value) {
+                if (value != null) setState(() {
+                  _selectedCurrencyCode = value;
+                  _selectedCurrencySymbol = _currencies.firstWhere((c) => c['code'] == value)['symbol']!;
+                });
+              },
+            ),
+            const Gap(20),
+            _sectionLabel('Cutoff Dates', Icons.calendar_today),
+            const Gap(8),
+            Row(
+              children: [
+                Expanded(child: TextFormField(
+                  controller: _cutoffDay1Controller,
+                  decoration: const InputDecoration(labelText: '1st Cutoff', border: OutlineInputBorder(), helperText: 'e.g. 13'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final d = int.tryParse(v ?? '');
+                    return d == null || d < 1 || d > 31 ? '1-31' : null;
+                  },
+                )),
+                const Gap(12),
+                Expanded(child: TextFormField(
+                  controller: _cutoffDay2Controller,
+                  decoration: const InputDecoration(labelText: '2nd Cutoff', border: OutlineInputBorder(), helperText: 'e.g. 28'),
+                  keyboardType: TextInputType.number,
+                  validator: (v) {
+                    final d = int.tryParse(v ?? '');
+                    return d == null || d < 1 || d > 31 ? '1-31' : null;
+                  },
+                )),
+              ],
+            ),
+            const Gap(20),
+            _sectionLabel('Approval TAT', Icons.timer),
+            const Gap(8),
+            TextFormField(
+              controller: _paymentTatController,
+              decoration: const InputDecoration(
+                labelText: 'Turnaround Time', suffixText: 'hours', border: OutlineInputBorder(),
+                helperText: 'Estimated processing time',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                final h = int.tryParse(v ?? '');
+                return h == null || h < 1 ? '>= 1 hour' : null;
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRolesCard() {
+    return Card(
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _rolesExpanded = !_rolesExpanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.people, color: AppColors.secondary, size: 20),
+                  const Gap(8),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Roles & Access', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('${_adminEmails.length} admins, ${_treasurerEmails.length} treasurers',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  )),
+                  Icon(_rolesExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textMuted),
+                ],
+              ),
+            ),
+          ),
+          if (_rolesExpanded) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel('Admin Emails', Icons.admin_panel_settings),
+                  const Gap(8),
+                  Text('These users get full admin access on sign-in.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                  const Gap(8),
+                  ..._adminEmails.asMap().entries.map((e) => ListTile(
+                    dense: true, contentPadding: EdgeInsets.zero,
+                    title: Text(e.value),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
+                      onPressed: () => setState(() => _adminEmails.removeAt(e.key)),
+                    ),
+                  )),
+                  Row(children: [
+                    Expanded(child: TextFormField(
+                      controller: _adminEmailController,
+                      decoration: InputDecoration(
+                        labelText: _adminEmails.isEmpty ? 'Add admin email' : 'Add another',
+                        border: const OutlineInputBorder(), isDense: true,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      onFieldSubmitted: _addAdminEmail,
+                    )),
+                    const Gap(8),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                      onPressed: () => _addAdminEmail(_adminEmailController.text),
+                    ),
+                  ]),
+                  const Gap(24),
+                  _sectionLabel('Treasurer Emails', Icons.account_balance),
+                  const Gap(8),
+                  Text('Treasurers can confirm bank receipts on payment requests (but not approve).',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                  const Gap(8),
+                  ..._treasurerEmails.asMap().entries.map((e) => ListTile(
+                    dense: true, contentPadding: EdgeInsets.zero,
+                    title: Text(e.value),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
+                      onPressed: () => setState(() => _treasurerEmails.removeAt(e.key)),
+                    ),
+                  )),
+                  Row(children: [
+                    Expanded(child: TextFormField(
+                      controller: _treasurerEmailController,
+                      decoration: InputDecoration(
+                        labelText: _treasurerEmails.isEmpty ? 'Add treasurer email' : 'Add another',
+                        border: const OutlineInputBorder(), isDense: true,
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      onFieldSubmitted: _addTreasurerEmail,
+                    )),
+                    const Gap(8),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+                      onPressed: () => _addTreasurerEmail(_treasurerEmailController.text),
+                    ),
+                  ]),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentInfoCard() {
+    return Card(
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _paymentExpanded = !_paymentExpanded),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.qr_code, color: AppColors.warning, size: 20),
+                  const Gap(8),
+                  Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Payment Info', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text(_qrNameController.text.isEmpty ? 'No QR account set' : '${_qrNameController.text} — ${_qrNumberController.text}',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                      ),
+                    ],
+                  )),
+                  Icon(_paymentExpanded ? Icons.expand_less : Icons.expand_more, color: AppColors.textMuted),
+                ],
+              ),
+            ),
+          ),
+          if (_paymentExpanded) ...[
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _sectionLabel('QR Account', Icons.account_balance_wallet),
+                  const Gap(8),
+                  Text('Shown to members when they make payments.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                  ),
+                  const Gap(12),
+                  TextFormField(
+                    controller: _qrNameController,
+                    decoration: const InputDecoration(labelText: 'Account Name', border: OutlineInputBorder()),
+                  ),
+                  const Gap(12),
+                  TextFormField(
+                    controller: _qrNumberController,
+                    decoration: const InputDecoration(labelText: 'Account Number', border: OutlineInputBorder()),
+                  ),
+                  const Gap(16),
+                  if (_qrImageUrl.isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.surfaceAlt, borderRadius: BorderRadius.circular(12)),
+                      child: Column(children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(base64Decode(_qrImageUrl.split(',').last), height: 150, fit: BoxFit.contain),
+                        ),
+                        const Gap(8),
+                        TextButton.icon(
+                          onPressed: () => setState(() => _qrImageUrl = ''),
+                          icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                          label: const Text('Remove QR', style: TextStyle(color: AppColors.error)),
+                        ),
+                      ]),
+                    )
+                  else
+                    OutlinedButton.icon(
+                      onPressed: _pickQrImage,
+                      icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                      label: const Text('Upload QR Image'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMaintenanceCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.construction, color: AppColors.warning, size: 20),
+              const Gap(8),
+              const Text('System', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
+            const Gap(4),
+            Text('Maintenance mode blocks non-admin access.',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+            const Gap(12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable Maintenance Mode'),
+              value: _isMaintenanceMode,
+              onChanged: (val) => setState(() => _isMaintenanceMode = val),
+            ),
+            if (_isMaintenanceMode) ...[
+              const Gap(8),
+              TextFormField(
+                controller: _maintenanceMessageController,
+                decoration: const InputDecoration(labelText: 'Message', border: OutlineInputBorder()),
+                maxLines: 2,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String text, IconData icon) {
+    return Row(children: [
+      Icon(icon, size: 14, color: AppColors.textMuted),
+      const Gap(6),
+      Text(text, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+    ]);
+  }
+
+  void _addAdminEmail(String value) {
+    final email = value.trim();
+    if (email.isNotEmpty && email.contains('@') && !_adminEmails.contains(email)) {
+      setState(() { _adminEmails.add(email); _adminEmailController.clear(); });
+    }
+  }
+
+  void _addTreasurerEmail(String value) {
+    final email = value.trim();
+    if (email.isNotEmpty && email.contains('@') && !_treasurerEmails.contains(email)) {
+      setState(() { _treasurerEmails.add(email); _treasurerEmailController.clear(); });
+    }
   }
 
   void _saveSettings() async {
@@ -657,22 +529,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     final cutoff2 = int.parse(_cutoffDay2Controller.text);
     final tatHours = int.parse(_paymentTatController.text);
 
-    if (minPay <= 0 || maxPay <= 0) {
-      _showError('Min and max payment must be greater than 0');
-      return;
-    }
-    if (minPay > maxPay) {
-      _showError('Min payment cannot be greater than max');
-      return;
-    }
-    if (interest < 0 || interest > 100) {
-      _showError('Interest rate must be between 0 and 100');
-      return;
-    }
-    if (cutoff1 == cutoff2) {
-      _showError('Cutoff days must be different');
-      return;
-    }
+    if (minPay <= 0 || maxPay <= 0) return _showError('Min and max payment must be greater than 0');
+    if (minPay > maxPay) return _showError('Min payment cannot be greater than max');
+    if (interest < 0 || interest > 100) return _showError('Interest rate must be between 0 and 100');
+    if (cutoff1 == cutoff2) return _showError('Cutoff days must be different');
 
     final newSettings = AppSettings(
       minPaymentPerHead: minPay,
@@ -696,20 +556,15 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       await ref.read(settingsRepositoryProvider).saveSettings(newSettings);
       CurrencyFormatter.updateConfiguration(_selectedCurrencySymbol, _selectedCurrencyCode);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Settings saved successfully')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings saved')));
       }
     } catch (e) {
-      _showError('Failed to save settings: $e');
+      _showError('Failed to save: $e');
     }
   }
 
   Future<void> _pickQrImage() async {
-    final pickedFile = await _imagePicker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 70,
-    );
+    final pickedFile = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (pickedFile == null) return;
     final bytes = await pickedFile.readAsBytes();
     final b64 = base64Encode(bytes);
@@ -718,21 +573,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
 
   void _showError(String message) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message), backgroundColor: AppColors.error));
     }
-  }
-
-  Widget _exportButton(String label, IconData icon, VoidCallback onTap) {
-    return OutlinedButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16),
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 }

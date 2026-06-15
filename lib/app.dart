@@ -78,7 +78,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = location == '/login';
       final isIntro = location == '/intro';
       final isUnrecognized = location == '/unrecognized';
-      final isTreasurer = authNotifier.isTreasurer;
       final isMemberRoute = location == '/member-home' ||
           location == '/member-contributions' ||
           location == '/member-loans' ||
@@ -529,22 +528,85 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
   int _getSelectedIndex() {
     if (widget.location == '/member-home') return 0;
     if (widget.location == '/member-contributions') return 1;
-    if (widget.location == '/member-loans') return 2;
-    if (widget.location == '/member-requests') return 3;
-    if (widget.location == '/member-treasurer') return 4;
-    if (widget.location == '/member-profile') return 5;
+    if (widget.location == '/member-loans') return 3;
+    if (widget.location == '/member-profile') return 4;
     return 0;
+  }
+
+  void _showActionSheet() {
+    final isTreasurer = ref.read(currentUserProvider).isTreasurer;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text('Quick Actions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12, runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                _actionTile(ctx, Icons.payment, 'Submit Payment', () { Navigator.pop(ctx); context.go('/member-pay'); }),
+                _actionTile(ctx, Icons.add_chart, 'Apply for Loan', () { Navigator.pop(ctx); context.go('/member-loan-calculator'); }),
+                _actionTile(ctx, Icons.request_page, 'My Requests', () { Navigator.pop(ctx); context.go('/member-requests'); }),
+                if (isTreasurer)
+                  _actionTile(ctx, Icons.account_balance, 'Treasurer', () { Navigator.pop(ctx); context.go('/member-treasurer'); }),
+                _actionTile(ctx, Icons.notifications, 'Notifications', () { Navigator.pop(ctx); context.go('/notifications'); }),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionTile(BuildContext ctx, IconData icon, String label, VoidCallback onTap) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        width: 90,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 28, color: AppColors.primary),
+            const SizedBox(height: 8),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isTreasurer = ref.watch(currentUserProvider).isTreasurer;
-
     return Scaffold(
       body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _getSelectedIndex(),
         onTap: (index) {
+          if (index == 2) {
+            _showActionSheet();
+            return;
+          }
           switch (index) {
             case 0:
               context.go('/member-home');
@@ -552,51 +614,21 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
             case 1:
               context.go('/member-contributions');
               break;
-            case 2:
+            case 3:
               context.go('/member-loans');
               break;
-            case 3:
-              context.go('/member-requests');
-              break;
             case 4:
-              if (isTreasurer) {
-                context.go('/member-treasurer');
-              } else {
-                context.go('/member-profile');
-              }
-              break;
-            case 5:
               context.go('/member-profile');
               break;
           }
         },
         type: BottomNavigationBarType.fixed,
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.attach_money),
-            label: 'My Contribs',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance),
-            label: 'Loans',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.request_page),
-            label: 'Requests',
-          ),
-          if (isTreasurer)
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance),
-              label: 'Treasurer',
-            ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.attach_money), label: 'Contribs'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.account_balance), label: 'Loans'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );

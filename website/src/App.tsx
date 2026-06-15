@@ -929,18 +929,23 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const navItems = [
+  const primaryNav = [
     { path: '/member/dashboard', label: 'Home', icon: '🏠' },
-    { path: '/member/loans', label: 'Loans', icon: '🏦' },
     { path: '/member/contributions', label: 'Contributions', icon: '💰' },
+    { path: '/member/loans', label: 'Loans', icon: '🏦' },
+    { path: '/member/profile', label: 'Profile', icon: '👤' },
+  ];
+
+  const moreNav = [
     { path: '/member/requests', label: 'Requests', icon: '📋' },
     { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
     ...(user?.isTreasurer ? [{ path: '/member/treasurer', label: 'Treasurer', icon: '🏦' }] : []),
-    { path: '/member/profile', label: 'Profile', icon: '👤' },
     { path: '/member/privacy-security', label: 'Privacy & Security', icon: '🔒' },
     { path: '/member/help-support', label: 'Help & Support', icon: '❓' },
     { path: '/member/about', label: 'About', icon: 'ℹ️' },
+    { path: '/member/changelog', label: "What's New", icon: '📝' },
   ];
 
   const handleNav = (path: string) => {
@@ -956,10 +961,38 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           <span className="sidebar-role">Member</span>
         </div>
         <nav className="sidebar-nav">
-          {navItems.map(item => (
+          {primaryNav.map(item => (
             <button
               key={item.path}
               className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={() => handleNav(item.path)}
+            >
+              <span>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+
+          <div className="sidebar-divider" />
+
+          <button
+            className={`sidebar-link sidebar-more-btn ${moreOpen ? 'active' : ''}`}
+            onClick={() => setMoreOpen(!moreOpen)}
+          >
+            <span>📎</span>
+            <span>More</span>
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+              style={{ marginLeft: 'auto', transform: moreOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {moreOpen && moreNav.map(item => (
+            <button
+              key={item.path}
+              className={`sidebar-link sidebar-sub-link ${location.pathname === item.path ? 'active' : ''}`}
               onClick={() => handleNav(item.path)}
             >
               <span>{item.icon}</span>

@@ -49,7 +49,7 @@ class NotificationRepository {
   }) async {
     final treasurerSnapshot = await FirebaseService.firestore
         .collection('users')
-        .where('role', isEqualTo: 'treasurer')
+        .where('isTreasurer', isEqualTo: true)
         .get();
     if (treasurerSnapshot.docs.isEmpty) return;
     final treasurerIds = treasurerSnapshot.docs.map((d) => d.id).toList();

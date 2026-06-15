@@ -38,7 +38,7 @@
 - Treasurer dashboard shows pending payment requests
 - Treasurers confirm bank receipt of member payments
 - Admin receives notification after bank confirmation, then approves
-- Shared bottom nav tab (mobile) / sidebar item (web) when `isTreasurer` flag is active
+- Shared bottom nav **+** menu (mobile) / collapsible "More" sidebar (web) when `isTreasurer` flag is active
 
 ### 📊 Dashboard & Analytics
 - **Admin Dashboard** — Total fund, member count, active loans, interest earned
@@ -59,9 +59,11 @@
 - Secure session management
 
 ### ⚙️ Admin Controls
+- Grouped collapsible settings sections (Fund Rules, Roles, Payment Info, System)
 - Payment limits configuration
 - Currency selection (PHP / USD / EUR)
 - Loan interest percentage settings
+- Treasurer email management
 - **Maintenance mode** — disable non-admin access during updates
 - Send push notifications to all members
 - Member migration tools
@@ -69,6 +71,8 @@
 
 ### 📱 Member Self-Service
 - Personal dashboard with balances and progress
+- Bottom nav: Home – Contributions – **+** (center action) – Loans – Profile
+- **+** action opens bottom sheet with Submit Payment, Apply for Loan, Requests, Treasurer, Notifications
 - Loan application, calculator, and amortization viewer
 - Payment request submission
 - Contribution history
@@ -82,8 +86,8 @@
 - Consistent branding
 
 ### 🌐 Web App
-- Full-featured admin panel (17 pages)
-- Member portal (14 pages)
+- Full-featured admin panel (17 pages, grouped sidebar)
+- Member portal (14 pages, primary nav + collapsible "More" section)
 - Responsive React + TypeScript with Recharts
 - Shared Firebase backend with mobile
 
