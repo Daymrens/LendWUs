@@ -12,6 +12,7 @@ interface AppSettings {
   cutoffDay1: number;
   cutoffDay2: number;
   adminEmails: string[];
+  treasurerEmails: string[];
   qrAccountName: string;
   qrAccountNumber: string;
   qrImageUrl: string;
@@ -43,6 +44,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   cutoffDay1: 13,
   cutoffDay2: 28,
   adminEmails: [],
+  treasurerEmails: [],
   qrAccountName: "",
   qrAccountNumber: "",
   qrImageUrl: "",
@@ -65,6 +67,7 @@ const SECTIONS = [
   { id: "contact", label: "Contact Info", icon: "\u{1F4DE}" },
   { id: "maintenance", label: "Maintenance", icon: "\u26A0\uFE0F" },
   { id: "admins", label: "Admin Emails", icon: "\u{1F464}" },
+  { id: "treasurer", label: "Treasurers", icon: "\u{1F3E6}" },
 ];
 
 const Settings: React.FC = () => {
@@ -74,6 +77,7 @@ const Settings: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newTreasurerEmail, setNewTreasurerEmail] = useState("");
   const [activeSection, setActiveSection] = useState("limits");
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -122,6 +126,18 @@ const Settings: React.FC = () => {
 
   const removeAdminEmail = (email: string) => {
     set("adminEmails", settings.adminEmails.filter(e => e !== email));
+  };
+
+  const addTreasurerEmail = () => {
+    const email = newTreasurerEmail.trim().toLowerCase();
+    if (!email) return;
+    if (settings.treasurerEmails.includes(email)) return;
+    set("treasurerEmails", [...settings.treasurerEmails, email]);
+    setNewTreasurerEmail("");
+  };
+
+  const removeTreasurerEmail = (email: string) => {
+    set("treasurerEmails", settings.treasurerEmails.filter(e => e !== email));
   };
 
   const handleQRImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,6 +380,31 @@ const Settings: React.FC = () => {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                     {email}
                     <button type="button" onClick={() => removeAdminEmail(email)} title="Remove">&times;</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div ref={el => sectionRefs.current["treasurer"] = el} className="settings-section">
+            <div className="settings-section-header">
+              <span className="settings-section-icon">{SECTIONS[9].icon}</span>
+              <h2>Treasurer Emails</h2>
+            </div>
+            <p className="form-hint" style={{ marginBottom: 12 }}>Users with these emails receive notifications for payment requests and can confirm bank receipt. They cannot approve requests — only admins can.</p>
+            <div className="admin-email-row">
+              <input type="email" value={newTreasurerEmail} onChange={e => setNewTreasurerEmail(e.target.value)} placeholder="treasurer@example.com" onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addTreasurerEmail(); } }} />
+              <button type="button" className="btn btn-primary btn-sm" onClick={addTreasurerEmail}>Add</button>
+            </div>
+            {settings.treasurerEmails.length === 0 ? (
+              <span className="form-hint">No treasurer emails configured.</span>
+            ) : (
+              <div className="admin-emails-list">
+                {settings.treasurerEmails.map(email => (
+                  <span key={email} className="admin-email-chip">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {email}
+                    <button type="button" onClick={() => removeTreasurerEmail(email)} title="Remove">&times;</button>
                   </span>
                 ))}
               </div>

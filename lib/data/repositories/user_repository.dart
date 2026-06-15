@@ -71,6 +71,13 @@ class UserRepository {
         .set({'memberId': memberId}, SetOptions(merge: true));
   }
 
+  Future<void> updateUserDoc(User user) async {
+    await FirebaseService.firestore
+        .collection('users')
+        .doc(user.id)
+        .update(user.toMap());
+  }
+
   Future<void> updateFcmToken(String userId, String? token) async {
     await FirebaseService.firestore
         .collection('users')

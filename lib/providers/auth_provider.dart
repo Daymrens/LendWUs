@@ -49,6 +49,11 @@ class CurrentUserNotifier extends ChangeNotifier {
     return settings.asData?.value.adminEmails ?? [];
   }
 
+  List<String> get _treasurerEmails {
+    final settings = ref.read(settingsProvider);
+    return settings.asData?.value.treasurerEmails ?? [];
+  }
+
   void _initAuthListener() {
     _authSub = FirebaseService.auth.authStateChanges().listen(
       _onAuthChanged,
@@ -63,6 +68,9 @@ class CurrentUserNotifier extends ChangeNotifier {
     _stopMemberWatcher();
 
     if (firebaseUser != null) {
+      // Wait for settings to load before checking admin/treasurer emails
+      await ref.read(settingsProvider.future);
+
       final repo = ref.read(userRepositoryProvider);
       _user = await repo.getUserById(firebaseUser.uid);
 
@@ -71,6 +79,14 @@ class CurrentUserNotifier extends ChangeNotifier {
         _isRecognized = false;
         if (!_disposed) notifyListeners();
         return;
+      }
+
+      // Treasurer flag check: if user exists and email is in treasurerEmails
+      if (_user != null && _treasurerEmails.contains(firebaseUser.email)) {
+        if (!_user!.isTreasurer) {
+          _user!.isTreasurer = true;
+          await repo.updateUserDoc(_user!);
+        }
       }
 
       if (_user == null && firebaseUser.email != null) {
@@ -88,6 +104,7 @@ class CurrentUserNotifier extends ChangeNotifier {
         } else {
           final memberRepo = ref.read(memberRepositoryProvider);
           final linkedMember = await memberRepo.findMemberByLinkedEmail(firebaseUser.email!);
+          final isTreasurer = _treasurerEmails.contains(firebaseUser.email);
           if (linkedMember != null) {
             final newUser = User(
               id: firebaseUser.uid,
@@ -95,6 +112,20 @@ class CurrentUserNotifier extends ChangeNotifier {
               email: firebaseUser.email!,
               role: UserRole.member,
               memberId: linkedMember.id,
+              isTreasurer: isTreasurer,
+              photoUrl: firebaseUser.photoURL,
+              createdAt: DateTime.now(),
+            );
+            await repo.createUserDoc(newUser);
+            _user = newUser;
+          } else if (isTreasurer) {
+            // Treasurer without linked member account
+            final newUser = User(
+              id: firebaseUser.uid,
+              username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+              email: firebaseUser.email!,
+              role: UserRole.member,
+              isTreasurer: true,
               photoUrl: firebaseUser.photoURL,
               createdAt: DateTime.now(),
             );
@@ -348,6 +379,12 @@ class CurrentUserNotifier extends ChangeNotifier {
   }
 
   bool get isMember => _user?.role == UserRole.member;
+  bool get isTreasurer {
+    final user = _user;
+    if (user == null) return false;
+    if (user.isTreasurer) return true;
+    return _treasurerEmails.contains(user.email);
+  }
   String? get memberId => _user?.memberId;
 
   @override

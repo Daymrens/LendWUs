@@ -11,6 +11,7 @@ class User {
   String? displayId; // This is the LWS format ID
   String? photoUrl;
   String? fcmToken;
+  bool isTreasurer;
   DateTime createdAt;
 
   User({
@@ -22,6 +23,7 @@ class User {
     this.displayId,
     this.photoUrl,
     this.fcmToken,
+    this.isTreasurer = false,
     required this.createdAt,
   });
 
@@ -35,6 +37,7 @@ class User {
       'displayId': displayId,
       'photoUrl': photoUrl,
       'fcmToken': fcmToken,
+      'isTreasurer': isTreasurer,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -52,6 +55,7 @@ class User {
       displayId: map['displayId'],
       photoUrl: map['photoUrl'],
       fcmToken: map['fcmToken'],
+      isTreasurer: map['isTreasurer'] ?? false,
       createdAt: parseFirestoreDate(map['createdAt']),
     );
   }

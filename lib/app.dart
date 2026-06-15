@@ -27,6 +27,7 @@ import 'screens/profile/changelog_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 import 'screens/member/member_pay_screen.dart';
 import 'screens/member/loan_calculator.dart';
+import 'screens/treasurer/treasurer_dashboard_screen.dart';
 import 'data/models/payment_request.dart';
 
 import 'screens/admin/approvals_screen.dart';
@@ -77,12 +78,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isLoggingIn = location == '/login';
       final isIntro = location == '/intro';
       final isUnrecognized = location == '/unrecognized';
+      final isTreasurer = authNotifier.isTreasurer;
       final isMemberRoute = location == '/member-home' ||
           location == '/member-contributions' ||
           location == '/member-loans' ||
           location == '/member-requests' ||
           location == '/member-profile' ||
-          location == '/member-loan-calculator';
+          location == '/member-loan-calculator' ||
+          location == '/member-treasurer';
       final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
           location == '/biometric-verify' ||
           location == '/changelog' ||
@@ -306,6 +309,10 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             path: '/member-loan-calculator',
             builder: (context, state) => const LoanCalculatorScreen(),
           ),
+          GoRoute(
+            path: '/member-treasurer',
+            builder: (context, state) => const TreasurerDashboardScreen(),
+          ),
         ],
       ),
     ],
@@ -504,7 +511,7 @@ class AdminScaffoldWithNavBar extends StatelessWidget {
   }
 }
 
-class MemberScaffoldWithNavBar extends StatelessWidget {
+class MemberScaffoldWithNavBar extends ConsumerStatefulWidget {
   final Widget child;
   final String location;
 
@@ -514,19 +521,27 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
     required this.location,
   });
 
+  @override
+  ConsumerState<MemberScaffoldWithNavBar> createState() => _MemberScaffoldWithNavBarState();
+}
+
+class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNavBar> {
   int _getSelectedIndex() {
-    if (location == '/member-home') return 0;
-    if (location == '/member-contributions') return 1;
-    if (location == '/member-loans') return 2;
-    if (location == '/member-requests') return 3;
-    if (location == '/member-profile') return 4;
+    if (widget.location == '/member-home') return 0;
+    if (widget.location == '/member-contributions') return 1;
+    if (widget.location == '/member-loans') return 2;
+    if (widget.location == '/member-requests') return 3;
+    if (widget.location == '/member-treasurer') return 4;
+    if (widget.location == '/member-profile') return 5;
     return 0;
   }
 
   @override
   Widget build(BuildContext context) {
+    final isTreasurer = ref.watch(currentUserProvider).isTreasurer;
+
     return Scaffold(
-      body: child,
+      body: widget.child,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _getSelectedIndex(),
         onTap: (index) {
@@ -544,29 +559,41 @@ class MemberScaffoldWithNavBar extends StatelessWidget {
               context.go('/member-requests');
               break;
             case 4:
+              if (isTreasurer) {
+                context.go('/member-treasurer');
+              } else {
+                context.go('/member-profile');
+              }
+              break;
+            case 5:
               context.go('/member-profile');
               break;
           }
         },
         type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.attach_money),
             label: 'My Contribs',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.account_balance),
             label: 'Loans',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.request_page),
             label: 'Requests',
           ),
-          BottomNavigationBarItem(
+          if (isTreasurer)
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance),
+              label: 'Treasurer',
+            ),
+          const BottomNavigationBarItem(
             icon: Icon(Icons.person),
             label: 'Profile',
           ),

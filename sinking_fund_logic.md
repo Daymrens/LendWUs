@@ -140,7 +140,13 @@ Members can self-submit certain actions for admin approval, rather than admins e
 
 A member submits a `payment_requests` doc (`memberId`, `amount`, `receiptUrl`, `status: 'pending'`).
 
-On admin approval:
+**Treasurer bank confirmation** (if treasurer role is configured):
+1. A treasurer (member with `isTreasurer: true`) views the pending request in their dashboard.
+2. After verifying the bank deposit receipt, the treasurer taps **Confirm Bank Received**.
+3. This sets `bankConfirmed = true`, `bankConfirmedAt`, and `bankConfirmedBy` on the request doc.
+4. A notification is sent to all admins: `"[Member]'s payment confirmed by treasurer [Name]"`.
+
+**On admin approval** (either directly or after treasurer confirmation):
 1. Create a matching `contributions` doc with the same `memberId`/`amount`/`receiptUrl`.
 2. Set `payment_requests.status = 'approved'`.
 

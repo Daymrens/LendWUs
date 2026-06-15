@@ -8,6 +8,7 @@ class AppSettings {
   final int cutoffDay2;
   final int paymentTatHours;
   final List<String> adminEmails;
+  final List<String> treasurerEmails;
   final String qrAccountName;
   final String qrAccountNumber;
   final String qrImageUrl;
@@ -25,6 +26,7 @@ class AppSettings {
     this.cutoffDay2 = 28,
     this.paymentTatHours = 24,
     this.adminEmails = const [],
+    this.treasurerEmails = const [],
     this.qrAccountName = '',
     this.qrAccountNumber = '',
     this.qrImageUrl = '',
@@ -44,6 +46,7 @@ class AppSettings {
       cutoffDay2: map['cutoffDay2'] ?? 28,
       paymentTatHours: map['paymentTatHours'] ?? 24,
       adminEmails: List<String>.from(map['adminEmails'] ?? []),
+      treasurerEmails: List<String>.from(map['treasurerEmails'] ?? []),
       qrAccountName: map['qrAccountName'] ?? '',
       qrAccountNumber: map['qrAccountNumber'] ?? '',
       qrImageUrl: map['qrImageUrl'] ?? '',
@@ -64,6 +67,7 @@ class AppSettings {
       'cutoffDay2': cutoffDay2,
       'paymentTatHours': paymentTatHours,
       'adminEmails': adminEmails,
+      'treasurerEmails': treasurerEmails,
       'qrAccountName': qrAccountName,
       'qrAccountNumber': qrAccountNumber,
       'qrImageUrl': qrImageUrl,
@@ -83,6 +87,7 @@ class AppSettings {
     int? cutoffDay2,
     int? paymentTatHours,
     List<String>? adminEmails,
+    List<String>? treasurerEmails,
     String? qrAccountName,
     String? qrAccountNumber,
     String? qrImageUrl,
@@ -100,6 +105,7 @@ class AppSettings {
       cutoffDay2: cutoffDay2 ?? this.cutoffDay2,
       paymentTatHours: paymentTatHours ?? this.paymentTatHours,
       adminEmails: adminEmails ?? this.adminEmails,
+      treasurerEmails: treasurerEmails ?? this.treasurerEmails,
       qrAccountName: qrAccountName ?? this.qrAccountName,
       qrAccountNumber: qrAccountNumber ?? this.qrAccountNumber,
       qrImageUrl: qrImageUrl ?? this.qrImageUrl,

@@ -31,6 +31,8 @@ import MemberPrivacySecurity from './pages/member/PrivacySecurity';
 import MemberBalances from './pages/member/MemberBalances';
 import ComplianceReportsPage from './pages/admin/ComplianceReports';
 import MemberUnrecognized from './pages/member/Unrecognized';
+import TreasurerDashboard from './pages/treasurer/Dashboard';
+import TreasurerConfirmations from './pages/treasurer/Dashboard';
 import {
   ArrowRight,
   Download,
@@ -934,6 +936,7 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     { path: '/member/contributions', label: 'Contributions', icon: '💰' },
     { path: '/member/requests', label: 'Requests', icon: '📋' },
     { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
+    ...(user?.isTreasurer ? [{ path: '/member/treasurer', label: 'Treasurer', icon: '🏦' }] : []),
     { path: '/member/profile', label: 'Profile', icon: '👤' },
     { path: '/member/privacy-security', label: 'Privacy & Security', icon: '🔒' },
     { path: '/member/help-support', label: 'Help & Support', icon: '❓' },
@@ -1026,6 +1029,7 @@ const App: React.FC = () => {
       <Route path="/member/unrecognized" element={<MemberUnrecognized />} />
       <Route path="/maintenance" element={<MaintenanceScreen />} />
       <Route path="/member/dashboard" element={<ProtectedMemberRoute><MemberLayout><MemberDashboard /></MemberLayout></ProtectedMemberRoute>} />
+      <Route path="/member/treasurer" element={<ProtectedMemberRoute><MemberLayout><TreasurerDashboard /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/loans" element={<ProtectedMemberRoute><MemberLayout><MemberLoans /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/contributions" element={<ProtectedMemberRoute><MemberLayout><MemberContributions /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />

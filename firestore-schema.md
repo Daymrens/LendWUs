@@ -18,6 +18,7 @@ Auth-linked user record (one per Firebase Auth UID).
 | `email`     | string | Auth email                                          |
 | `photoUrl`  | string?| Profile photo URL                                   |
 | `fcmToken`  | string?| Push notification token                             |
+| `isTreasurer`| bool? | Treasurer flag; set via `treasurerEmails` in settings |
 | `createdAt` | string | ISO 8601 timestamp                                  |
 
 **Access**:
@@ -70,7 +71,7 @@ A payment made by a member toward their head quota.
 | `notes`     | string?   | Optional notes                           |
 | `createdBy` | string?   | `'admin'` or member ID                   |
 
-> **Note**: `receiptUrl` is stored on the `payment_requests` doc, NOT on the resulting `contributions` doc.
+> **Note**: `receiptUrl` is stored on the `payment_requests` doc before approval, and copied to the resulting `contributions` doc on approval for permanent record.
 
 **Access**:
 - Create: admin only
@@ -100,11 +101,14 @@ A member-submitted contribution or loan repayment that's pending admin approval.
 | `year`         | int?      | Year of request (website-only)                         |
 | `notes`        | string?   | Admin notes                                            |
 | `rejectReason` | string?   | Reason for rejection                                   |
+| `bankConfirmed`| bool?     | Treasurer has confirmed bank receipt                   |
+| `bankConfirmedAt`| timestamp?| When treasurer confirmed                              |
+| `bankConfirmedBy`| string?  | Treasurer's auth UID who confirmed                     |
 
 **Access**:
 - Create: the member themselves (`isMemberOf`), or admin
-- Read: anyone who can read the related member's data
-- Update / Delete: admin only (approval workflow)
+- Read: anyone who can read the related member's data, **or** any treasurer (`isTreasurer()`)
+- Update: admin only (approval workflow) **except** treasurers may set `bankConfirmed`/`bankConfirmedAt`/`bankConfirmedBy` (for treasurer-based confirmation before admin approval)
 
 > Approving a `type == 'contribution'` request should create a corresponding `contributions` doc; approving `type == 'loan'` creates a `repayments` doc. Both writes should happen atomically (batch write) — client-driven, no Functions.
 
@@ -199,6 +203,8 @@ Admin-configurable app-wide settings. Known doc: `app_settings/fund_settings`.
 | Field                | Type           | Notes                                                |
 | -------------------- | -------------- | ------------------------------------------------------ |
 | `adminEmails`        | array\<string> | Emails granted admin access via `isAdmin()` rule check  |
+| `treasurerEmails`    | array\<string> | Emails granted treasurer access via `isTreasurer()` rule check |
+| `currencySymbol`     | string         | `'₱'` \| `'$'` \| `'€'`                                |
 | `currencySymbol`     | string         | `'₱'` \| `'$'` \| `'€'`                                |
 | `currencyCode`       | string         | `'PHP'` \| `'USD'` \| `'EUR'`                          |
 | `loanInterestPercent`| double         | Default interest rate as whole percentage (e.g. `10.0`)|
@@ -370,12 +376,17 @@ Two ways a user becomes admin (`isAdmin()` in `firestore.rules`):
 1. `users/{uid}.role == 'admin'`
 2. `request.auth.token.email` is in `app_settings/fund_settings.adminEmails`
 
+Two ways a user is recognized as treasurer (`isTreasurer()` in `firestore.rules`):
+
+1. `get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isTreasurer == true`
+2. `request.auth.token.email` is in `app_settings/fund_settings.treasurerEmails`
+
 Two ways a user is considered "the member" for read access (`canReadMemberData`):
 
 1. `users/{uid}.memberId == memberId` (linked at signup)
 2. `members/{memberId}.linkedEmail == request.auth.token.email` (self-service linking by email)
 
-If you change either admin-detection or member-linking logic, update **both** the rule helper functions and any client-side role checks — see `CONTRIBUTING.md` → Security-Sensitive Changes.
+If you change either admin-detection, treasurer-detection, or member-linking logic, update **both** the rule helper functions and any client-side role checks — see `CONTRIBUTING.md` → Security-Sensitive Changes.
 
 ---
 

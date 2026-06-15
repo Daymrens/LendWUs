@@ -17,6 +17,9 @@ class PaymentRequest {
   String? approvedBy;
   String? notes;
   String? rejectReason;
+  bool bankConfirmed;
+  DateTime? bankConfirmedAt;
+  String? bankConfirmedBy;
 
   PaymentRequest({
     this.id,
@@ -32,6 +35,9 @@ class PaymentRequest {
     this.approvedBy,
     this.notes,
     this.rejectReason,
+    this.bankConfirmed = false,
+    this.bankConfirmedAt,
+    this.bankConfirmedBy,
   });
 
   Map<String, dynamic> toMap() {
@@ -49,6 +55,9 @@ class PaymentRequest {
       'approvedBy': approvedBy,
       'notes': notes,
       'rejectReason': rejectReason,
+      'bankConfirmed': bankConfirmed,
+      'bankConfirmedAt': bankConfirmedAt?.toIso8601String(),
+      'bankConfirmedBy': bankConfirmedBy,
     };
   }
 
@@ -73,6 +82,9 @@ class PaymentRequest {
       approvedBy: map['approvedBy'],
       notes: map['notes'],
       rejectReason: map['rejectReason'],
+      bankConfirmed: map['bankConfirmed'] ?? false,
+      bankConfirmedAt: parseFirestoreDateOrNull(map['bankConfirmedAt']),
+      bankConfirmedBy: map['bankConfirmedBy'],
     );
   }
 }

@@ -75,8 +75,8 @@ If your change affects fund balance, loan eligibility, interest, repayments, or 
 Treat these as higher-risk and double-check before merging:
 
 - Any edit to `firestore.rules`
-- Any change to admin-detection logic (`isAdmin()`, `adminEmails`, `users/{uid}.role`)
-- Any change to who can `create`/`update` `contributions`, `loans`, `repayments`, or `returns`
+- Any change to admin-detection or treasurer-detection logic (`isAdmin()`, `isTreasurer()`, `adminEmails`, `treasurerEmails`, `users/{uid}.role`, `users/{uid}.isTreasurer`)
+- Any change to who can `create`/`update` `contributions`, `loans`, `repayments`, `payment_requests`, or `returns`
 
 When in doubt, re-read `docs/firestore-schema.md` for the current access model before changing it.
 

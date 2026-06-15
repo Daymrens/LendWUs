@@ -25,12 +25,14 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   late TextEditingController _cutoffDay1Controller;
   late TextEditingController _cutoffDay2Controller;
   late TextEditingController _adminEmailController;
+  late TextEditingController _treasurerEmailController;
   late TextEditingController _qrNameController;
   late TextEditingController _qrNumberController;
   late TextEditingController _paymentTatController;
   String _selectedCurrencyCode = 'PHP';
   String _selectedCurrencySymbol = '\u20B1';
   List<String> _adminEmails = [];
+  List<String> _treasurerEmails = [];
   bool _isMaintenanceMode = false;
   late TextEditingController _maintenanceMessageController;
   String _qrImageUrl = '';
@@ -57,6 +59,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _cutoffDay1Controller = TextEditingController();
     _cutoffDay2Controller = TextEditingController();
     _adminEmailController = TextEditingController();
+    _treasurerEmailController = TextEditingController();
     _qrNameController = TextEditingController();
     _qrNumberController = TextEditingController();
     _paymentTatController = TextEditingController();
@@ -71,6 +74,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _cutoffDay1Controller.dispose();
     _cutoffDay2Controller.dispose();
     _adminEmailController.dispose();
+    _treasurerEmailController.dispose();
     _qrNameController.dispose();
     _qrNumberController.dispose();
     _paymentTatController.dispose();
@@ -89,6 +93,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _selectedCurrencyCode = settings.currencyCode;
     _selectedCurrencySymbol = settings.currencySymbol;
     _adminEmails = List.from(settings.adminEmails);
+    _treasurerEmails = List.from(settings.treasurerEmails);
     _qrNameController.text = settings.qrAccountName;
     _qrNumberController.text = settings.qrAccountNumber;
     _qrImageUrl = settings.qrImageUrl;
@@ -383,6 +388,71 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
+                          'Treasurer Emails',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Gap(8),
+                        Text('Emails listed here will have automatic treasurer role on Google Sign-In. The treasurer receives notifications for payment requests and can confirm bank receipt.',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+                        ),
+                        const Gap(16),
+                        ..._treasurerEmails.asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final email = entry.value;
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(email),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                              onPressed: () {
+                                setState(() {
+                                  _treasurerEmails.removeAt(index);
+                                });
+                              },
+                            ),
+                          );
+                        }),
+                        const Gap(8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _treasurerEmailController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Add Treasurer Email',
+                                  border: OutlineInputBorder(),
+                                  helperText: 'Press Enter to add',
+                                ),
+                                keyboardType: TextInputType.emailAddress,
+                                onFieldSubmitted: (value) {
+                                  final email = value.trim();
+                                  if (email.isNotEmpty && email.contains('@') && !_treasurerEmails.contains(email)) {
+                                    setState(() {
+                                      _treasurerEmails.add(email);
+                                      _treasurerEmailController.clear();
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const Gap(24),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
                           'QR Payment Info',
                           style: TextStyle(
                             fontSize: 18,
@@ -614,6 +684,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       cutoffDay2: cutoff2,
       paymentTatHours: tatHours,
       adminEmails: _adminEmails,
+      treasurerEmails: _treasurerEmails,
       qrAccountName: _qrNameController.text.trim(),
       qrAccountNumber: _qrNumberController.text.trim(),
       qrImageUrl: _qrImageUrl,

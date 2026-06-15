@@ -27,6 +27,11 @@ class PaymentRequestRepository {
       '$memberName submitted a $typeLabel of $amountLabel for approval',
       type: 'payment_request_created',
     );
+    NotificationRepository.notifyTreasurers(
+      'New $typeLabel Request',
+      '$memberName submitted a $typeLabel of $amountLabel for approval',
+      type: 'payment_request_created',
+    );
 
     return docRef.id;
   }
@@ -135,6 +140,7 @@ class PaymentRequestRepository {
           month: request.requestDate.month,
           year: request.requestDate.year,
           createdBy: 'member',
+          receiptUrl: request.receiptUrl,
         );
 
         await FirebaseService.firestore
@@ -302,6 +308,52 @@ class PaymentRequestRepository {
         .get();
     if (!doc.exists) return null;
     return PaymentRequest.fromMap({...doc.data()!, 'id': doc.id});
+  }
+
+  Future<bool> confirmBankReceived(String requestId, {String? confirmedBy}) async {
+    final firestore = FirebaseService.firestore;
+    final requestRef = firestore.collection('payment_requests').doc(requestId);
+
+    final existingData = await firestore.runTransaction((tx) async {
+      final snap = await tx.get(requestRef);
+      if (!snap.exists) return null;
+      final data = snap.data()!;
+      if (data['bankConfirmed'] == true) return null;
+      tx.update(requestRef, {
+        'bankConfirmed': true,
+        'bankConfirmedAt': DateTime.now().toIso8601String(),
+        'bankConfirmedBy': confirmedBy,
+      });
+      return {...data, 'id': requestId};
+    });
+
+    if (existingData == null) return false;
+
+    final request = PaymentRequest.fromMap(existingData);
+    final memberName = await _getMemberName(request.memberId);
+    final typeLabel = request.type == PaymentType.contribution ? 'Contribution' : 'Loan Repayment';
+    final amountLabel = CurrencyFormatter.format(request.amount);
+
+    NotificationRepository.notifyAdmins(
+      'Bank Confirmed: $typeLabel',
+      '$memberName\'s $typeLabel of $amountLabel has been received in the bank account',
+      type: 'bank_received',
+      data: {'paymentRequestId': requestId, 'memberId': request.memberId},
+    );
+
+    _activityLog.logActivity(
+      action: 'bank_received',
+      entityType: 'payment',
+      entityId: requestId,
+      performedBy: confirmedBy,
+      details: {
+        'memberId': request.memberId,
+        'amount': request.amount,
+        'type': request.type.name,
+      },
+    );
+
+    return true;
   }
 
   Future<String> _getMemberName(String memberId) async {

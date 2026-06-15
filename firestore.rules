@@ -17,6 +17,16 @@ service cloud.firestore {
       );
     }
 
+    function isTreasurer() {
+      return isAuth() && (
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isTreasurer == true)
+        ||
+        (exists(/databases/$(database)/documents/app_settings/fund_settings) &&
+          request.auth.token.email in get(/databases/$(database)/documents/app_settings/fund_settings).data.treasurerEmails)
+      );
+    }
+
     function isMemberOf(memberId) {
       return isAuth() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
@@ -67,8 +77,9 @@ service cloud.firestore {
     // ─── payment_requests ───────────────────────────────────
     match /payment_requests/{requestId} {
       allow create: if isAuth() && (isMemberOf(request.resource.data.memberId) || isAdmin());
-      allow read: if canReadMemberData(resource.data.memberId);
-      allow update, delete: if isAdmin();
+      allow read: if canReadMemberData(resource.data.memberId) || isTreasurer();
+      allow update: if isAdmin() || (isTreasurer() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bankConfirmed', 'bankConfirmedAt', 'bankConfirmedBy']));
+      allow delete: if isAdmin();
     }
 
     // ─── loan_requests ──────────────────────────────────────

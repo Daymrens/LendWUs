@@ -19,6 +19,7 @@ export interface AppUser {
   memberId?: string; // This is the doc ID
   customMemberId?: string; // This is the LWS format ID
   photoUrl?: string;
+  isTreasurer?: boolean;
 }
 
 interface AuthResult {
@@ -69,6 +70,19 @@ async function findMemberByLinkedEmail(email: string): Promise<{ id: string; mem
   return null;
 }
 
+async function checkTreasurerEmail(email: string): Promise<boolean> {
+  try {
+    const settingsDoc = await getDoc(doc(db, "app_settings", "fund_settings"));
+    if (settingsDoc.exists()) {
+      const treasurerEmails = settingsDoc.data()?.treasurerEmails || [];
+      return treasurerEmails.includes(email);
+    }
+  } catch (err) {
+    console.error("[Auth] checkTreasurerEmail error:", err);
+  }
+  return false;
+}
+
 async function resolveUser(fbUser: FirebaseUser): Promise<{
   appUser: AppUser | null;
   recognized: boolean;
@@ -93,6 +107,8 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
       };
     }
 
+    const isTreasurerEmail = await checkTreasurerEmail(email);
+
     // Fallback: try to find a member with matching linkedEmail (same logic as Flutter app)
     const linkedMember = await findMemberByLinkedEmail(email);
     if (linkedMember && linkedMember.isActive) {
@@ -113,7 +129,23 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
           memberId: linkedMember.id,
           customMemberId: linkedMember.memberId,
           photoUrl: fbUser.photoURL || undefined,
+          isTreasurer: isTreasurerEmail,
         },
+        recognized: true,
+      };
+    }
+
+    if (isTreasurerEmail) {
+      await setDoc(doc(db, "users", fbUser.uid), {
+        username: fbUser.displayName || email.split("@")[0],
+        email,
+        role: "member",
+        isTreasurer: true,
+        photoUrl: fbUser.photoURL || "",
+        createdAt: new Date().toISOString(),
+      });
+      return {
+        appUser: { uid: fbUser.uid, email, role: "member", username: fbUser.displayName || email.split("@")[0], photoUrl: fbUser.photoURL || undefined, isTreasurer: true },
         recognized: true,
       };
     }
@@ -126,6 +158,18 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
 
   const data = userDoc.data();
   const role = data.role as "admin" | "member";
+
+  // Treasurer flag upgrade: if user exists and email is now in treasurerEmails
+  if (role === "member" && !data.isTreasurer) {
+    const isTreasurerEmail = await checkTreasurerEmail(email);
+    if (isTreasurerEmail) {
+      await setDoc(doc(db, "users", fbUser.uid), { isTreasurer: true }, { merge: true });
+      return {
+        appUser: { uid: fbUser.uid, email, role: "member", username: data.username, photoUrl: data.photoUrl, isTreasurer: true, memberId: data.memberId },
+        recognized: true,
+      };
+    }
+  }
 
   if (role === "admin") {
     return {
@@ -175,6 +219,7 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
           memberId: resolvedMemberDoc.id,
           customMemberId: resolvedMemberDoc.memberId,
           photoUrl: data.photoUrl,
+          isTreasurer: data.isTreasurer,
         },
         recognized: true,
       };
@@ -192,6 +237,7 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
             memberId: memberSnap.id,
             customMemberId: mData?.memberId,
             photoUrl: data.photoUrl,
+            isTreasurer: data.isTreasurer,
           },
           recognized: true,
         };
@@ -223,6 +269,7 @@ async function resolveUser(fbUser: FirebaseUser): Promise<{
             memberId: uidMemberSnap.id,
             customMemberId: mData.memberId,
             photoUrl: fbUser.photoURL || undefined,
+            isTreasurer: data.isTreasurer,
           },
           recognized: true,
         };

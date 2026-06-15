@@ -31,6 +31,14 @@
 - Real-time updates via Firestore streams
 - Pending, approved, and rejected states
 - Bulk loan processing
+- Treasurer role — bank receipt confirmation before admin approval
+
+### 🏦 Treasurer Role
+- Members can be flagged as treasurers via `app_settings.treasurerEmails`
+- Treasurer dashboard shows pending payment requests
+- Treasurers confirm bank receipt of member payments
+- Admin receives notification after bank confirmation, then approves
+- Shared bottom nav tab (mobile) / sidebar item (web) when `isTreasurer` flag is active
 
 ### 📊 Dashboard & Analytics
 - **Admin Dashboard** — Total fund, member count, active loans, interest earned
@@ -101,6 +109,9 @@ Hardcoded admin emails (auto-linked on Google sign-in):
 - `act.drapor@gmail.com`
 - `daymrens@gmail.com`
 
+Treasurer emails (configurable via `app_settings/fund_settings.treasurerEmails`):
+- Members with matching email auto-upgraded to `isTreasurer: true` on sign-in
+
 ---
 
 ## ▶️ Run
@@ -162,7 +173,7 @@ lib/
 │   ├── admin/            # 20+ screens (dashboard, members, analytics, ...)
 │   ├── member/           # 12 screens (dashboard, loans, payments, ...)
 │   ├── auth/             # Login, welcome
-│   ├── contributions/    # Contributions screen
+│   ├── contributions/    # Contributions screen (+ tappable detail modal)
 │   ├── dashboard/        # Admin dashboard
 │   ├── loans/            # Loans screen
 │   ├── members/          # Members screen
@@ -170,7 +181,8 @@ lib/
 │   ├── notifications/    # Notifications screen
 │   ├── onboarding/       # Introduction screen
 │   ├── profile/          # Profile, help, about, privacy, edit
-│   └── reports/          # Reports screen
+│   ├── reports/          # Reports screen
+│   └── treasurer/        # Treasurer dashboard (bank confirmation UI)
 └── widgets/              # Wave nav bar, receipt image
 
 website/
@@ -178,6 +190,7 @@ website/
     ├── pages/
     │   ├── admin/        # 17 admin pages
     │   └── member/       # 14 member pages + modals
+    │   └── treasurer/    # Treasurer dashboard page
     ├── context/          # Auth context
     ├── hooks/            # Web notifications hook
     ├── utils/            # Export, member ID generation, image utils

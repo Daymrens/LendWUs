@@ -41,6 +41,21 @@ class NotificationRepository {
     await _notifyUsers(adminIds, title, body, type ?? '', data);
   }
 
+  static Future<void> notifyTreasurers(
+    String title,
+    String body, {
+    String? type,
+    Map<String, dynamic>? data,
+  }) async {
+    final treasurerSnapshot = await FirebaseService.firestore
+        .collection('users')
+        .where('role', isEqualTo: 'treasurer')
+        .get();
+    if (treasurerSnapshot.docs.isEmpty) return;
+    final treasurerIds = treasurerSnapshot.docs.map((d) => d.id).toList();
+    await _notifyUsers(treasurerIds, title, body, type ?? '', data);
+  }
+
   static Future<void> notifyByIds(
     List<String> userIds,
     String title,

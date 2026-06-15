@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../data/models/contribution.dart';
 import '../../data/models/member.dart';
 import '../../providers/members_provider.dart';
 import '../modals/new_contribution_modal.dart';
@@ -452,52 +454,58 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
               );
             }
 
-            return Column(
-              children: filtered.take(10).map((contrib) {
-                final member = memberList.cast<Member?>().firstWhere((m) => m?.id == contrib.memberId, orElse: () => null);
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
-                        child: Text(
-                          (member?.name ?? '?')[0].toUpperCase(),
-                          style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
+              return Column(
+                children: filtered.take(10).map((contrib) {
+                  final member = memberList.cast<Member?>().firstWhere((m) => m?.id == contrib.memberId, orElse: () => null);
+                  return GestureDetector(
+                    onTap: () => _showContributionDetail(context, contrib, member),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const Gap(12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(member?.name ?? 'Unknown',
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                            Text(_formatDate(contrib.date),
-                              style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      child: Row(
                         children: [
-                          Text(CurrencyFormatter.format(contrib.amount),
-                            style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 15)),
-                          Text('#${(contrib.id?.length ?? 0) >= 4 ? contrib.id!.substring(0, 4) : contrib.id ?? ''}',
-                            style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                          CircleAvatar(
+                            radius: 18,
+                            backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                            child: Text(
+                              (member?.name ?? '?')[0].toUpperCase(),
+                              style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ),
+                          const Gap(12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(member?.name ?? 'Unknown',
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                Text(_formatDate(contrib.date),
+                                  style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(CurrencyFormatter.format(contrib.amount),
+                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 15)),
+                              if (contrib.receiptUrl != null && contrib.receiptUrl!.isNotEmpty)
+                                Icon(Icons.image, size: 14, color: AppColors.textMuted)
+                              else
+                                Text('#${(contrib.id?.length ?? 0) >= 4 ? contrib.id!.substring(0, 4) : contrib.id ?? ''}',
+                                  style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                            ],
+                          ),
                         ],
                       ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            );
+                    ),
+                  );
+                }).toList(),
+              );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (_, __) => const Center(child: Text('Error loading members')),
@@ -505,6 +513,103 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (_, __) => const Center(child: Text('Error loading contributions')),
+    );
+  }
+
+  void _showContributionDetail(BuildContext context, Contribution contrib, Member? member) {
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final timestamp = '${contrib.date.year}-${contrib.date.month.toString().padLeft(2, '0')}-${contrib.date.day.toString().padLeft(2, '0')} '
+            '${contrib.date.hour.toString().padLeft(2, '0')}:${contrib.date.minute.toString().padLeft(2, '0')}:${contrib.date.second.toString().padLeft(2, '0')}';
+        return DraggableScrollableSheet(
+          initialChildSize: 0.55,
+          minChildSize: 0.3,
+          maxChildSize: 0.85,
+          expand: false,
+          builder: (_, scrollController) => Padding(
+            padding: const EdgeInsets.all(20),
+            child: ListView(
+              controller: scrollController,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.textMuted.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('Contribution Details', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 20),
+                _detailRow('Member', member?.name ?? 'Unknown'),
+                _detailRow('Amount', CurrencyFormatter.format(contrib.amount)),
+                _detailRow('Period', '${months[contrib.month - 1]} ${contrib.year}'),
+                _detailRow('Timestamp', timestamp),
+                _detailRow('Transaction ID', contrib.id ?? 'N/A'),
+                if (contrib.notes != null && contrib.notes!.isNotEmpty)
+                  _detailRow('Notes', contrib.notes!),
+                if (contrib.createdBy != null)
+                  _detailRow('Created By', contrib.createdBy == 'member' ? 'Member (via request)' : 'Admin'),
+                if (contrib.receiptUrl != null && contrib.receiptUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  const Text('Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  if (contrib.receiptUrl!.startsWith('data:image'))
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.memory(
+                        base64Decode(contrib.receiptUrl!.split(',').last),
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                      ),
+                    )
+                  else
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(
+                        contrib.receiptUrl!,
+                        height: 200,
+                        width: double.infinity,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                      ),
+                    ),
+                ],
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+          ),
+        ],
+      ),
     );
   }
 

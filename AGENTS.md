@@ -103,6 +103,8 @@ website/
 - **Theming**: use `AppColors` and the existing dark theme rather than hardcoded colors.
 - **Currency**: always go through `CurrencyFormatter`; the app supports PHP/USD/EUR via admin settings.
 - **No server-side validation**: since there are no Cloud Functions, business-rule enforcement (loan interest, returns calc, payment limits) must be backed by `firestore.rules`, not just client logic.
+- **Treasurer role**: a member with `isTreasurer: true` flag (not a separate role). Auto-assigned on sign-in if email is in `app_settings/fund_settings.treasurerEmails`. Treasurers confirm bank receipt (`bankConfirmed` fields on `payment_requests`) before admin approval.
+- **Settings race condition**: in `_onAuthChanged`, always `await ref.read(settingsProvider.future)` before reading `_adminEmails`/`_treasurerEmails` — the stream may not have emitted its first value yet on cold start.
 
 ## Key Files
 
@@ -192,3 +194,5 @@ For bugs involving fund balance, loan interest, repayments, or returns:
 - Don't add Cloud Functions–dependent features without flagging that the project is on the Firebase Spark (free) plan.
 - When touching Firestore queries, check `firestore.indexes.json` for a matching index or the query will fail in production.
 - Admin role is currently determined by hardcoded email list — if changing auth/role logic, update both client checks and `firestore.rules` consistently.
+- Treasurer is a **member flag** (`isTreasurer`, not a separate role). The treasurer retains a `memberId` and all member access. Adding an email to `treasurerEmails` triggers `isTreasurer: true` on next sign-in. Removing from the list requires also clearing the doc flag to fully revoke.
+- Website `resolveUser()` must pass `isTreasurer: data.isTreasurer` in **all** existing-user return paths, not just the upgrade path — omitted `isTreasurer` in the `appUser` object means the nav item stays hidden even though Firestore has the flag.

@@ -4,6 +4,8 @@ Practical "how do I..." guide for the fund admin(s). For schema details referenc
 
 Admins are determined by either `users/{uid}.role == 'admin'` or being listed in `app_settings/fund_settings.adminEmails` (currently `act.drapor@gmail.com`, `daymrens@gmail.com`).
 
+Treasurers are members with the `isTreasurer` flag, determined by either `users/{uid}.isTreasurer == true` or being listed in `app_settings/fund_settings.treasurerEmails`. Treasurers can view all payment requests and mark bank receipts as confirmed before admin approval.
+
 ---
 
 ## Adding a New Member
@@ -26,8 +28,17 @@ Admins are determined by either `users/{uid}.role == 'admin'` or being listed in
 2. Enter `amount` (centavos), attach receipt if provided.
 3. Save — this writes directly to `contributions/{contributionId}` with `memberId`, `amount`, `date` (server timestamp), `receiptUrl`.
 
-**Via member self-submission (payment request):**
-1. Member submits via their app — creates `payment_requests/{requestId}` with `status: 'pending'`.
+**Via member self-submission (payment request) — with treasurer:**
+1. Member submits via their app — creates `payment_requests/{requestId}` with `status: 'pending'`, `receiptUrl`.
+2. **Treasurer** reviews under their dashboard. If the bank deposit receipt looks valid, they tap **"Confirm Bank Received"** — this sets `bankConfirmed = true`, `bankConfirmedAt`, `bankConfirmedBy` on the request doc. A notification is sent to all admins.
+3. **Admin** reviews under **Approvals**. On approve:
+   - Set `payment_requests/{requestId}.status = 'approved'`
+   - Create a matching `contributions/{contributionId}` doc with the same `memberId`/`amount`/`receiptUrl`
+   - Both writes should happen together (batch) — if you're doing this manually via console, do the contribution write first, then mark the request approved, so a partial failure doesn't leave an "approved" request with no recorded contribution.
+4. On reject: set `status: 'rejected'`. No contribution doc is created.
+
+**Via member self-submission (payment request) — no treasurer configured:**
+1. Member submits via their app — creates `payment_requests/{requestId}` with `status: 'pending'`, `receiptUrl`.
 2. Admin reviews under **Approvals**. On approve:
    - Set `payment_requests/{requestId}.status = 'approved'`
    - Create a matching `contributions/{contributionId}` doc with the same `memberId`/`amount`/receipt
@@ -142,6 +153,15 @@ Run once per year (manually triggered — no scheduled Functions):
 - Adding an admin: either set `users/{uid}.role = 'admin'` for their account, **or** add their email to `app_settings/fund_settings.adminEmails`.
 - Removing an admin: remove from `adminEmails` **and** check/clear `users/{uid}.role` if it was set to `'admin'` — both paths grant access, so both must be revoked.
 - Be cautious editing `adminEmails` directly in Firestore — a typo could lock out the only admin account. Test with a second admin account before removing the last one from a list.
+
+---
+
+## Managing Treasurers
+
+- **Adding a treasurer**: add their email to `app_settings/fund_settings.treasurerEmails`. On next sign-in, the auth flow detects the email in the list and sets `users/{uid}.isTreasurer = true`.
+- **Removing a treasurer**: remove their email from `treasurerEmails`. Also manually set `users/{uid}.isTreasurer = false` if you want to immediately revoke access — the list-only check in the `isTreasurer` getter will already return `false`, but the doc flag may still show `true`.
+- **Treasurer vs admin**: treasurers can only view payment requests and mark `bankConfirmed` — they cannot approve/reject requests, manage members, issue loans, or access any admin screens. If a treasurer email is also in `adminEmails`, the user gets both roles (admin takes precedence for routing).
+- **Notification on role change**: existing users get upgraded on their next sign-in via `checkTreasurerEmail()` (web) or `_treasurerEmails` check (Flutter). If the upgrade doesn't appear, have them sign out and sign back in.
 
 ---
 

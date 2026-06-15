@@ -18,6 +18,7 @@ class SettingsRepository {
         cutoffDay1: 13,
         cutoffDay2: 28,
         adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
+        treasurerEmails: [],
       );
       await saveSettings(defaultSettings);
       return defaultSettings;
@@ -41,6 +42,7 @@ class SettingsRepository {
           cutoffDay1: 13,
           cutoffDay2: 28,
           adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
+          treasurerEmails: [],
         );
       }
       return AppSettings.fromMap(doc.data()!);
