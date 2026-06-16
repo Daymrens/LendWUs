@@ -186,7 +186,6 @@ const Profile: React.FC = () => {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {[
             { label: "Privacy & Security", icon: "\uD83D\uDD12", path: "/member/privacy-security" },
-            { label: "Notifications", icon: "\uD83D\uDD14", path: "/member/notifications" },
             { label: "Help & Support", icon: "\u2753", path: "/member/help-support" },
             { label: "About", icon: "\u2139\uFE0F", path: "/member/about" },
             { label: "What's New", icon: "\u{1F195}", path: "/member/changelog" },

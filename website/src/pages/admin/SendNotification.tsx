@@ -14,30 +14,43 @@ interface Template {
   title: string;
   body: string;
   category: string;
+  recipient?: string;
 }
 
 const TEMPLATES: Template[] = [
-  { label: "Payment Reminder", icon: "\u{1F4B0}", type: "payment", category: "reminders",
-    title: "Payment Reminder",
-    body: "This is a reminder to make your pending payment at your earliest convenience to keep your account in good standing." },
-  { label: "Contribution Due", icon: "\u{1F4CA}", type: "reminder", category: "reminders",
-    title: "Contribution Due Reminder",
-    body: "Your monthly contribution is due soon. Please make your deposit on time to avoid any penalties." },
-  { label: "Meeting Reminder", icon: "\u{1F4C5}", type: "reminder", category: "reminders",
-    title: "Meeting Reminder",
-    body: "This is a reminder about the upcoming group meeting. Please make every effort to attend." },
-  { label: "Loan Approval", icon: "\u2705", type: "approval", category: "updates",
+  { label: "Contribution Due", icon: "\u{1F4B0}", type: "payment", category: "reminders", recipient: "members",
+    title: "Contribution Due",
+    body: "This is a friendly reminder that your monthly contribution is now due. Please submit your payment at your earliest convenience." },
+  { label: "Overdue Alert", icon: "\u26A0\uFE0F", type: "payment", category: "reminders", recipient: "members",
+    title: "Payment Overdue",
+    body: "Your contribution for this month is now overdue. Kindly remit immediately to avoid any lapse in your standing." },
+  { label: "Loan Due Reminder", icon: "\u{1F3E6}", type: "loan", category: "reminders", recipient: "members",
+    title: "Loan Repayment Due",
+    body: "Your loan repayment is due soon. Please settle your payment to keep your account in good standing." },
+  { label: "Meeting Notice", icon: "\u{1F4C5}", type: "custom_notification", category: "reminders", recipient: "all",
+    title: "Upcoming Fund Meeting",
+    body: "We will be having our fund meeting on [DATE]. Your attendance is kindly requested." },
+  { label: "Loan Approved", icon: "\u2705", type: "approval", category: "updates", recipient: "member",
     title: "Loan Approved",
-    body: "Your loan application has been approved. Please check your account for the updated details and disbursement schedule." },
-  { label: "Head Change", icon: "\u{1F465}", type: "head_change", category: "updates",
-    title: "Head Count Change",
-    body: "Your head count has been updated. Please review the changes in your account." },
-  { label: "App Update", icon: "\u{1F4F1}", type: "app_update", category: "updates",
-    title: "New App Update Available",
-    body: "A new version of the app is available. Please update to enjoy new features." },
-  { label: "System Notice", icon: "\u2139\uFE0F", type: "system", category: "notices",
+    body: "Congratulations! Your loan has been approved. The amount has been disbursed to your account." },
+  { label: "Fund Update", icon: "\u{1F4C8}", type: "custom_notification", category: "updates", recipient: "all",
+    title: "Fund Performance Update",
+    body: "Our fund balance is performing well. Thank you for your continued contributions and support." },
+  { label: "Head Change Approved", icon: "\u{1F465}", type: "head_change", category: "updates", recipient: "member",
+    title: "Head Count Updated",
+    body: "Your head count change request has been approved. Please check your account for the updated details." },
+  { label: "Thank You", icon: "\u{1F389}", type: "payment", category: "updates", recipient: "members",
+    title: "Thank You!",
+    body: "Thank you for your timely contribution! Your consistent support keeps our fund strong." },
+  { label: "General Notice", icon: "\u2139\uFE0F", type: "custom_notification", category: "notices", recipient: "all",
+    title: "Important Announcement",
+    body: "Please be informed of the following update regarding our fund: [DETAILS]." },
+  { label: "System Maintenance", icon: "\u{1F6A7}", type: "system", category: "notices", recipient: "all",
     title: "System Maintenance Notice",
     body: "The system will be undergoing scheduled maintenance. Some features may be unavailable." },
+  { label: "App Update", icon: "\u{1F4F1}", type: "app_update", category: "notices", recipient: "all",
+    title: "New App Update Available",
+    body: "A new version of the app is available. Please update to enjoy new features and improvements." },
 ];
 
 const CATEGORIES = [
@@ -235,7 +248,7 @@ const SendNotification: React.FC = () => {
                 <button
                   key={i}
                   className="notif-template-btn"
-                  onClick={() => { setTitle(t.title); setBody(t.body); setType(t.type); }}
+                  onClick={() => { setTitle(t.title); setBody(t.body); setType(t.type); if (t.recipient) setRecipient(t.recipient); }}
                 >
                   <span className="notif-template-icon">{t.icon}</span>
                   <span className="notif-template-label">{t.label}</span>
@@ -252,7 +265,7 @@ const SendNotification: React.FC = () => {
               </div>
               <div className="notif-preview-card-body">
                 <div className="notif-preview-icon">
-                  {type === "payment" ? "\u{1F4B0}" : type === "approval" ? "\u2705" : type === "reminder" ? "\u23F0" : type === "system" ? "\u2139\uFE0F" : "\u{1F514}"}
+                  {type === "payment" ? "\u{1F4B0}" : type === "loan" ? "\u{1F3E6}" : type === "approval" ? "\u2705" : type === "reminder" ? "\u23F0" : type === "all_paid" ? "\u{1F389}" : type === "system" ? "\u2139\uFE0F" : "\u{1F514}"}
                 </div>
                 <div className="notif-preview-content">
                   <div className="notif-preview-title">{title || "Notification Title"}</div>

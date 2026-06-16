@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
   query,
@@ -6,6 +6,10 @@ import {
   orderBy,
   limit,
   addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  doc,
   onSnapshot,
   Timestamp,
 } from "firebase/firestore";
@@ -14,7 +18,7 @@ import { downloadCSV } from "../../utils/export";
 import { backfillMissingMemberIds } from "../../utils/memberId";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, Area, AreaChart,
 } from "recharts";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -42,6 +46,10 @@ interface DashboardData {
   monthlyContributionsCurrent: number;
   monthlyRequiredCurrent: number;
   avgContributionPerMember: number;
+  fundGrowthData: Array<{ day: number; currentBalance: number; previousBalance: number | null }>;
+  prevMonthLabel: string;
+  paymentStatusData: Array<{ name: string; value: number; color: string }>;
+  collectionRateTrend: Array<{ month: string; rate: number }>;
 }
 
 const COLORS = ["#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#8b5cf6", "#ec4899"];
@@ -59,6 +67,7 @@ const Dashboard: React.FC = () => {
   const [recentPayments, setRecentPayments] = useState<RawDoc[]>([]);
   const [firstLoad, setFirstLoad] = useState(true);
   const [error, setError] = useState("");
+  const now = new Date();
   const [chartTab, setChartTab] = useState(0);
   const [actionModal, setActionModal] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState("");
@@ -135,7 +144,7 @@ const Dashboard: React.FC = () => {
         return d && d.getMonth() + 1 === thisMonth && d.getFullYear() === thisYear;
       })
       .reduce((s, c) => s + (Number(c.amount)||0), 0);
-    const monthlyRequiredCurrent = activeMembersList.reduce((s, m) => s + (Number(m.amountPerHead) || Number(m.headsCount) * 500 || 500), 0);
+    const monthlyRequiredCurrent = activeMembersList.reduce((s, m) => s + (Number(m.headsCount) || 1) * (Number(m.amountPerHead) || 500), 0);
     const collectionRate = monthlyRequiredCurrent > 0 ? (monthlyContributionsCurrent / monthlyRequiredCurrent) * 100 : 0;
     const avgContributionPerMember = activeMembers > 0 ? totalContributions / activeMembers : 0;
 
@@ -207,7 +216,151 @@ const Dashboard: React.FC = () => {
       .reduce((s, p) => s + (Number(p.amount)||0), 0);
     const annualReturns = annualRepayments - annualLoans + annualContributions;
 
-    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments, totalHeads, perHeadShare, fundUtilization, collectionRate, monthlyContributionsCurrent, monthlyRequiredCurrent, avgContributionPerMember };
+    const daysInMonth = new Date(thisYear, thisMonth, 0).getDate();
+    const fundGrowthData: Array<{ day: number; currentBalance: number; previousBalance: number | null }> = [];
+    const balanceBeforeMonth = contributions
+      .filter((c) => {
+        const d = (c.date as Timestamp)?.toDate?.();
+        return d && (d.getFullYear() < thisYear || (d.getFullYear() === thisYear && d.getMonth() + 1 < thisMonth));
+      })
+      .reduce((s, c) => s + (Number(c.amount)||0), 0)
+      - loans
+        .filter((l) => {
+          const d = (l.issuedDate as Timestamp)?.toDate?.();
+          return d && (d.getFullYear() < thisYear || (d.getFullYear() === thisYear && d.getMonth() + 1 < thisMonth));
+        })
+        .reduce((s, l) => s + (Number(l.principal)||0), 0)
+      + repaymentsData
+        .filter((r) => {
+          const d = (r.date as Timestamp)?.toDate?.();
+          return d && (d.getFullYear() < thisYear || (d.getFullYear() === thisYear && d.getMonth() + 1 < thisMonth));
+        })
+        .reduce((s, r) => s + (Number(r.amountPaid)||0), 0);
+    let running = balanceBeforeMonth;
+    for (let day = 1; day <= daysInMonth; day++) {
+      contributions
+        .filter((c) => {
+          const d = (c.date as Timestamp)?.toDate?.();
+          if (!d) return false;
+          return d.getFullYear() === thisYear && d.getMonth() + 1 === thisMonth && d.getDate() === day;
+        })
+        .forEach((c) => { running += Number(c.amount)||0; });
+      loans
+        .filter((l) => {
+          const d = (l.issuedDate as Timestamp)?.toDate?.();
+          if (!d) return false;
+          return d.getFullYear() === thisYear && d.getMonth() + 1 === thisMonth && d.getDate() === day;
+        })
+        .forEach((l) => { running -= Number(l.principal)||0; });
+      repaymentsData
+        .filter((r) => {
+          const d = (r.date as Timestamp)?.toDate?.();
+          if (!d) return false;
+          return d.getFullYear() === thisYear && d.getMonth() + 1 === thisMonth && d.getDate() === day;
+        })
+        .forEach((r) => { running += Number(r.amountPaid)||0; });
+      fundGrowthData.push({ day, currentBalance: running, previousBalance: null });
+    }
+
+    const prevMonth = thisMonth === 1 ? 12 : thisMonth - 1;
+    const prevYear = thisMonth === 1 ? thisYear - 1 : thisYear;
+    const prevDaysInMonth = new Date(prevYear, prevMonth, 0).getDate();
+    const prevBalanceBefore = contributions
+      .filter((c) => {
+        const d = (c.date as Timestamp)?.toDate?.();
+        return d && (d.getFullYear() < prevYear || (d.getFullYear() === prevYear && d.getMonth() + 1 < prevMonth));
+      })
+      .reduce((s, c) => s + (Number(c.amount)||0), 0)
+      - loans
+        .filter((l) => {
+          const d = (l.issuedDate as Timestamp)?.toDate?.();
+          return d && (d.getFullYear() < prevYear || (d.getFullYear() === prevYear && d.getMonth() + 1 < prevMonth));
+        })
+        .reduce((s, l) => s + (Number(l.principal)||0), 0)
+      + repaymentsData
+        .filter((r) => {
+          const d = (r.date as Timestamp)?.toDate?.();
+          return d && (d.getFullYear() < prevYear || (d.getFullYear() === prevYear && d.getMonth() + 1 < prevMonth));
+        })
+        .reduce((s, r) => s + (Number(r.amountPaid)||0), 0);
+    let prevRunning = prevBalanceBefore;
+    for (let day = 1; day <= daysInMonth; day++) {
+      if (day <= prevDaysInMonth) {
+        contributions
+          .filter((c) => {
+            const d = (c.date as Timestamp)?.toDate?.();
+            if (!d) return false;
+            return d.getFullYear() === prevYear && d.getMonth() + 1 === prevMonth && d.getDate() === day;
+          })
+          .forEach((c) => { prevRunning += Number(c.amount)||0; });
+        loans
+          .filter((l) => {
+            const d = (l.issuedDate as Timestamp)?.toDate?.();
+            if (!d) return false;
+            return d.getFullYear() === prevYear && d.getMonth() + 1 === prevMonth && d.getDate() === day;
+          })
+          .forEach((l) => { prevRunning -= Number(l.principal)||0; });
+        repaymentsData
+          .filter((r) => {
+            const d = (r.date as Timestamp)?.toDate?.();
+            if (!d) return false;
+            return d.getFullYear() === prevYear && d.getMonth() + 1 === prevMonth && d.getDate() === day;
+          })
+          .forEach((r) => { prevRunning += Number(r.amountPaid)||0; });
+      }
+      if (day <= fundGrowthData.length) {
+        fundGrowthData[day - 1].previousBalance = day <= prevDaysInMonth ? prevRunning : prevRunning;
+      }
+    }
+    const prevMonthLabel = `${MONTHS[prevMonth - 1]} ${prevYear}`;
+
+    const paidCount = activeMembersList.filter((m) => {
+      const mid = m.id;
+      const memberContribsThisMonth = contributions
+        .filter((c) => {
+          const d = (c.date as Timestamp)?.toDate?.();
+          return d && d.getMonth() + 1 === thisMonth && d.getFullYear() === thisYear && c.memberId === mid;
+        })
+        .reduce((s, c) => s + (Number(c.amount)||0), 0);
+      const required = (Number(m.headsCount) || 1) * (Number(m.amountPerHead) || 500);
+      return required > 0 && memberContribsThisMonth >= required;
+    }).length;
+    const pendingCount = activeMembersList.filter((m) => {
+      const mid = m.id;
+      return contributions
+        .filter((c) => {
+          const d = (c.date as Timestamp)?.toDate?.();
+          return d && d.getMonth() + 1 === thisMonth && d.getFullYear() === thisYear && c.memberId === mid;
+        })
+        .reduce((s, c) => s + (Number(c.amount)||0), 0) === 0;
+    }).length;
+    const partialCount = activeMembersList.length - paidCount - pendingCount;
+    const paymentStatusData = [
+      { name: "Paid", value: paidCount, color: "#22c55e" },
+      { name: "Pending", value: pendingCount, color: "#f59e0b" },
+      { name: "Partial", value: partialCount, color: "#3b82f6" },
+    ].filter(d => d.value > 0);
+
+    const collectionRateTrend: Array<{ month: string; rate: number }> = [];
+    const activeMembersTotalRequired = activeMembersList.reduce((s, m) => s + (Number(m.headsCount) || 1) * (Number(m.amountPerHead) || 500), 0);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const monthTotal = contributions
+        .filter((c) => {
+          const cd = (c.date as Timestamp)?.toDate?.();
+          return cd && cd.getMonth() + 1 === m && cd.getFullYear() === y;
+        })
+        .reduce((s, c) => s + (Number(c.amount)||0), 0);
+      const trendLabel = `${MONTHS[d.getMonth()]} ${y}`;
+      collectionRateTrend.push({
+        month: trendLabel,
+        rate: activeMembersTotalRequired > 0 ? (monthTotal / activeMembersTotalRequired) * 100 : 0,
+      });
+    }
+
+    return { totalMembers, activeMembers, totalContributions, totalLoansIssued, activeLoans, overdueLoans, fundBalance, totalInterest, pendingPayments, pendingLoans, pendingHeads, recentActivity, monthlyData, loanStatusData, topMembers, memberNames, annualReturns, annualContributions, annualLoans, annualRepayments, totalHeads, perHeadShare, fundUtilization, collectionRate, monthlyContributionsCurrent, monthlyRequiredCurrent, avgContributionPerMember, fundGrowthData, prevMonthLabel, paymentStatusData, collectionRateTrend };
   }, [firstLoad, members, contributions, loans, payments, loanReqs, heads, repayments, repaymentsData, recentContribs, recentPayments]);
 
   const refresh = () => setFirstLoad((v) => v);
@@ -244,39 +397,105 @@ const Dashboard: React.FC = () => {
     try {
       const now = Timestamp.now();
       const d = now.toDate();
+
       if (type === "contribution") {
-        const payload: Record<string, unknown> = { ...formData };
-        payload.date = now;
-        payload.month = d.getMonth() + 1;
-        payload.year = d.getFullYear();
-        payload.status = "approved";
-        payload.createdBy = "admin";
-        if (payload.notes === undefined || payload.notes === "") delete payload.notes;
-        await addDoc(collection(db, "contributions"), payload);
-        await addDoc(collection(db, "payment_requests"), {
+        await addDoc(collection(db, "contributions"), {
           memberId: formData.memberId,
           amount: formData.amount,
-          type: "contribution",
-          status: "approved",
-          requestDate: now,
-          approvedDate: now,
-          approvedBy: "Admin (Manual)",
-          notes: formData.notes || "Manual contribution",
+          date: now,
+          month: d.getMonth() + 1,
+          year: d.getFullYear(),
+          notes: (formData.notes as string) || null,
+          createdBy: "admin",
         });
       } else if (type === "loan") {
-        const payload: Record<string, unknown> = { ...formData };
-        payload.issuedDate = now;
-        payload.isFullyRepaid = false;
-        payload.status = "active";
-        if (payload.notes === undefined || payload.notes === "") delete payload.notes;
-        await addDoc(collection(db, "loans"), payload);
-      } else {
-        const payload: Record<string, unknown> = { ...formData };
-        payload.requestDate = now;
-        payload.status = "pending";
-        payload.type = "loan";
-        await addDoc(collection(db, "payment_requests"), payload);
+        const principal = formData.amount as number;
+        if (principal <= 0) { alert("Loan amount must be greater than zero"); return; }
+
+        const memberSnap = await getDoc(doc(db, "members", formData.memberId as string));
+        if (!memberSnap.exists() || memberSnap.data()?.isActive !== true) {
+          alert("Member is not active"); return;
+        }
+
+        const dueDate = formData.dueDate as Date;
+        if (dueDate <= new Date()) { alert("Due date must be in the future"); return; }
+
+        const [contribSnap, loanSnap, repaySnap] = await Promise.all([
+          getDocs(collection(db, "contributions")),
+          getDocs(collection(db, "loans")),
+          getDocs(collection(db, "repayments")),
+        ]);
+        const totalContributions = contribSnap.docs.reduce((s, d) => s + (Number(d.data().amount) || 0), 0);
+        const totalLoansIssued = loanSnap.docs.reduce((s, d) => s + (Number(d.data().principal) || 0), 0);
+        const totalRepayments = repaySnap.docs.reduce((s, d) => s + (Number(d.data().amountPaid) || 0), 0);
+        const fundBalance = totalContributions - totalLoansIssued + totalRepayments;
+
+        const outstandingBalances = loanSnap.docs
+          .filter(d => d.data().isFullyRepaid !== true)
+          .reduce((s, d) => {
+            const ln = d.data();
+            const p = Number(ln.principal) || 0;
+            const r = Number(ln.interestRate) || 0;
+            const totalDue = p + (p * r);
+            const repaid = repaySnap.docs
+              .filter(rp => rp.data().loanId === d.id)
+              .reduce((s2, rp) => s2 + (Number(rp.data().amountPaid) || 0), 0);
+            return s + Math.max(0, totalDue - repaid);
+          }, 0);
+        const availableToLoan = fundBalance - outstandingBalances;
+        if (principal > availableToLoan) {
+          alert(`Insufficient fund balance. Available: ₱${availableToLoan.toLocaleString()}`);
+          return;
+        }
+
+        const activeLoansForMember = loanSnap.docs.filter(
+          l => l.data().memberId === formData.memberId && l.data().isFullyRepaid !== true
+        );
+        if (activeLoansForMember.length > 0) {
+          alert("Member already has an unpaid loan"); return;
+        }
+
+        const interestRate = (Number(formData.interestRate) || 10) / 100;
+        await addDoc(collection(db, "loans"), {
+          memberId: formData.memberId,
+          principal: principal,
+          interestRate: interestRate,
+          issuedDate: now,
+          dueDate: Timestamp.fromDate(dueDate),
+          isFullyRepaid: false,
+        });
+      } else if (type === "repayment") {
+        const loanId = formData.loanId as string;
+        const amountPaid = formData.amount as number;
+        if (amountPaid <= 0) { alert("Repayment amount must be greater than zero"); return; }
+
+        const loanSnap = await getDoc(doc(db, "loans", loanId));
+        if (!loanSnap.exists()) { alert("Loan not found"); return; }
+        const loan = loanSnap.data();
+        const p = Number(loan.principal) || 0;
+        const r = Number(loan.interestRate) || 0;
+        const totalDue = p + (p * r);
+
+        const repayQ = query(collection(db, "repayments"), where("loanId", "==", loanId));
+        const repaySnap = await getDocs(repayQ);
+        const totalRepaid = repaySnap.docs.reduce((s, rp) => s + (Number(rp.data().amountPaid) || 0), 0);
+        const remainingBalance = Math.max(0, totalDue - totalRepaid);
+
+        if (amountPaid > remainingBalance) {
+          if (!window.confirm(`Amount exceeds remaining balance (₱${remainingBalance.toLocaleString()}). Excess will be credited to member. Proceed?`)) return;
+        }
+
+        await addDoc(collection(db, "repayments"), {
+          loanId: loanId,
+          amountPaid: amountPaid,
+          date: now,
+        });
+
+        if (amountPaid >= remainingBalance) {
+          await updateDoc(doc(db, "loans", loanId), { isFullyRepaid: true });
+        }
       }
+
       setActionModal(null);
       const labels: Record<string, string> = { contribution: "Contribution", loan: "Loan", repayment: "Repayment" };
       setActionMsg(`${labels[type] || "Record"} saved successfully.`);
@@ -286,12 +505,37 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // New-pending-request notification modal (must be before early returns)
+  const prevPendingRef = useRef(0);
+  const initializedRef = useRef(false);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const rawPendingCount = payments.filter(p => p.status === "pending").length
+    + loanReqs.filter(r => r.status === "pending").length
+    + heads.filter(h => h.status === "pending").length;
+  useEffect(() => {
+    if (!initializedRef.current) {
+      prevPendingRef.current = rawPendingCount;
+      initializedRef.current = true;
+      return;
+    }
+    if (rawPendingCount > prevPendingRef.current) {
+      setShowPendingModal(true);
+    }
+    prevPendingRef.current = rawPendingCount;
+  }, [rawPendingCount]);
+
   if (firstLoad) return <div className="admin-loading"><div className="spinner" /><p>Loading dashboard...</p></div>;
   if (error) return <div className="admin-error"><p>Error: {error}</p><button className="btn btn-primary" onClick={refresh}>Retry</button></div>;
   if (!data) return null;
 
   const fmt = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const totalPending = data.pendingPayments + data.pendingLoans + data.pendingHeads;
+
+  const pendingPaymentsList = payments.filter(p => p.status === "pending");
+  const pendingLoansList = loanReqs.filter(r => r.status === "pending");
+  const pendingHeadsList = heads.filter(h => h.status === "pending");
+
+
 
   return (
     <div className="admin-page">
@@ -432,7 +676,7 @@ const Dashboard: React.FC = () => {
 
       <div className="charts-section">
         <div className="tabs" style={{ marginBottom: 16 }}>
-          {["Monthly Trends", "Status", "Top Members"].map((t,i) => (
+          {["Monthly Trends", "Status", "Top Members", "Fund Growth", "Payments", "Collection Rate"].map((t,i) => (
             <button key={t} className={`tab ${i===chartTab?"active":""}`} onClick={()=>setChartTab(i)}>{t}</button>
           ))}
         </div>
@@ -444,9 +688,9 @@ const Dashboard: React.FC = () => {
               <BarChart data={data.monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
                 <XAxis dataKey="month" stroke="#8b949e" fontSize={11} />
-                <YAxis stroke="#8b949e" fontSize={11} />
+                <YAxis stroke="#8b949e" fontSize={11} tickFormatter={(v: number) => `₱${(v/1000).toFixed(0)}k`} />
                 <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
-                <Legend />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
                 <Bar dataKey="contributions" name="Contributions" fill="#22c55e" radius={[4,4,0,0]} />
                 <Bar dataKey="loans" name="Loans Issued" fill="#f59e0b" radius={[4,4,0,0]} />
                 <Bar dataKey="repayments" name="Repayments" fill="#3b82f6" radius={[4,4,0,0]} />
@@ -463,8 +707,8 @@ const Dashboard: React.FC = () => {
                 <Pie data={data.loanStatusData.filter(d=>d.value>0)} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,value}) => `${name}: ${value}`}>
                   {data.loanStatusData.filter(d=>d.value>0).map((_,i) => <Cell key={i} fill={COLORS[i%COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8 }} />
-                <Legend />
+                <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -476,13 +720,77 @@ const Dashboard: React.FC = () => {
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={data.topMembers} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
-                <XAxis type="number" stroke="#8b949e" fontSize={11} />
+                <XAxis type="number" stroke="#8b949e" fontSize={11} tickFormatter={(v: number) => `₱${(v/1000).toFixed(0)}k`} />
                 <YAxis dataKey="name" type="category" stroke="#8b949e" fontSize={11} width={100} />
                 <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
-                <Legend />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
                 <Bar dataKey="contributions" name="Contributions" fill="#22c55e" radius={[0,4,4,0]} />
                 <Bar dataKey="loans" name="Loans" fill="#f59e0b" radius={[0,4,4,0]} />
               </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {chartTab === 3 && (
+          <div className="chart-card">
+            <h3>Fund Balance Growth — {MONTHS[now.getMonth()]} {now.getFullYear()}</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={data.fundGrowthData}>
+                <defs>
+                  <linearGradient id="fundGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="prevGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                <XAxis dataKey="day" stroke="#8b949e" fontSize={11} tickCount={7} />
+                <YAxis stroke="#8b949e" fontSize={11} tickFormatter={(v: number) => `₱${(v/1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
+                <Area type="monotone" dataKey="previousBalance" name={data.prevMonthLabel} stroke="#3b82f6" strokeWidth={2} strokeDasharray="6 3" fill="url(#prevGradient)" dot={false} connectNulls />
+                <Area type="monotone" dataKey="currentBalance" name={`${MONTHS[now.getMonth()]} ${now.getFullYear()}`} stroke="#22c55e" strokeWidth={3} fill="url(#fundGradient)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {chartTab === 4 && (
+          <div className="chart-card">
+            <h3>Member Payment Status — {MONTHS[now.getMonth()]} {now.getFullYear()}</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie data={data.paymentStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} label={({name,value}) => `${name}: ${value}`}>
+                  {data.paymentStatusData.map((d,i) => <Cell key={i} fill={d.color} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {chartTab === 5 && (
+          <div className="chart-card">
+            <h3>Collection Rate Over Time</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <AreaChart data={data.collectionRateTrend}>
+                <defs>
+                  <linearGradient id="rateGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#21262d" />
+                <XAxis dataKey="month" stroke="#8b949e" fontSize={11} />
+                <YAxis stroke="#8b949e" fontSize={11} tickFormatter={(v: number) => `${v.toFixed(0)}%`} domain={[0, 100]} />
+                <Tooltip contentStyle={{ background:"#161b22", border:"1px solid #30363d", borderRadius:8, fontSize:13 }} />
+                <Legend formatter={(value: string) => <span style={{ color:"#c9d1d9" }}>{value}</span>} />
+                <Area type="monotone" dataKey="rate" name="Collection Rate" stroke="#f59e0b" strokeWidth={3} fill="url(#rateGradient)" dot={{ fill: "#f59e0b", stroke: "#161b22", strokeWidth: 2, r: 4 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -501,6 +809,83 @@ const Dashboard: React.FC = () => {
       </div>
 
       {actionModal && <QuickActionModal type={actionModal} members={data.memberNames} onSave={handleQuickAction} onClose={() => setActionModal(null)} />}
+
+      {showPendingModal && (
+        <div className="modal-overlay" onClick={() => setShowPendingModal(false)}>
+          <div className="modal pending-notification-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <div className="modal-header">
+              <h2>New Pending Requests</h2>
+              <button className="btn-icon" onClick={() => setShowPendingModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="pending-list" style={{ maxHeight: 320, overflowY: "auto", padding: "0 4px" }}>
+              {pendingPaymentsList.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, padding: "0 4px" }}>Payments ({pendingPaymentsList.length})</div>
+                  {pendingPaymentsList.map(p => {
+                    const memberId = p.memberId as string;
+                    const isLoan = p.type === "loan";
+                    return (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#1c2333", borderRadius: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16 }}>{isLoan ? "💳" : "💰"}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f6fc" }}>{data.memberNames[memberId] || memberId}</div>
+                        <div style={{ fontSize: 11, color: "#8b949e" }}>{isLoan ? "Loan Repayment" : "Contribution"}</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isLoan ? "#3b82f6" : "#22c55e" }}>₱{(Number(p.amount)||0).toLocaleString()}</div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+              {pendingLoansList.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#3b82f6", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, padding: "0 4px" }}>Loan Requests ({pendingLoansList.length})</div>
+                  {pendingLoansList.map(r => {
+                    const memberId = r.memberId as string;
+                    const memberName = (r.memberName as string) || data.memberNames[memberId] || memberId;
+                    return (
+                    <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#1c2333", borderRadius: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16 }}>🏦</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f6fc" }}>{memberName}</div>
+                        <div style={{ fontSize: 11, color: "#8b949e" }}>Loan</div>
+                      </div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#3b82f6" }}>₱{(Number(r.amount)||0).toLocaleString()}</div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+              {pendingHeadsList.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#8b5cf6", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, padding: "0 4px" }}>Head Changes ({pendingHeadsList.length})</div>
+                  {pendingHeadsList.map(h => {
+                    const memberId = h.memberId as string;
+                    const memberName = (h.memberName as string) || data.memberNames[memberId] || memberId;
+                    const currentHeads = Number(h.currentHeads);
+                    const requestedHeads = Number(h.requestedHeads);
+                    return (
+                    <div key={h.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", background: "#1c2333", borderRadius: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 16 }}>🔄</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#f0f6fc" }}>{memberName}</div>
+                        <div style={{ fontSize: 11, color: "#8b949e" }}>{currentHeads} → {requestedHeads} heads</div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="modal-actions" style={{ borderTop: "1px solid #21262d", paddingTop: 12 }}>
+              <button className="btn btn-outline" onClick={() => setShowPendingModal(false)}>Close</button>
+              <button className="btn btn-primary" onClick={() => { setShowPendingModal(false); window.location.href = "/admin/approvals"; }}>Open Approvals</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

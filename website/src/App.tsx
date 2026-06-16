@@ -13,17 +13,17 @@ import Approvals from './pages/admin/Approvals';
 import Settings from './pages/admin/Settings';
 import Reports from './pages/admin/Reports';
 import DataManagement from './pages/admin/DataManagement';
-import Notifications from './pages/admin/Notifications';
 import Activity from './pages/admin/Activity';
 import GlobalSearch from './pages/admin/GlobalSearch';
 import BulkLoanProcessing from './pages/admin/BulkLoanProcessing';
+import AdminLoans from './pages/admin/Loans';
 import SendNotification from './pages/admin/SendNotification';
+import Administrator from './pages/admin/Administrator';
 import MemberDashboard from './pages/member/Dashboard';
 import MemberContributions from './pages/member/Contributions';
 import MemberLoans from './pages/member/Loans';
 import MemberRequests from './pages/member/Requests';
 import MemberProfilePage from './pages/member/Profile';
-import MemberNotifications from './pages/member/Notifications';
 import MemberHelpSupport from './pages/member/HelpSupport';
 import MemberAbout from './pages/member/About';
 import MemberChangelog from './pages/member/Changelog';
@@ -74,7 +74,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     { path: '/admin/approvals', label: 'Approvals', icon: '✅' },
     { path: '/admin/activity', label: 'Activity', icon: '📋' },
     { path: '/admin/reports', label: 'Reports', icon: '📈' },
-    { path: '/admin/notifications', label: 'Notifications', icon: '🔔' },
+    { path: '/admin/loans', label: 'Loans', icon: '🏦' },
     { path: '/admin/bulk-loans', label: 'Bulk Loans', icon: '📤' },
     { path: '/admin/send-notification', label: 'Notify', icon: '📢' },
     { path: '/admin/data', label: 'Data Mgmt', icon: '🗄️' },
@@ -940,12 +940,8 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
   const moreNav = [
     { path: '/member/requests', label: 'Requests', icon: '📋' },
-    { path: '/member/notifications', label: 'Notifications', icon: '🔔' },
     ...(user?.isTreasurer ? [{ path: '/member/treasurer', label: 'Treasurer', icon: '🏦' }] : []),
-    { path: '/member/privacy-security', label: 'Privacy & Security', icon: '🔒' },
-    { path: '/member/help-support', label: 'Help & Support', icon: '❓' },
     { path: '/member/about', label: 'About', icon: 'ℹ️' },
-    { path: '/member/changelog', label: "What's New", icon: '📝' },
   ];
 
   const handleNav = (path: string) => {
@@ -1054,9 +1050,10 @@ const App: React.FC = () => {
       <Route path="/admin/reports" element={<ProtectedRoute><AdminLayout><Reports /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/compliance" element={<ProtectedRoute><AdminLayout><ComplianceReportsPage /></AdminLayout></ProtectedRoute>} />
       <Route path="/admin/data" element={<ProtectedRoute><AdminLayout><DataManagement /></AdminLayout></ProtectedRoute>} />
-      <Route path="/admin/notifications" element={<ProtectedRoute><AdminLayout><Notifications /></AdminLayout></ProtectedRoute>} />
-      <Route path="/admin/bulk-loans" element={<ProtectedRoute><AdminLayout><BulkLoanProcessing /></AdminLayout></ProtectedRoute>} />
-      <Route path="/admin/send-notification" element={<ProtectedRoute><AdminLayout><SendNotification /></AdminLayout></ProtectedRoute>} />
+       <Route path="/admin/loans" element={<ProtectedRoute><AdminLayout><AdminLoans /></AdminLayout></ProtectedRoute>} />
+       <Route path="/admin/bulk-loans" element={<ProtectedRoute><AdminLayout><BulkLoanProcessing /></AdminLayout></ProtectedRoute>} />
+       <Route path="/admin/send-notification" element={<ProtectedRoute><AdminLayout><SendNotification /></AdminLayout></ProtectedRoute>} />
+       <Route path="/administrator" element={<Administrator />} />
       <Route path="/ios" element={<Navigate to="/login" replace />} />
       <Route path="/member/login" element={<Navigate to="/login" replace />} />
       <Route path="/member/unrecognized" element={<MemberUnrecognized />} />
@@ -1068,7 +1065,6 @@ const App: React.FC = () => {
       <Route path="/member/requests" element={<ProtectedMemberRoute><MemberLayout><MemberRequests /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/balances" element={<ProtectedMemberRoute><MemberLayout><MemberBalances /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/profile" element={<ProtectedMemberRoute><MemberLayout><MemberProfilePage /></MemberLayout></ProtectedMemberRoute>} />
-      <Route path="/member/notifications" element={<ProtectedMemberRoute><MemberLayout><MemberNotifications /></MemberLayout></ProtectedMemberRoute>} />
        <Route path="/member/edit-profile" element={<Navigate to="/member/profile" replace />} />
       <Route path="/member/help-support" element={<ProtectedMemberRoute><MemberLayout><MemberHelpSupport /></MemberLayout></ProtectedMemberRoute>} />
       <Route path="/member/about" element={<ProtectedMemberRoute><MemberLayout><MemberAbout /></MemberLayout></ProtectedMemberRoute>} />

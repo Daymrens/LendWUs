@@ -10,6 +10,9 @@ import '../../providers/members_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../widgets/receipt_image.dart';
+import '../../data/repositories/loan_receipt_repository.dart';
+import '../../data/models/loan_receipt.dart';
+import '../../core/widgets/lendwus_logo.dart';
 
 final pendingPaymentsProvider = StreamProvider.autoDispose<List<PaymentRequest>>((ref) {
   return ref.watch(paymentRequestRepositoryProvider).watchPendingPaymentRequests();
@@ -277,6 +280,34 @@ class _PaymentApprovalCardState extends ConsumerState<_PaymentApprovalCard> {
 
   Future<void> _handleApprove(BuildContext context) async {
     if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Approve Payment', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Approve this ${payment.type == PaymentType.contribution ? "contribution" : "repayment"} payment of ${CurrencyFormatter.format(payment.amount)}? This will record the payment and cannot be undone.',
+          style: TextStyle(color: AppColors.textMuted, height: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     setState(() => _busy = true);
     final repo = ref.read(paymentRequestRepositoryProvider);
     final user = ref.read(currentUserProvider).state;
@@ -530,21 +561,154 @@ class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
 
   Future<void> _handleApprove(BuildContext context) async {
     if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Approve Loan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Approve loan of ${CurrencyFormatter.format(loan.amount)} for ${loan.memberName ?? loan.memberId}? This will disburse the loan and generate a receipt.',
+          style: TextStyle(color: AppColors.textMuted, height: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     setState(() => _busy = true);
     try {
+      // Pre-check available funds
+      final firestore = FirebaseService.firestore;
+      final principal = loan.amount;
+      if (principal > 0) {
+        final [contribSnap, loanSnap, repaySnap] = await Future.wait([
+          firestore.collection('contributions').get(),
+          firestore.collection('loans').get(),
+          firestore.collection('repayments').get(),
+        ]);
+        final totalContributions = contribSnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['amount'] as num?)?.toDouble() ?? 0));
+        final totalLoansIssued = loanSnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['principal'] as num?)?.toDouble() ?? 0));
+        final totalRepayments = repaySnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['amountPaid'] as num?)?.toDouble() ?? 0));
+        final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
+
+        final repayByLoan = <String, double>{};
+        for (final d in repaySnap.docs) {
+          final r = d.data();
+          final loanId = r['loanId'] as String?;
+          final amount = (r['amountPaid'] as num?)?.toDouble() ?? 0;
+          repayByLoan.update(loanId!, (v) => v + amount, ifAbsent: () => amount);
+        }
+        double outstanding = 0;
+        for (final d in loanSnap.docs) {
+          final l = d.data();
+          if (l['isFullyRepaid'] == true) continue;
+          final p = (l['principal'] as num?)?.toDouble() ?? 0;
+          final rate = (l['interestRate'] as num?)?.toDouble() ?? 0;
+          final repaid = repayByLoan[d.id] ?? 0;
+          final totalDue = p + (p * rate);
+          final remaining = totalDue - repaid;
+          if (remaining > 0) outstanding += remaining;
+        }
+        final availableToLoan = fundBalance - outstanding;
+
+        if (principal > availableToLoan) {
+          setState(() => _busy = false);
+          if (!context.mounted) return;
+          final repo = ref.read(loanRequestRepositoryProvider);
+          await repo.rejectLoanRequest(loan.id!, notes: 'Insufficient fund balance — the fund does not have enough available cash to cover this loan. Please wait for more contributions to come in before re-applying.');
+          ref.invalidate(pendingLoansProvider);
+          if (!context.mounted) return;
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              backgroundColor: AppColors.surface,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Text('Loan Rejected', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Insufficient fund balance — the fund does not have enough available cash to cover this loan.',
+                    style: TextStyle(color: AppColors.textMuted, height: 1.5),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceAlt.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.surfaceAlt),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Requested:', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        Text(CurrencyFormatter.format(principal), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                        const SizedBox(height: 6),
+                        Text('Available:', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        Text(CurrencyFormatter.format(availableToLoan), style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16, color: AppColors.error)),
+                        const SizedBox(height: 6),
+                        Text('Fund Balance:', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                        Text(CurrencyFormatter.format(fundBalance), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Please wait for more contributions to come in before re-applying.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13, fontStyle: FontStyle.italic),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+              ],
+            ),
+          );
+          return;
+        }
+      }
+
       final repo = ref.read(loanRequestRepositoryProvider);
       final approved = await repo.approveLoanRequest(loan.id!);
-
       ref.invalidate(pendingLoansProvider);
-
       if (!mounted) return;
       setState(() => _busy = false);
-      if (context.mounted) {
+      if (!context.mounted) return;
+      if (approved) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(approved ? 'Loan request approved' : 'Loan request already processed'),
-            backgroundColor: approved ? Colors.green : Colors.orange,
-          ),
+          const SnackBar(content: Text('Loan request approved'), backgroundColor: Colors.green),
+        );
+        final receipts = await LoanReceiptRepository.getReceiptsByLoanId(loan.id!);
+        final receipt = receipts.where((r) => r.copyFor == 'admin').firstOrNull
+            ?? receipts.firstOrNull;
+        if (receipt != null && context.mounted) {
+          _showReceiptDialog(context, receipt);
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Loan request already processed'), backgroundColor: Colors.orange),
         );
       }
     } catch (e) {
@@ -552,13 +716,87 @@ class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
       setState(() => _busy = false);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  void _showReceiptDialog(BuildContext context, LoanReceipt receipt) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(24),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const LendWUsLogo(fontSize: 18, showTagline: true),
+                const SizedBox(height: 8),
+                Text('Official Loan Receipt',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 9, letterSpacing: 1)),
+                const SizedBox(height: 12),
+                Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6)),
+                const SizedBox(height: 14),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('RECEIPT NO.', style: TextStyle(color: AppColors.textMuted, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                    Text(receipt.receiptNumber,
+                      style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withAlpha(15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withAlpha(50)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(CurrencyFormatter.format(receipt.totalAmountDue),
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                      const SizedBox(height: 2),
+                      Text('TOTAL AMOUNT DUE',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 10, letterSpacing: 1)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _receiptRow('Member', receipt.memberName, isStrong: true),
+                _receiptRow('Principal', CurrencyFormatter.format(receipt.principal)),
+                _receiptRow('Interest Rate', '${(receipt.interestRate * 100).toStringAsFixed(1)}%'),
+                _receiptRow('Interest Amount', CurrencyFormatter.format(receipt.interestAmount)),
+                Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6), margin: const EdgeInsets.symmetric(vertical: 10)),
+                _receiptRow('Issue Date', DateFormatter.format(receipt.issuedDate)),
+                _receiptRow('Due Date', DateFormatter.format(receipt.dueDate)),
+                _receiptRow('Status', receipt.status.toUpperCase(),
+                  valueColor: receipt.status == 'active' ? AppColors.warning : AppColors.success),
+                _receiptRow('Generated', DateFormatter.format(receipt.generatedAt)),
+                const SizedBox(height: 16),
+                Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6)),
+                const SizedBox(height: 12),
+                Text('This is a computer-generated receipt. No signature required.',
+                  style: TextStyle(color: AppColors.textMuted, fontSize: 10), textAlign: TextAlign.center),
+                const SizedBox(height: 4),
+                Text('Thank you for being a part of LendWUs!',
+                  style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleReject(BuildContext context) async {
@@ -617,6 +855,25 @@ class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
         ),
       );
     }
+  }
+
+  Widget _receiptRow(String label, String value, {bool isStrong = false, Color? valueColor}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Text(label,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+          const Spacer(),
+          Text(value,
+            style: TextStyle(
+              color: valueColor ?? AppColors.textPrimary,
+              fontSize: 13,
+              fontWeight: isStrong ? FontWeight.w700 : FontWeight.w500,
+            )),
+        ],
+      ),
+    );
   }
 }
 
@@ -801,6 +1058,34 @@ class _HeadChangeApprovalCardState extends ConsumerState<_HeadChangeApprovalCard
 
   Future<void> _handleApprove(BuildContext context) async {
     if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green),
+            SizedBox(width: 8),
+            Text('Approve Head Change', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(
+          'Approve head change from ${request.currentHeads} to ${request.requestedHeads} heads? This takes effect immediately.',
+          style: TextStyle(color: AppColors.textMuted, height: 1.5),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     setState(() => _busy = true);
 
     // Validate head change rules

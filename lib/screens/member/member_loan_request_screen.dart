@@ -8,7 +8,6 @@ import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../data/repositories/contribution_repository.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/settings_provider.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../modals/pending_approval_dialog.dart';
 
@@ -20,13 +19,13 @@ class MemberLoanRequestScreen extends ConsumerStatefulWidget {
 }
 
 class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScreen> {
+  static const double _kFixedInterestRate = 10.0;
+
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
-  final _interestController = TextEditingController();
   final _purposeController = TextEditingController();
   DateTime _dueDate = DateTime.now().add(const Duration(days: 30));
   bool _isSubmitting = false;
-  bool _interestInitialized = false;
   bool _hasContributions = true;
   bool _checkingContribs = true;
   Member? _member;
@@ -64,7 +63,6 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
   @override
   void dispose() {
     _amountController.dispose();
-    _interestController.dispose();
     _purposeController.dispose();
     super.dispose();
   }
@@ -103,12 +101,11 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
       final member = await memberRepo.getMemberById(currentUser!.memberId!);
 
       final amountText = _amountController.text.replaceAll(',', '');
-      final interestText = _interestController.text.replaceAll(',', '');
       final loanRequest = LoanRequest(
         memberId: currentUser.memberId!,
         memberName: member?.name ?? currentUser.username,
         amount: double.parse(amountText),
-        interestRate: double.parse(interestText),
+        interestRate: _kFixedInterestRate,
         notes: _purposeController.text,
         dueDate: _dueDate,
         status: LoanRequestStatus.pending,
@@ -143,13 +140,6 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final settingsAsync = ref.watch(settingsProvider);
-    final defaultInterest = settingsAsync.valueOrNull?.loanInterestPercent ?? 10.0;
-
-    if (!_interestInitialized && _interestController.text.isEmpty && defaultInterest > 0) {
-      _interestController.text = defaultInterest.toStringAsFixed(1);
-      _interestInitialized = true;
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -259,21 +249,38 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
               ),
               const SizedBox(height: 16),
 
-              // Interest rate
-              TextFormField(
-                controller: _interestController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Interest Rate (%)',
-                  suffixText: '%',
-                  border: OutlineInputBorder(),
-                  helperText: 'Typical range: 5-10%',
+              // Interest rate (fixed by admin)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceAlt.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.surfaceAlt),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) return 'Please enter interest rate';
-                  if (double.tryParse(value) == null || double.parse(value) < 0) return 'Please enter valid rate';
-                  return null;
-                },
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Interest Rate',
+                            style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                          const SizedBox(height: 2),
+                          Text('${_kFixedInterestRate.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            )),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.lock_outline, size: 16, color: AppColors.textMuted.withValues(alpha: 0.5)),
+                    const SizedBox(width: 4),
+                    Text('fixed', style: TextStyle(color: AppColors.textMuted.withValues(alpha: 0.5), fontSize: 11)),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
 
@@ -332,7 +339,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
                         children: [
                           const Text('Repayment Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                           const SizedBox(height: 4),
-                          Text('Interest ${_interestController.text.isNotEmpty ? _interestController.text : defaultInterest.toStringAsFixed(1)}%  •  Due ${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
+                          Text('Interest ${_kFixedInterestRate.toStringAsFixed(1)}%  •  Due ${_dueDate.day}/${_dueDate.month}/${_dueDate.year}',
                             style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 11)),
                         ],
                       ),

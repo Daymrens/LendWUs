@@ -3,6 +3,7 @@ import '../models/loan_request.dart';
 import '../models/loan.dart';
 import 'activity_log_repository.dart';
 import 'notification_repository.dart';
+import 'loan_receipt_repository.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/firestore_helpers.dart';
@@ -222,6 +223,18 @@ class LoanRequestRepository {
     });
 
     if (!approved) return false;
+
+    final memberName = memberData?['name'] as String? ?? 'Unknown';
+    final loanInterestRate = ((data['interestRate'] as num?)?.toDouble() ?? 0) / 100;
+    await LoanReceiptRepository.generateReceipts(
+      loanId: loanRef.id,
+      memberId: memberId,
+      memberName: memberName,
+      principal: principal,
+      interestRate: loanInterestRate,
+      issuedDate: DateTime.now(),
+      dueDate: dueDate,
+    );
 
     final user = FirebaseService.auth.currentUser;
     _activityLog.logActivity(

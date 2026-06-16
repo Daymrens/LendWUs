@@ -118,6 +118,8 @@ class _NotificationTile extends ConsumerWidget {
         return Icons.people_alt;
       case 'reminder':
         return Icons.notifications_active;
+      case 'all_paid':
+        return Icons.celebration;
       case 'system':
         return Icons.info;
       default:

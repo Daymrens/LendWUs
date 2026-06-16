@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
 import '../../core/utils/date_formatter.dart';
+import '../../core/widgets/lendwus_logo.dart';
 import '../../data/models/loan.dart';
 import '../../data/models/repayment.dart';
 import '../../data/repositories/loan_repository.dart';
+import '../../data/repositories/loan_receipt_repository.dart';
 import '../../data/models/payment_request.dart' show PaymentType;
 import '../../providers/auth_provider.dart';
 
@@ -21,14 +23,36 @@ final memberAllLoansProvider = StreamProvider.family<List<Loan>, String>((ref, m
   return repo.watchLoansByMember(memberId);
 });
 
-class MemberLoansScreen extends ConsumerWidget {
+final _shownReceiptLoanIds = <String>{};
+
+class MemberLoansScreen extends ConsumerStatefulWidget {
   const MemberLoansScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MemberLoansScreen> createState() => _MemberLoansScreenState();
+}
+
+class _MemberLoansScreenState extends ConsumerState<MemberLoansScreen> {
+  String? _memberId;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _setupReceiptListener());
+  }
+
+  void _setupReceiptListener() {
+    final auth = ref.read(currentUserProvider);
+    final uid = auth.state?.memberId;
+    if (uid == null) return;
+    _memberId = uid;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(currentUserProvider);
     final user = auth.state;
-    final memberId = user?.memberId;
+    final memberId = user?.memberId ?? _memberId;
     final colorScheme = Theme.of(context).colorScheme;
 
     if (memberId == null) {
@@ -36,6 +60,25 @@ class MemberLoansScreen extends ConsumerWidget {
     }
 
     final activeLoansAsync = ref.watch(memberLoansProvider(memberId));
+
+    // Auto-pop receipt for newly approved loans
+    ref.listen<AsyncValue<List<Map<String, dynamic>>>>(memberLoansProvider(memberId), (previous, next) {
+      previous?.whenData((prevData) {
+        next.whenData((currData) {
+          if (currData.isEmpty) return;
+          final prevIds = prevData.map((m) => (m['loan'] as Loan?)?.id).whereType<String>().toSet();
+          for (final curr in currData) {
+            final loan = curr['loan'] as Loan?;
+            final id = loan?.id;
+            if (id != null && !prevIds.contains(id) && _shownReceiptLoanIds.add(id)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (context.mounted) _showReceiptDialog(context, id);
+              });
+            }
+          }
+        });
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -263,6 +306,108 @@ void _showLoanDetailSheet(BuildContext context, Loan loan, double remainingBalan
   );
 }
 
+Future<void> _showReceiptDialog(BuildContext context, String loanId) async {
+  try {
+    final receipts = await LoanReceiptRepository.getReceiptsByLoanId(loanId);
+    final receipt = receipts.where((r) => r.copyFor == 'borrower').firstOrNull
+        ?? receipts.firstOrNull;
+    if (receipt == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No receipt found. Ask an admin to generate one.')),
+        );
+      }
+      return;
+    }
+
+    if (context.mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          contentPadding: const EdgeInsets.all(24),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const LendWUsLogo(fontSize: 18, showTagline: true),
+                  const SizedBox(height: 8),
+                  Text('Official Loan Receipt',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 9, letterSpacing: 1)),
+                  const SizedBox(height: 12),
+                  Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6)),
+                  const SizedBox(height: 14),
+                  // Receipt number
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('RECEIPT NO.', style: TextStyle(color: AppColors.textMuted, fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w600)),
+                      Text(receipt.receiptNumber,
+                        style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Amount
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.primary.withAlpha(50)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(CurrencyFormatter.format(receipt.totalAmountDue),
+                          style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                        const SizedBox(height: 2),
+                        Text('TOTAL AMOUNT DUE',
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 10, letterSpacing: 1)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  // Details
+                  _receiptRow('Borrower', receipt.memberName, isStrong: true),
+                  _receiptRow('Principal', CurrencyFormatter.format(receipt.principal)),
+                  _receiptRow('Interest Rate', '${(receipt.interestRate * 100).toStringAsFixed(1)}%'),
+                  _receiptRow('Interest Amount', CurrencyFormatter.format(receipt.interestAmount)),
+                  Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6), margin: const EdgeInsets.symmetric(vertical: 10)),
+                  _receiptRow('Issue Date', DateFormatter.format(receipt.issuedDate)),
+                  _receiptRow('Due Date', DateFormatter.format(receipt.dueDate)),
+                  _receiptRow('Status', receipt.status.toUpperCase(),
+                    valueColor: receipt.status == 'active' ? AppColors.warning : AppColors.success),
+                  _receiptRow('Generated', DateFormatter.format(receipt.generatedAt)),
+                  const SizedBox(height: 16),
+                  Container(height: 1, color: AppColors.surfaceAlt.withValues(alpha: 0.6)),
+                  const SizedBox(height: 12),
+                  Text('This is a computer-generated receipt. No signature required.',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 10), textAlign: TextAlign.center),
+                  const SizedBox(height: 4),
+                  Text('Thank you for being a part of LendWUs!',
+                    style: TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          ],
+        ),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load receipt: $e')),
+      );
+    }
+  }
+}
+
 class _ActiveLoanDetailSheet extends ConsumerStatefulWidget {
   final Loan loan;
   final double remainingBalance;
@@ -431,6 +576,21 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
                 ],
               ),
             )),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _showReceiptDialog(context, l.id!),
+              icon: const Icon(Icons.receipt_long, size: 18),
+              label: const Text('View Receipt'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: BorderSide(color: AppColors.primary.withAlpha(80)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
           const SizedBox(height: 16),
         ],
       ),
@@ -459,4 +619,24 @@ class _ActiveLoanDetailSheetState extends ConsumerState<_ActiveLoanDetailSheet> 
       ),
     );
   }
+
+}
+
+Widget _receiptRow(String label, String value, {bool isStrong = false, Color? valueColor}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      children: [
+        Text(label,
+          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+        const Spacer(),
+        Text(value,
+          style: TextStyle(
+            color: valueColor ?? AppColors.textPrimary,
+            fontSize: 13,
+            fontWeight: isStrong ? FontWeight.w700 : FontWeight.w500,
+          )),
+      ],
+    ),
+  );
 }

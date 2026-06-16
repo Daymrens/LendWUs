@@ -89,6 +89,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // ─── loan_receipts ──────────────────────────────────────
+    match /loan_receipts/{receiptId} {
+      allow create: if isAdmin();
+      allow read: if isAuth() && (
+        isAdmin() ||
+        canReadMemberData(resource.data.memberId)
+      );
+      allow update, delete: if isAdmin();
+    }
+
     // ─── loans ──────────────────────────────────────────────
     match /loans/{loanId} {
       allow create: if isAdmin();
@@ -168,6 +178,12 @@ service cloud.firestore {
         && request.resource.data.lastNumber is int
         && request.resource.data.lastNumber >= 1
         && request.resource.data.lastNumber <= 999999;
+    }
+
+    // ─── groups (super admin) ─────────────────────────────────
+    match /groups/{groupId} {
+      allow read, write: if request.auth != null
+        && request.auth.token.email == 'admin001@lendwus.app';
     }
   }
 }

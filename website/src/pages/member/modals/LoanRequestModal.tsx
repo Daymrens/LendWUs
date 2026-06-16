@@ -18,7 +18,7 @@ const LoanRequestModal: React.FC<LoanRequestModalProps> = ({
   memberDocId, onClose,
 }) => {
   const [amount, setAmount] = useState("");
-  const [interestRate, setInterestRate] = useState(10);
+  const FIXED_INTEREST_RATE = 10;
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
@@ -47,7 +47,7 @@ const LoanRequestModal: React.FC<LoanRequestModalProps> = ({
       await addDoc(collection(db, "loan_requests"), {
         memberId: memberDocId,
         amount: amt,
-        interestRate: interestRate,
+        interestRate: FIXED_INTEREST_RATE,
         dueDate: Timestamp.fromDate(new Date(dueDate)),
         status: "pending",
         requestedAt: Timestamp.now(),
@@ -100,7 +100,14 @@ const LoanRequestModal: React.FC<LoanRequestModalProps> = ({
           </div>
           <div className="form-group">
             <label>Interest Rate (%)</label>
-            <input type="number" min="0" max="100" step="0.1" value={interestRate} onChange={e => setInterestRate(Number(e.target.value))} required />
+            <div style={{
+              padding: "10px 12px", background: "#0d1117", border: "1px solid #30363d",
+              borderRadius: 8, color: "#8b949e", fontSize: 14, display: "flex",
+              alignItems: "center", gap: 8,
+            }}>
+              <span style={{ fontWeight: 700, color: "#f0f6fc" }}>{FIXED_INTEREST_RATE}%</span>
+              <span style={{ fontSize: 11 }}>fixed rate (set by admin)</span>
+            </div>
           </div>
           <div className="form-group">
             <label>Due Date</label>

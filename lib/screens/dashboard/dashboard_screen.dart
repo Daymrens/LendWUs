@@ -22,6 +22,12 @@ import '../modals/record_repayment_modal.dart';
 import '../../providers/notification_provider.dart';
 import '../../core/utils/member_id_generator.dart';
 import '../../core/firebase/firebase_service.dart';
+import 'widgets/donut_charts_row.dart';
+import 'widgets/trends_bar_chart.dart';
+import 'widgets/collection_rate_chart.dart';
+import '../../data/models/payment_request.dart';
+import '../../data/models/loan_request.dart';
+import '../../data/models/head_change_request.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -31,8 +37,25 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  int _prevPendingCount = 0;
+  bool _pendingModalInitialized = false;
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<int>(pendingApprovalsCountProvider, (prev, next) {
+      if (!_pendingModalInitialized) {
+        _prevPendingCount = next;
+        _pendingModalInitialized = true;
+        return;
+      }
+      if (next > _prevPendingCount) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _showPendingRequestsDialog();
+        });
+      }
+      _prevPendingCount = next;
+    });
+
     final fundSummary = ref.watch(fundSummaryProvider);
     final members = ref.watch(membersStreamProvider);
     final pendingApprovals = ref.watch(pendingApprovalsCountProvider);
@@ -292,6 +315,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const Gap(24),
             const TopContributors(),
             const Gap(24),
+            const DonutChartsRow(),
+            const Gap(24),
+            const TrendsBarChart(),
+            const Gap(24),
+            const CollectionRateChart(),
+            const Gap(24),
             Text(
               'Activity',
               style: Theme.of(context).textTheme.displayMedium,
@@ -338,6 +367,200 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
             textAlign: TextAlign.center,
           ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showPendingRequestsDialog() async {
+    final pendingPayments = [...?ref.read(pendingPaymentRequestsStreamProvider).value];
+    final pendingLoans = [...?ref.read(pendingLoanRequestsStreamProvider).value];
+    final pendingHeads = [...?ref.read(pendingHeadChangeRequestsStreamProvider).value];
+    final members = [...?ref.read(membersStreamProvider).value];
+
+    if (pendingPayments.isEmpty && pendingLoans.isEmpty && pendingHeads.isEmpty) return;
+
+    final memberNameMap = {for (final m in members) m.id: m.name};
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.all(0),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.notifications_active, color: AppColors.warning, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      'New Pending Requests',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: Icon(Icons.close, size: 20, color: AppColors.textMuted),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (pendingPayments.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 4),
+                              Text('PAYMENTS (${pendingPayments.length})', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.warning, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                        ...pendingPayments.map((p) => _pendingRequestTile(
+                          icon: p.type == PaymentType.loan ? Icons.credit_card : Icons.payments,
+                          iconColor: p.type == PaymentType.loan ? AppColors.secondary : AppColors.primary,
+                          memberName: memberNameMap[p.memberId] ?? p.memberId,
+                          subtitle: p.type == PaymentType.loan ? 'Loan Repayment' : 'Contribution',
+                          amount: CurrencyFormatter.format(p.amount),
+                          amountColor: p.type == PaymentType.loan ? AppColors.secondary : AppColors.primary,
+                        )),
+                        const SizedBox(height: 8),
+                      ],
+                      if (pendingLoans.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 4),
+                              Text('LOAN REQUESTS (${pendingLoans.length})', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.secondary, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                        ...pendingLoans.map((l) => _pendingRequestTile(
+                          icon: Icons.account_balance,
+                          iconColor: AppColors.secondary,
+                          memberName: l.memberName.isNotEmpty ? l.memberName : (memberNameMap[l.memberId] ?? l.memberId),
+                          subtitle: 'Loan',
+                          amount: CurrencyFormatter.format(l.amount),
+                          amountColor: AppColors.secondary,
+                        )),
+                        const SizedBox(height: 8),
+                      ],
+                      if (pendingHeads.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              const SizedBox(width: 4),
+                              Text('HEAD CHANGES (${pendingHeads.length})', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.purple, letterSpacing: 1)),
+                            ],
+                          ),
+                        ),
+                        ...pendingHeads.map((h) => _pendingRequestTile(
+                          icon: Icons.swap_horiz,
+                          iconColor: Colors.purple,
+                          memberName: h.memberName.isNotEmpty ? h.memberName : (memberNameMap[h.memberId] ?? h.memberId),
+                          subtitle: '${h.currentHeads} → ${h.requestedHeads} heads',
+                          amount: null,
+                          amountColor: null,
+                        )),
+                        const SizedBox(height: 8),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.surfaceAlt)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textMuted,
+                          side: BorderSide(color: AppColors.surfaceAlt),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          context.push('/approvals');
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.warning,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Open Approvals', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pendingRequestTile({
+    required IconData icon,
+    required Color iconColor,
+    required String memberName,
+    required String subtitle,
+    String? amount,
+    Color? amountColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(memberName, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                const SizedBox(height: 1),
+                Text(subtitle, style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          if (amount != null)
+            Text(amount, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: amountColor)),
         ],
       ),
     );

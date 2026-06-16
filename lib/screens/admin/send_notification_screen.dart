@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
+import '../../core/theme/app_colors.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../data/models/member.dart';
@@ -21,11 +22,90 @@ class _SendNotificationScreenState extends ConsumerState<SendNotificationScreen>
   bool _sending = false;
   String? _result;
 
+  static const _templates = [
+    _NotificationTemplate(
+      icon: Icons.payments,
+      label: 'Payment\nReminder',
+      title: 'Contribution Due',
+      body: 'This is a friendly reminder that your monthly contribution is now due. Please submit your payment at your earliest convenience.',
+      type: 'payment',
+      recipient: 'members',
+    ),
+    _NotificationTemplate(
+      icon: Icons.warning_amber_rounded,
+      label: 'Overdue\nAlert',
+      title: 'Payment Overdue',
+      body: 'Your contribution for this month is now overdue. Kindly remit immediately to avoid any lapse in your standing.',
+      type: 'payment',
+      recipient: 'members',
+    ),
+    _NotificationTemplate(
+      icon: Icons.account_balance,
+      label: 'Loan Due\nReminder',
+      title: 'Loan Repayment Due',
+      body: 'Your loan repayment is due soon. Please settle your payment to keep your account in good standing.',
+      type: 'loan',
+      recipient: 'members',
+    ),
+    _NotificationTemplate(
+      icon: Icons.check_circle_outline,
+      label: 'Loan\nApproved',
+      title: 'Loan Approved',
+      body: 'Congratulations! Your loan has been approved. The amount has been disbursed to your account.',
+      type: 'loan',
+      recipient: 'member',
+    ),
+    _NotificationTemplate(
+      icon: Icons.event,
+      label: 'Meeting\nNotice',
+      title: 'Upcoming Fund Meeting',
+      body: 'We will be having our fund meeting on [DATE]. Your attendance is kindly requested.',
+      type: 'custom_notification',
+      recipient: 'all',
+    ),
+    _NotificationTemplate(
+      icon: Icons.trending_up,
+      label: 'Fund\nUpdate',
+      title: 'Fund Performance Update',
+      body: 'Our fund balance is performing well. Thank you for your continued contributions and support.',
+      type: 'custom_notification',
+      recipient: 'all',
+    ),
+    _NotificationTemplate(
+      icon: Icons.celebration_outlined,
+      label: 'Thank\nYou',
+      title: 'Thank You!',
+      body: 'Thank you for your timely contribution! Your consistent support keeps our fund strong.',
+      type: 'payment',
+      recipient: 'members',
+    ),
+    _NotificationTemplate(
+      icon: Icons.info_outline,
+      label: 'General\nNotice',
+      title: 'Important Announcement',
+      body: 'Please be informed of the following update regarding our fund: [DETAILS].',
+      type: 'custom_notification',
+      recipient: 'all',
+    ),
+  ];
+
   @override
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
     super.dispose();
+  }
+
+  void _applyTemplate(_NotificationTemplate template) {
+    _titleController.text = template.title;
+    _bodyController.text = template.body;
+    _type = template.type;
+    if (template.recipient == 'member') {
+      _recipient = 'member';
+    } else {
+      _recipient = template.recipient;
+    }
+    setState(() {});
   }
 
   Future<void> _send() async {
@@ -122,7 +202,41 @@ class _SendNotificationScreenState extends ConsumerState<SendNotificationScreen>
               ],
               onChanged: (v) => setState(() => _type = v!),
             ),
-            const Gap(12),
+            const Gap(20),
+            Text('Templates', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            const Gap(8),
+            SizedBox(
+              height: 72,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _templates.length,
+                separatorBuilder: (_, __) => const Gap(8),
+                itemBuilder: (context, index) {
+                  final t = _templates[index];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _applyTemplate(t),
+                    child: Container(
+                      width: 88,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.textMuted.withValues(alpha: 0.25)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(t.icon, size: 20, color: AppColors.primary),
+                          const Gap(4),
+                          Text(t.label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 10, height: 1.2)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Gap(20),
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Title', border: OutlineInputBorder()),
@@ -161,3 +275,21 @@ final _membersProvider = FutureProvider<List<Member>>((ref) async {
   final repo = MemberRepository();
   return repo.getAllMembers();
 });
+
+class _NotificationTemplate {
+  final IconData icon;
+  final String label;
+  final String title;
+  final String body;
+  final String type;
+  final String recipient;
+
+  const _NotificationTemplate({
+    required this.icon,
+    required this.label,
+    required this.title,
+    required this.body,
+    required this.type,
+    required this.recipient,
+  });
+}

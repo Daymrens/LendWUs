@@ -10,6 +10,7 @@ import {
   limit,
   runTransaction,
   addDoc,
+  writeBatch,
   getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -131,6 +132,7 @@ const PaymentsTab: React.FC = () => {
   };
 
   const handleApprove = async (req: PaymentRequest) => {
+    if (!window.confirm(`Approve this ${req.type === "contribution" ? "contribution" : "repayment"} payment of ₱${req.amount.toLocaleString()}? This will record the payment and cannot be undone.`)) return;
     try {
       const requestRef = doc(db, "payment_requests", req.id);
       const memberDocId = await resolveMemberDocId(req.memberId);
@@ -332,10 +334,27 @@ const PaymentsTab: React.FC = () => {
   );
 };
 
+interface LoanReceipt {
+  id: string;
+  loanId: string;
+  receiptNumber: string;
+  memberName: string;
+  principal: number;
+  interestRate: number;
+  interestAmount: number;
+  totalAmountDue: number;
+  issuedDate: Timestamp;
+  dueDate: Timestamp;
+  status: string;
+  copyFor: string;
+  generatedAt: Timestamp;
+}
+
 const LoansTab: React.FC = () => {
   const [requests, setRequests] = useState<LoanRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [viewLoanReceipt, setViewLoanReceipt] = useState<LoanReceipt | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -355,7 +374,66 @@ const LoansTab: React.FC = () => {
   useEffect(() => { load(); }, []);
 
   const handleApprove = async (id: string, request: LoanRequest) => {
+    if (!window.confirm(`Approve loan of ₱${(request.amount || 0).toLocaleString()} for ${request.memberName || request.memberId}? This will disburse the loan and generate a receipt.`)) return;
+    let loanRefId = "";
     try {
+      let memberId = "";
+      let principal = 0;
+      let interestRate = 0;
+      let dueDate: Timestamp = Timestamp.now();
+
+      // Check available funds before approving
+      const principalAmount = request.amount || 0;
+      if (principalAmount > 0) {
+        const [contribSnap, loanSnap, repaySnap] = await Promise.all([
+          getDocs(collection(db, "contributions")),
+          getDocs(collection(db, "loans")),
+          getDocs(collection(db, "repayments")),
+        ]);
+        let totalContributions = 0;
+        contribSnap.docs.forEach(d => { totalContributions += Number(d.data().amount) || 0; });
+        let totalLoansIssued = 0;
+        let outstandingBalance = 0;
+        loanSnap.docs.forEach(d => {
+          const p = Number(d.data().principal) || 0;
+          totalLoansIssued += p;
+          if (d.data().isFullyRepaid === false) outstandingBalance += p;
+        });
+        let totalRepayments = 0;
+        repaySnap.docs.forEach(d => { totalRepayments += Number(d.data().amountPaid) || 0; });
+        const totalAmountDuePerLoan = (l: any) => {
+          const p = Number(l.principal) || 0;
+          const r = Number(l.interestRate) || 0;
+          return p + (p * r);
+        };
+        let remainingBalanceSum = 0;
+        loanSnap.docs.forEach(d => {
+          if (d.data().isFullyRepaid === false) {
+            const loanId = d.id;
+            const totalDue = totalAmountDuePerLoan(d.data());
+            let repaid = 0;
+            repaySnap.docs.forEach(r => {
+              if (r.data().loanId === loanId) repaid += Number(r.data().amountPaid) || 0;
+            });
+            remainingBalanceSum += Math.max(0, totalDue - repaid);
+          }
+        });
+        const fundBalance = totalContributions - totalLoansIssued + totalRepayments;
+        const availableToLoan = fundBalance - remainingBalanceSum;
+
+        if (principalAmount > availableToLoan) {
+          const reason = "Insufficient fund balance — the fund does not have enough available cash to cover this loan. Please wait for more contributions to come in before re-applying.";
+          await updateDoc(doc(db, "loan_requests", id), {
+            status: "rejected",
+            notes: reason,
+            processedAt: Timestamp.now(),
+          });
+          alert(`Loan request rejected.\n\nReason: ${reason}`);
+          load();
+          return;
+        }
+      }
+
       await runTransaction(db, async (transaction) => {
         const requestRef = doc(db, "loan_requests", id);
         const requestSnap = await transaction.get(requestRef);
@@ -363,20 +441,17 @@ const LoansTab: React.FC = () => {
         const data = requestSnap.data();
         if (data.status !== "pending") throw new Error("Request already processed");
 
-        const memberId = data.memberId;
+        memberId = data.memberId;
 
-        // Create Loan doc
-        const loanRef = doc(collection(db, "loans"));
         const rawRate = (data.interestRate as number) || 0;
-        const interestRate = rawRate > 1 ? rawRate / 100 : rawRate;
-        const dueDate = data.dueDate instanceof Timestamp
+        interestRate = rawRate > 1 ? rawRate / 100 : rawRate;
+        principal = data.amount;
+        dueDate = data.dueDate instanceof Timestamp
           ? data.dueDate
           : data.dueDate?.toDate
             ? Timestamp.fromDate(data.dueDate.toDate())
             : Timestamp.now();
 
-        // Check for existing active loans within the transaction
-        // by reading any known member loan docs
         const existingLoanSnap = await getDocs(query(
           collection(db, "loans"),
           where("memberId", "==", memberId),
@@ -392,22 +467,76 @@ const LoansTab: React.FC = () => {
           }
         }
 
+        const loanRef = doc(collection(db, "loans"));
+        loanRefId = loanRef.id;
+
         transaction.set(loanRef, {
           memberId: memberId,
-          principal: data.amount,
+          principal: principal,
           interestRate: interestRate,
           issuedDate: Timestamp.now(),
           dueDate: dueDate,
           isFullyRepaid: false,
         });
 
-        // Update request status to disbursed
         transaction.update(requestRef, {
           status: "disbursed",
           processedAt: Timestamp.now(),
           loanId: loanRef.id,
         });
       });
+
+      // Generate loan receipts
+      if (loanRefId && memberId) {
+        const memberSnap = await getDoc(doc(db, "members", memberId));
+        const memberName = memberSnap.exists() ? (memberSnap.data().name || memberId) : memberId;
+        const now = Timestamp.now();
+        const receiptNumber = `LR-${now.toDate().getFullYear()}${String(now.toDate().getMonth() + 1).padStart(2, "0")}-${String(now.toDate().getTime() % 100000).padStart(5, "0")}`;
+        const interestAmount = principal * interestRate;
+        const totalAmountDue = principal + interestAmount;
+
+        const adminRef = doc(collection(db, "loan_receipts"));
+        const borrowerRef = doc(collection(db, "loan_receipts"));
+        const adminData = {
+          loanId: loanRefId,
+          receiptNumber,
+          memberId,
+          memberName,
+          principal,
+          interestRate,
+          interestAmount,
+          totalAmountDue,
+          issuedDate: Timestamp.now(),
+          dueDate,
+          status: "active",
+          copyFor: "admin",
+          generatedAt: now,
+        };
+        const borrowerData = {
+          loanId: loanRefId,
+          receiptNumber,
+          memberId,
+          memberName,
+          principal,
+          interestRate,
+          interestAmount,
+          totalAmountDue,
+          issuedDate: Timestamp.now(),
+          dueDate,
+          status: "active",
+          copyFor: "borrower",
+          generatedAt: now,
+        };
+
+        const batch = writeBatch(db);
+        batch.set(adminRef, adminData);
+        batch.set(borrowerRef, borrowerData);
+        await batch.commit();
+
+        // Auto-pop receipt for admin
+        setViewLoanReceipt({ id: adminRef.id, ...adminData } as LoanReceipt);
+      }
+
       load();
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to approve");
@@ -476,6 +605,74 @@ const LoansTab: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Loan Receipt Modal — auto-pops after approval */}
+      {viewLoanReceipt && (
+        <div className="modal-overlay" onClick={() => setViewLoanReceipt(null)}>
+          <div className="modal receipt-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="modal-header no-print">
+              <h2>Loan Receipt</h2>
+              <button className="btn-icon" onClick={() => setViewLoanReceipt(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+
+            <div className="receipt-print-area">
+              <div style={{ textAlign: "center", marginBottom: 16 }}>
+                <div className="receipt-logo">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 4 }}>
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10"/>
+                    <circle cx="12" cy="15" r="1"/>
+                  </svg>
+                  <span className="receipt-logo-text">Lend<span>WUs</span></span>
+                </div>
+                <div className="receipt-subtitle">Group Sinking Fund — Official Loan Receipt</div>
+              </div>
+
+              <div className="receipt-divider" />
+
+              <div className="receipt-number-row">
+                <span className="receipt-number-label">Receipt No.</span>
+                <span className="receipt-number-value">{viewLoanReceipt.receiptNumber}</span>
+              </div>
+
+              <div className="receipt-amount-box">
+                <div className="receipt-amount">₱{viewLoanReceipt.totalAmountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="receipt-amount-label">Total Amount Due</div>
+              </div>
+
+              <div className="receipt-divider" />
+
+              <table className="receipt-table">
+                <tbody>
+                  <tr><td className="receipt-label">Member</td><td className="receipt-value">{viewLoanReceipt.memberName}</td></tr>
+                  <tr><td className="receipt-label">Principal</td><td className="receipt-value">₱{viewLoanReceipt.principal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>
+                  <tr><td className="receipt-label">Interest Rate</td><td className="receipt-value">{(viewLoanReceipt.interestRate * 100).toFixed(1)}%</td></tr>
+                  <tr><td className="receipt-label">Interest Amount</td><td className="receipt-value">₱{viewLoanReceipt.interestAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td></tr>
+                  <tr className="receipt-spacer"><td colSpan={2}></td></tr>
+                  <tr><td className="receipt-label">Issue Date</td><td className="receipt-value">{viewLoanReceipt.issuedDate?.toDate?.()?.toLocaleDateString() || "N/A"}</td></tr>
+                  <tr><td className="receipt-label">Due Date</td><td className="receipt-value">{viewLoanReceipt.dueDate?.toDate?.()?.toLocaleDateString() || "N/A"}</td></tr>
+                  <tr><td className="receipt-label">Status</td><td className="receipt-value">{viewLoanReceipt.status.toUpperCase()}</td></tr>
+                  <tr><td className="receipt-label">Generated</td><td className="receipt-value">{viewLoanReceipt.generatedAt?.toDate?.()?.toLocaleDateString() || "N/A"}</td></tr>
+                </tbody>
+              </table>
+
+              <div className="receipt-divider" />
+
+              <div className="receipt-footer">
+                <p>This is a computer-generated receipt. No signature required.</p>
+                <p className="receipt-thankyou">Thank you for being a part of LendWUs!</p>
+              </div>
+            </div>
+
+            <div className="modal-actions no-print">
+              <button className="btn btn-outline" onClick={() => setViewLoanReceipt(null)}>Close</button>
+              <button className="btn btn-primary" onClick={() => window.print()}>🖨️ Print</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
@@ -503,7 +700,8 @@ const HeadsTab: React.FC = () => {
 
   useEffect(() => { load(); }, []);
 
-  const handleApprove = async (id: string, memberId: string) => {
+  const handleApprove = async (id: string, memberId: string, currentHeads?: number, requestedHeads?: number) => {
+    if (!window.confirm(`Approve head change from ${currentHeads || "?"} to ${requestedHeads || "?"} heads? This takes effect immediately.`)) return;
     try {
       const now = new Date();
       const isJanuary = now.getMonth() === 0;
@@ -602,7 +800,7 @@ const HeadsTab: React.FC = () => {
                 <button className="btn btn-outline btn-sm" style={{ color: "#ef4444", borderColor: "#ef4444" }} onClick={() => handleReject(r.id)}>
                   Reject
                 </button>
-                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id, r.memberId)}>
+                <button className="btn btn-primary btn-sm" style={{ background: "#22c55e" }} onClick={() => handleApprove(r.id, r.memberId, r.currentHeads, r.requestedHeads)}>
                   Approve
                 </button>
               </div>

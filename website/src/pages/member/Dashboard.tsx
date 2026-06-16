@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  updateDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useMemberAuth } from "../../context/MemberAuthContext";
@@ -71,6 +72,7 @@ const Dashboard: React.FC = () => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [notifications, setNotifications] = useState<{id: string; title: string; body: string; read: boolean; createdAt: Timestamp; type?: string}[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -82,6 +84,7 @@ const Dashboard: React.FC = () => {
   const [showRepaymentModal, setShowRepaymentModal] = useState(false);
   const [showTrackDialog, setShowTrackDialog] = useState(false);
   const [repayLoan, setRepayLoan] = useState<Loan | null>(null);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   const [cutoffDay1, setCutoffDay1] = useState(13);
   const [cutoffDay2, setCutoffDay2] = useState(28);
@@ -160,8 +163,11 @@ const Dashboard: React.FC = () => {
 
     if (user?.uid) {
       unsubs.push(onSnapshot(
-        query(collection(db, "notifications"), where("userId", "==", user.uid), where("read", "==", false)),
-        (snap) => { setUnreadCount(snap.docs.length); }
+        query(collection(db, "notifications"), where("userId", "==", user.uid), orderBy("createdAt", "desc")),
+        (snap) => {
+          setNotifications(snap.docs.map(d => ({ id: d.id, ...d.data() } as {id: string; title: string; body: string; read: boolean; createdAt: Timestamp; type?: string})));
+          setUnreadCount(snap.docs.filter(d => !d.data().read).length);
+        }
       ));
     }
 
@@ -244,25 +250,65 @@ const Dashboard: React.FC = () => {
       <div className="page-header">
         <h1>Welcome, {member.name}</h1>
         <div style={{ position: "relative", display: "flex", gap: 8 }}>
-          <button
-            className="btn-icon"
-            title="Notifications"
-            onClick={() => navigate("/member/notifications")}
-            style={{ position: "relative" }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            {unreadCount > 0 && (
-              <span style={{
-                position: "absolute", top: -2, right: -2,
-                background: "#f59e0b", color: "#000",
-                fontSize: 10, fontWeight: 700,
-                width: 18, height: 18, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {unreadCount}
-              </span>
+          <div style={{ position: "relative" }}>
+            <button
+              className="btn-icon"
+              title="Notifications"
+              onClick={() => setShowNotifDropdown(v => !v)}
+              style={{ position: "relative" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              {unreadCount > 0 && (
+                <span style={{
+                  position: "absolute", top: -2, right: -2,
+                  background: "#f59e0b", color: "#000",
+                  fontSize: 10, fontWeight: 700,
+                  width: 18, height: 18, borderRadius: "50%",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+            {showNotifDropdown && (
+              <>
+                <div className="modal-overlay" style={{ position: "fixed", inset: 0, zIndex: 999, background: "transparent" }} onClick={() => setShowNotifDropdown(false)} />
+                <div style={{
+                  position: "absolute", top: "100%", right: 0, zIndex: 1000,
+                  width: 340, maxHeight: 400, overflow: "auto",
+                  background: "#161b22", border: "1px solid #30363d",
+                  borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+                  padding: 8,
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #21262d", marginBottom: 4 }}>
+                    <strong style={{ fontSize: 14 }}>Notifications</strong>
+                    {unreadCount > 0 && <span style={{ fontSize: 11, color: "#8b949e" }}>{unreadCount} unread</span>}
+                  </div>
+                  {notifications.length === 0 ? (
+                    <p style={{ textAlign: "center", color: "#8b949e", fontSize: 12, padding: "20px 0" }}>No notifications</p>
+                  ) : (
+                    notifications.slice(0, 5).map(n => (
+                      <div key={n.id} style={{
+                        padding: "10px 12px", borderRadius: 8, cursor: "pointer",
+                        background: n.read ? "transparent" : "rgba(34,197,94,0.06)",
+                        transition: "background 0.15s",
+                      }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.03)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = n.read ? "transparent" : "rgba(34,197,94,0.06)")}
+                        onClick={async () => {
+                          try { await updateDoc(doc(db, "notifications", n.id), { read: true }); } catch {}
+                          setShowNotifDropdown(false);
+                        }}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: n.read ? 400 : 600, color: "#f0f6fc", marginBottom: 2 }}>{n.title}</div>
+                        <div style={{ fontSize: 11, color: "#8b949e", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{n.body}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </>
             )}
-          </button>
+          </div>
         </div>
       </div>
 

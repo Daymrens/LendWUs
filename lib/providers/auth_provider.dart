@@ -9,6 +9,7 @@ import '../data/models/member.dart';
 import '../core/firebase/firebase_service.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/notification_watcher.dart';
+import '../core/services/all_paid_watcher.dart';
 import '../core/services/security_service.dart';
 import '../core/utils/member_id_generator.dart';
 import 'members_provider.dart';
@@ -31,6 +32,7 @@ class CurrentUserNotifier extends ChangeNotifier {
   StreamSubscription<firebase_auth.User?>? _authSub;
   StreamSubscription<String>? _tokenSub;
   final NotificationWatcher _notificationWatcher = NotificationWatcher();
+  final AllPaidWatcher _allPaidWatcher = AllPaidWatcher();
   bool _disposed = false;
 
   User? get state => _user;
@@ -154,6 +156,7 @@ class CurrentUserNotifier extends ChangeNotifier {
       if (_user != null) {
         await _registerFcmToken();
         _notificationWatcher.start(_user!.id!);
+        _allPaidWatcher.start();
         if (!_biometricChecked) {
           _biometricChecked = true;
           try {
@@ -164,6 +167,7 @@ class CurrentUserNotifier extends ChangeNotifier {
         }
       } else {
         _notificationWatcher.dispose();
+        _allPaidWatcher.dispose();
       }
     } else {
       _user = null;
@@ -392,6 +396,7 @@ class CurrentUserNotifier extends ChangeNotifier {
     _disposed = true;
     _stopMemberWatcher();
     _notificationWatcher.dispose();
+    _allPaidWatcher.dispose();
     _tokenSub?.cancel();
     _tokenSub = null;
     _authSub?.cancel();

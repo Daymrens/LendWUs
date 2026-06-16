@@ -24,7 +24,6 @@ import 'screens/profile/about_screen.dart';
 import 'screens/profile/privacy_security_screen.dart';
 import 'screens/profile/edit_profile_screen.dart';
 import 'screens/profile/changelog_screen.dart';
-import 'screens/notifications/notifications_screen.dart';
 import 'screens/member/member_pay_screen.dart';
 import 'screens/member/loan_calculator.dart';
 import 'screens/treasurer/treasurer_dashboard_screen.dart';
@@ -90,7 +89,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location == '/changelog' ||
           location == '/help' || location == '/about' ||
           location == '/privacy-security' || location == '/edit-profile' ||
-          location == '/notifications' || location == '/member-pay' ||
+          location == '/member-pay' ||
           location == '/maintenance';
 
       final settings = settingsAsync.valueOrNull;
@@ -181,10 +180,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/edit-profile',
         builder: (context, state) => const EditProfileScreen(),
-      ),
-      GoRoute(
-        path: '/notifications',
-        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/member-pay',
@@ -534,7 +529,9 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
   }
 
   void _showActionSheet() {
-    final isTreasurer = ref.read(currentUserProvider).isTreasurer;
+    final auth = ref.read(currentUserProvider);
+    final isTreasurer = auth.isTreasurer;
+    final memberId = auth.state?.memberId;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -558,12 +555,27 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
               spacing: 12, runSpacing: 12,
               alignment: WrapAlignment.center,
               children: [
-                _actionTile(ctx, Icons.payment, 'Submit Payment', () { Navigator.pop(ctx); context.go('/member-pay'); }),
-                _actionTile(ctx, Icons.add_chart, 'Apply for Loan', () { Navigator.pop(ctx); context.go('/member-loan-calculator'); }),
+                _actionTile(ctx, Icons.wallet, 'Pay Contribution', () {
+                  Navigator.of(ctx).maybePop().then((_) {
+                    if (context.mounted && memberId != null) {
+                      showPayContributionSheet(context, ref, memberId);
+                    }
+                  });
+                }),
+                _actionTile(ctx, Icons.add_chart, 'Apply for Loan', () {
+                  Navigator.of(ctx).maybePop().then((_) {
+                    if (context.mounted) showLoanRequestSheet(context);
+                  });
+                }),
+                _actionTile(ctx, Icons.people_alt, 'Change Heads', () {
+                  Navigator.of(ctx).maybePop().then((_) {
+                    if (context.mounted) showHeadChangeSheet(context);
+                  });
+                }),
                 _actionTile(ctx, Icons.request_page, 'My Requests', () { Navigator.pop(ctx); context.go('/member-requests'); }),
                 if (isTreasurer)
                   _actionTile(ctx, Icons.account_balance, 'Treasurer', () { Navigator.pop(ctx); context.go('/member-treasurer'); }),
-                _actionTile(ctx, Icons.notifications, 'Notifications', () { Navigator.pop(ctx); context.go('/notifications'); }),
+                _actionTile(ctx, Icons.info, 'About', () { Navigator.pop(ctx); context.push('/about'); }),
               ],
             ),
             const SizedBox(height: 16),
@@ -574,23 +586,44 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
   }
 
   Widget _actionTile(BuildContext ctx, IconData icon, String label, VoidCallback onTap) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        width: 90,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 28, color: AppColors.primary),
-            const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
-          ],
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Container(
+          width: 95,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withValues(alpha: 0.08),
+                AppColors.primary.withValues(alpha: 0.02),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.15)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40, height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 22, color: AppColors.primary),
+              ),
+              const SizedBox(height: 8),
+              Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurface)),
+            ],
+          ),
         ),
       ),
     );

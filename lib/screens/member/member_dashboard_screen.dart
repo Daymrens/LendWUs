@@ -21,6 +21,7 @@ import '../modals/member_payment_modal.dart';
 import '../modals/member_loan_request_modal.dart';
 import '../modals/member_head_change_modal.dart';
 import '../../providers/notification_provider.dart';
+import '../../data/repositories/notification_repository.dart';
 
 final memberContributionsStreamProvider = StreamProvider.family<List<Contribution>, String>((ref, memberId) {
   return ref.watch(contributionRepositoryProvider).watchMemberContributions(memberId);
@@ -72,7 +73,9 @@ class MemberDashboardScreen extends ConsumerWidget {
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined),
                       onPressed: () {
-                        context.push('/notifications');
+                        if (userId != null) {
+                          _showNotificationSheet(context, ref, userId);
+                        }
                       },
                       tooltip: 'Notifications',
                     ),
@@ -155,124 +158,7 @@ class MemberDashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            Row(
-              children: [
-                Expanded(
-                  child: _quickAction(context, Icons.add_circle, 'Pay Contribution', AppColors.primary, () {
-                    final now = DateTime.now();
-                    final allContribs = ref.read(memberContributionsStreamProvider(memberId)).asData?.value ?? [];
-                    final thisMonth = allContribs.where((c) =>
-                      c.date.month == now.month && c.date.year == now.year
-                    ).toList();
-                    final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
-                    final member = ref.read(memberByIdProvider(memberId)).valueOrNull;
-                    final perHeadAmount = member?.amountPerHead ?? 0;
-                    final headCount = member?.headsCount ?? 1;
-                    final perCutoffAmount = perHeadAmount * headCount;
-                    final fullMonthlyRequired = perCutoffAmount * 2;
-
-                    if (monthlyTotal >= perCutoffAmount && fullMonthlyRequired > 0) {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          backgroundColor: AppColors.surface,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const SizedBox(height: 8),
-                              Container(
-                                width: 56, height: 56,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary.withAlpha(30),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.emoji_events, color: AppColors.primary, size: 28),
-                              ),
-                              const SizedBox(height: 16),
-                              const Text("YOU'RE ON TRACK!",
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'You\'ve met your contribution for this cutoff period.',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Contributed: ${CurrencyFormatter.format(monthlyTotal)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () => Navigator.pop(ctx),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
-                                      child: const Text('Close'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                      child: ElevatedButton(
-                                      onPressed: () {
-                                        Navigator.pop(ctx);
-                                        showModalBottomSheet(
-                                          context: context, isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder: (_) => const MemberPaymentModal(defaultAdvance: true),
-                                        );
-                                      },
-                                      style: ElevatedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(vertical: 14),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                      ),
-                                      child: const Text('Pay in Advance'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    } else {
-                      showModalBottomSheet(
-                        context: context, isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (_) => const MemberPaymentModal(),
-                      );
-                    }
-                  }),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _quickAction(context, Icons.request_page, 'Request Loan', AppColors.warning, () {
-                    showModalBottomSheet(
-                      context: context, isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const MemberLoanRequestModal(),
-                    );
-                  }),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _quickAction(context, Icons.people_alt, 'Change Heads', AppColors.secondary, () {
-                    showModalBottomSheet(
-                      context: context, isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => const MemberHeadChangeModal(),
-                    );
-                  }),
-                ),
-              ],
-            ),
+            _QuickActionsRow(memberId: memberId, activeLoansAsync: memberLoansAsync),
 
             const SizedBox(height: 24),
 
@@ -280,15 +166,16 @@ class MemberDashboardScreen extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
-            Text('My Active Loans',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-
-            memberLoansAsync.when(
-              data: (loans) => _buildLoansList(context, loans),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Error loading loans'),
-            ),
+            if (memberLoansAsync.hasValue) ...[
+              Text('My Active Loans',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              memberLoansAsync.when(
+                data: (loans) => _buildLoansList(context, loans),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (_, __) => const Text('Error loading loans'),
+              ),
+            ],
 
             const SizedBox(height: 24),
             _MemberReturnsSection(),
@@ -543,32 +430,6 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _quickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Material(
-      color: colorScheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colorScheme.outlineVariant.withValues(alpha: 0.1)),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 6),
-              Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoansList(BuildContext context, List<Map<String, dynamic>> loans) {
     final colorScheme = Theme.of(context).colorScheme;
     if (loans.isEmpty) {
@@ -761,6 +622,221 @@ class _MemberReturnsSection extends ConsumerWidget {
   }
 }
 
+void showPayContributionSheet(BuildContext context, WidgetRef ref, String memberId) {
+  final now = DateTime.now();
+  final allContribs = ref.read(memberContributionsStreamProvider(memberId)).asData?.value ?? [];
+  final thisMonth = allContribs.where((c) =>
+    c.date.month == now.month && c.date.year == now.year
+  ).toList();
+  final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
+  final member = ref.read(memberByIdProvider(memberId)).valueOrNull;
+  final perHeadAmount = member?.amountPerHead ?? 0;
+  final headCount = member?.headsCount ?? 1;
+  final perCutoffAmount = perHeadAmount * headCount;
+  final fullMonthlyRequired = perCutoffAmount * 2;
+
+  if (monthlyTotal >= perCutoffAmount && fullMonthlyRequired > 0) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withAlpha(30),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.emoji_events, color: AppColors.primary, size: 28),
+            ),
+            const SizedBox(height: 16),
+            const Text("YOU'RE ON TRACK!",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'You\'ve met your contribution for this cutoff period.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Contributed: ${CurrencyFormatter.format(monthlyTotal)} / ${CurrencyFormatter.format(perCutoffAmount)} this cutoff',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Close'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      showModalBottomSheet(
+                        context: context, isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const MemberPaymentModal(defaultAdvance: true),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Pay in Advance'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  } else {
+    showModalBottomSheet(
+      context: context, isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const MemberPaymentModal(),
+    );
+  }
+}
+
+void showLoanRequestSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context, isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const MemberLoanRequestModal(),
+  );
+}
+
+void showHeadChangeSheet(BuildContext context) {
+  showModalBottomSheet(
+    context: context, isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const MemberHeadChangeModal(),
+  );
+}
+
+Widget _enhancedQuickAction(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+  return Material(
+    color: Colors.transparent,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            colors: [color.withValues(alpha: 0.12), color.withValues(alpha: 0.04)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _QuickActionsRow extends ConsumerWidget {
+  final String memberId;
+  final AsyncValue<List<Map<String, dynamic>>> activeLoansAsync;
+
+  const _QuickActionsRow({required this.memberId, required this.activeLoansAsync});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final activeLoans = activeLoansAsync.asData?.value ?? [];
+    final hasActiveLoans = activeLoans.any((l) {
+      final loan = l['loan'] as Loan?;
+      return loan != null && !loan.isFullyRepaid;
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Quick Actions',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = hasActiveLoans
+                ? (constraints.maxWidth - 24) / 4
+                : (constraints.maxWidth - 16) / 3;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                SizedBox(
+                  width: itemWidth,
+                  child: _enhancedQuickAction(context, Icons.wallet, 'Pay', AppColors.primary,
+                    () => showPayContributionSheet(context, ref, memberId)),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _enhancedQuickAction(context, Icons.add_chart, 'Loan', AppColors.warning,
+                    () => showLoanRequestSheet(context)),
+                ),
+                SizedBox(
+                  width: itemWidth,
+                  child: _enhancedQuickAction(context, Icons.people_alt, 'Heads', AppColors.secondary,
+                    () => showHeadChangeSheet(context)),
+                ),
+                if (hasActiveLoans)
+                  SizedBox(
+                    width: itemWidth,
+                    child: _enhancedQuickAction(context, Icons.payments, 'Repay', Colors.pink, () {
+                      context.push('/member-pay');
+                    }),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
 class _RecentContributions extends ConsumerWidget {
   final String memberId;
 
@@ -817,6 +893,142 @@ class _RecentContributions extends ConsumerWidget {
     if (diff.inDays == 1) return 'Yesterday';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return DateFormat('MMM d').format(d);
+  }
+}
+
+void _showNotificationSheet(BuildContext context, WidgetRef ref, String userId) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      maxChildSize: 0.8,
+      minChildSize: 0.3,
+      expand: false,
+      builder: (scrollCtx, scrollController) => Consumer(
+        builder: (context, ref, _) {
+          final notificationsAsync = ref.watch(notificationStreamProvider(userId));
+          final unreadCount = ref.watch(unreadCountProvider(userId)).value ?? 0;
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.textMuted.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Notifications',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      if (unreadCount > 0)
+                        Text('$unreadCount unread',
+                          style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Expanded(
+                  child: notificationsAsync.when(
+                    data: (notifications) {
+                      if (notifications.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.notifications_off, size: 48,
+                                color: AppColors.textMuted),
+                              const SizedBox(height: 12),
+                              Text('No notifications',
+                                style: TextStyle(color: AppColors.textMuted)),
+                            ],
+                          ),
+                        );
+                      }
+                      final recent = notifications.take(10).toList();
+                      return ListView.separated(
+                        controller: scrollController,
+                        padding: EdgeInsets.zero,
+                        itemCount: recent.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1, indent: 20),
+                        itemBuilder: (_, index) {
+                          final n = recent[index];
+                          return ListTile(
+                            leading: Icon(
+                              _iconForNotifType(n.type),
+                              color: n.read
+                                  ? AppColors.textMuted
+                                  : AppColors.primary,
+                              size: 22,
+                            ),
+                            title: Text(n.title,
+                              style: TextStyle(
+                                fontWeight: n.read
+                                    ? FontWeight.normal
+                                    : FontWeight.bold,
+                                fontSize: 14,
+                              )),
+                            subtitle: Text(n.body,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: n.read ? AppColors.textMuted : null,
+                              )),
+                            tileColor: n.read ? null : AppColors.surfaceAlt,
+                            onTap: () {
+                              if (!n.read && n.id != null) {
+                                NotificationRepository().markAsRead(n.id!);
+                              }
+                            },
+                          );
+                        },
+                      );
+                    },
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+IconData _iconForNotifType(String type) {
+  switch (type) {
+    case 'payment':
+      return Icons.payment;
+    case 'loan':
+      return Icons.account_balance;
+    case 'approval':
+      return Icons.check_circle;
+    case 'head_change':
+      return Icons.people_alt;
+    case 'reminder':
+      return Icons.notifications_active;
+    case 'all_paid':
+      return Icons.celebration;
+    case 'system':
+      return Icons.info;
+    default:
+      return Icons.notifications;
   }
 }
 
