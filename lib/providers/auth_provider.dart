@@ -153,12 +153,23 @@ class CurrentUserNotifier extends ChangeNotifier {
             _needsSetup = false;
           } else {
             _isRecognized = true;
-            _needsSetup = false;
+            final missingName = member.name.isEmpty;
+            final missingPhone = member.contactNumber == null || member.contactNumber!.isEmpty;
+            _needsSetup = missingName || missingPhone;
             _user!.displayId = member.memberId;
             _startMemberWatcher(_user!.memberId!);
           }
         } else if (_user != null) {
-          _isRecognized = true;
+          // Admin or treasurer-only → recognized.
+          // Member without memberId and not treasurer → NOT recognized
+          // (matches web resolveUser: a user doc with role==member but no
+          // valid memberId returns recognized: false).
+          final isAdminUser = _user!.role == UserRole.admin || _adminEmails.contains(_user!.email);
+          final isTreasurerOnly = _user!.role == UserRole.member &&
+              _user!.isTreasurer &&
+              _user!.memberId == null;
+          _isRecognized = isAdminUser || isTreasurerOnly;
+          if (_isRecognized) _needsSetup = false;
         } else {
           _isRecognized = false;
         }
@@ -214,6 +225,13 @@ class CurrentUserNotifier extends ChangeNotifier {
         final isActive = data['isActive'] == true || data['isActive'] == 1;
         if (!isActive) {
           _handleDeactivation('Your account has been deactivated. Contact an admin.');
+        } else {
+          // Re-check needsSetup whenever member doc changes
+          final member = Member.fromMap({...data, 'id': snapshot.id});
+          final missingName = member.name.isEmpty;
+          final missingPhone = member.contactNumber == null || member.contactNumber!.isEmpty;
+          _needsSetup = missingName || missingPhone;
+          if (!_disposed) notifyListeners();
         }
       }
     }, onError: (Object e, StackTrace st) {
