@@ -14,6 +14,7 @@ const Unrecognized: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [existingUserMode, setExistingUserMode] = useState(false);
+  const [showPrompt, setShowPrompt] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
   const { joinWithGroupCode, completeProfile, error, clearError, user, isRecognized, needsSetup, logout } = useAuth();
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ const Unrecognized: React.FC = () => {
           if (mData.contactNumber) setContact(mData.contactNumber);
           setCode((mData.memberId || "").startsWith("LWS") ? "Already joined" : "");
           setExistingUserMode(true);
+          setShowPrompt(false);
         }
       } catch (_) { /* ignore */ }
       setDataLoaded(true);
@@ -54,6 +56,7 @@ const Unrecognized: React.FC = () => {
             if (mData.contactNumber) setContact(mData.contactNumber);
             setCode((mData.memberId || "").startsWith("LWS") ? "Already joined" : "");
             setExistingUserMode(true);
+            setShowPrompt(false);
           }
         } catch (_) { /* ignore */ }
         setDataLoaded(true);
@@ -144,6 +147,42 @@ const Unrecognized: React.FC = () => {
           >
             Let's Get Started
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showPrompt && !existingUserMode) {
+    return (
+      <div className="app-login-page">
+        <div className="app-login-card" style={{ textAlign: "center" }}>
+          <div className="app-login-logo">
+            <div className="app-login-logo-icon">💰</div>
+            <h1 className="app-login-title">LendWUs</h1>
+          </div>
+          <div style={{ fontSize: 48, margin: "16px 0" }}>👥</div>
+          <h2 style={{ color: "#fff", margin: "0 0 8px" }}>
+            You're not with a group yet
+          </h2>
+          <p style={{ color: "#8b949e", marginBottom: 24, lineHeight: 1.5, maxWidth: 320, margin: "0 auto 24px" }}>
+            After signing in, you need to join a savings group using a group code provided by your fund admin.
+          </p>
+          <button
+            className="app-login-submit"
+            onClick={() => setShowPrompt(false)}
+            style={{ marginBottom: 12 }}
+          >
+            I Have a Group Code
+          </button>
+          <button
+            className="app-login-google"
+            onClick={handleLogout}
+          >
+            Log Out / Exit
+          </button>
+          <div className="app-login-footer">
+            <a href="/member/login">Back to Sign In</a>
+          </div>
         </div>
       </div>
     );

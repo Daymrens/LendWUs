@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/firebase/firebase_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/settings_provider.dart';
+import '../../data/models/user.dart';
 
 class UnrecognizedScreen extends ConsumerStatefulWidget {
   const UnrecognizedScreen({super.key});
@@ -19,130 +21,64 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
   final _headsController = TextEditingController(text: '1');
   final _contactController = TextEditingController();
   final _codeController = TextEditingController();
-  bool _isLoading = false;
+  bool _submitting = false;
   String? _error;
-  bool _dialogShown = false;
-  bool _welcomeMode = false;
+  bool _welcome = false;
   String _displayName = '';
-  bool _isExistingUser = false;
-  String _defaultGroupCode = 'LENDWUS';
+  bool _existingUserMode = false;
+  bool _showPrompt = true;
   bool _dataLoaded = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkDeactivation();
-      _loadInitialData();
-    });
+    _loadData();
   }
 
-  Future<void> _loadInitialData() async {
+  Future<void> _loadData() async {
     try {
       final auth = ref.read(currentUserProvider);
       final firebaseUser = FirebaseService.auth.currentUser;
+
+      // Try to load existing member data
       String? memberId = auth.memberId;
 
+      // If no memberId from auth, try linked email
       if (memberId == null && firebaseUser?.email != null) {
         final linked = await ref.read(memberRepositoryProvider)
             .findMemberByLinkedEmail(firebaseUser!.email!);
         if (linked != null) memberId = linked.id;
       }
 
-      final settings = ref.read(settingsProvider);
-      _defaultGroupCode = settings.asData?.value.groupCode ?? 'LENDWUS';
-
-      // Determine if this is an existing user from auth state (same logic as
-      // the original code). This must be based on auth state, NOT on whether
-      // getMemberById succeeds, to avoid falling into the new-user
-      // registration path and creating a duplicate member.
-      if (auth.isRecognized && auth.needsSetup) {
-        _isExistingUser = true;
-      } else if (memberId != null) {
-        _isExistingUser = true;
-      }
-
-      // Self-heal: if existing user AND member data is actually complete,
-      // redirect away immediately — overrides any false-positive needsSetup.
-      if (_isExistingUser && memberId != null) {
-        final member = await ref.read(memberRepositoryProvider)
-            .getMemberById(memberId);
-        if (member != null && mounted) {
-          final hasName = member.name.isNotEmpty;
-          final hasPhone = member.contactNumber != null &&
-              member.contactNumber!.isNotEmpty;
-          if (hasName && hasPhone) {
-            debugPrint('[UnrecognizedScreen] existing member data complete, redirecting');
-            ref.read(currentUserProvider).markSetupComplete();
-            _dataLoaded = true;
-            if (mounted) {
-              final authNow = ref.read(currentUserProvider);
-              if (authNow.isAdmin) {
-                context.go('/');
-              } else {
-                context.go('/member-home');
-              }
+      if (memberId != null) {
+        final memberSnap = await FirebaseService.firestore
+            .collection('members')
+            .doc(memberId)
+            .get();
+        if (memberSnap.exists) {
+          final mData = memberSnap.data() as Map<String, dynamic>;
+          if (mounted) {
+            _nameController.text = (mData['name'] as String?) ?? '';
+            _headsController.text = ((mData['headsCount'] as int?) ?? 1).toString();
+            if (mData['contactNumber'] != null) {
+              _contactController.text = mData['contactNumber'] as String;
             }
-            return;
-          }
-          // Incomplete data — pre-fill form
-          _nameController.text = member.name;
-          _headsController.text = member.headsCount.toString();
-          _codeController.text = _defaultGroupCode;
-          if (member.contactNumber != null) {
-            _contactController.text = member.contactNumber!;
+            _codeController.text = 'Already joined';
+            _existingUserMode = true;
+            _showPrompt = false;
           }
         }
       }
+
+      final settings = ref.read(settingsProvider);
+      final defaultCode = settings.asData?.value.groupCode ?? 'LENDWUS';
+      if (!_existingUserMode && mounted) {
+        _codeController.text = defaultCode;
+      }
     } catch (e) {
-      debugPrint('UnrecognizedScreen _loadInitialData error: $e');
+      debugPrint('UnrecognizedScreen _loadData error: $e');
     } finally {
       if (mounted) setState(() => _dataLoaded = true);
-    }
-  }
-
-  void _checkDeactivation() {
-    if (_dialogShown) return;
-    final reason = ref.read(currentUserProvider).deactivationReason;
-    if (reason != null) {
-      _dialogShown = true;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(20))),
-          title: const Row(
-            children: [
-              Icon(Icons.info_outline, color: AppColors.warning, size: 28),
-              SizedBox(width: 12),
-              Text('Account Updated'),
-            ],
-          ),
-          content: Text(
-            reason,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface,
-              height: 1.5,
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () async {
-                Navigator.of(ctx).pop();
-                ref.read(currentUserProvider).clearDeactivationReason();
-                await ref.read(currentUserProvider).logout();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: const Text('Sign Out'),
-            ),
-          ],
-        ),
-      );
     }
   }
 
@@ -155,95 +91,84 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
     super.dispose();
   }
 
-  Future<void> _submitSetup() async {
+  Future<void> _handleSubmit() async {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       setState(() => _error = 'Display name is required');
       return;
     }
 
-    final contact = _contactController.text.trim();
-    if (contact.isEmpty) {
-      setState(() => _error = 'Contact number is required');
+    setState(() { _error = null; _submitting = true; });
+
+    if (_existingUserMode) {
+      final ok = await ref.read(currentUserProvider).completeProfile(
+        name: name,
+        contactNumber: _contactController.text.trim().isEmpty
+            ? null : _contactController.text.trim(),
+      );
+      if (mounted) {
+        _submitting = false;
+        if (ok) {
+          context.go('/member-home');
+        } else {
+          setState(() => _error = 'Failed to save. Please try again.');
+        }
+      }
       return;
     }
 
-    if (!_isExistingUser) {
-      final heads = int.tryParse(_headsController.text.trim());
-      if (heads == null || heads < 1) {
-        setState(() => _error = 'Must have at least 1 head');
-        return;
-      }
+    // New user mode
+    final heads = int.tryParse(_headsController.text.trim());
+    if (heads == null || heads < 1) {
+      if (mounted) setState(() { _error = 'Must have at least 1 head'; _submitting = false; });
+      return;
+    }
+    final code = _codeController.text.trim();
+    if (code.isEmpty) {
+      if (mounted) setState(() { _error = 'Group code is required'; _submitting = false; });
+      return;
+    }
 
-      final code = _codeController.text.trim();
-      if (code.isEmpty) {
-        setState(() => _error = 'Group code is required');
-        return;
-      }
+    final result = await ref.read(currentUserProvider).joinWithGroupCode(
+      code,
+      displayName: name,
+      headsCount: heads,
+      contactNumber: _contactController.text.trim().isEmpty
+          ? null : _contactController.text.trim(),
+    );
 
-      setState(() { _isLoading = true; _error = null; });
-
-      final success = await ref.read(currentUserProvider).joinWithGroupCode(
-        code,
-        displayName: name,
-        headsCount: heads,
-        contactNumber: contact,
-      );
-
-      if (mounted) {
-        if (success) {
-          setState(() { _welcomeMode = true; _displayName = name; });
-        } else {
-          setState(() { _isLoading = false; _error = 'Invalid group code. Please try again.'; });
-        }
-      }
-    } else {
-      setState(() { _isLoading = true; _error = null; });
-
-      final success = await ref.read(currentUserProvider).completeProfile(
-        name: name,
-        contactNumber: contact,
-      );
-
-      if (mounted) {
-        if (success) {
-          final auth = ref.read(currentUserProvider);
-          if (auth.isAdmin) {
-            context.go('/');
-          } else {
-            context.go('/member-home');
-          }
-        } else {
-          setState(() { _isLoading = false; _error = 'Failed to save. Please try again.'; });
-        }
+    if (mounted) {
+      _submitting = false;
+      if (result.success) {
+        setState(() { _welcome = true; _displayName = name; });
+      } else {
+        setState(() => _error = result.error ?? 'Invalid group code');
       }
     }
+  }
+
+  Future<void> _handleLogout() async {
+    await ref.read(currentUserProvider).logout();
+    if (mounted) context.go('/login');
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final auth = ref.read(currentUserProvider);
 
-    // Check admin by email as backup in case _user is null (e.g. transient error)
-    final firebaseUser = FirebaseService.auth.currentUser;
-    final settings = ref.read(settingsProvider).asData?.value;
-    final isAdminByEmail = firebaseUser?.email != null &&
-        (settings?.adminEmails ?? []).contains(firebaseUser!.email);
-    if (auth.isAdmin || isAdminByEmail) {
+    // Admin escape
+    if (ref.read(currentUserProvider).isAdmin) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go('/');
       });
       return const SizedBox.shrink();
     }
 
-    // Show loading spinner while checking Firestore for member data
     if (!_dataLoaded) {
       return Scaffold(
         body: Center(
           child: SizedBox(
-            height: 28,
-            width: 28,
+            height: 28, width: 28,
             child: CircularProgressIndicator(
               strokeWidth: 2.5,
               color: colorScheme.onSurfaceVariant,
@@ -253,7 +178,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
       );
     }
 
-    if (_welcomeMode) {
+    if (_welcome) {
       return Scaffold(
         body: SafeArea(
           child: Center(
@@ -264,8 +189,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                 children: [
                   const Spacer(),
                   Container(
-                    width: 88,
-                    height: 88,
+                    width: 88, height: 88,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [AppColors.primary.withValues(alpha: 0.8), AppColors.primary],
@@ -300,23 +224,21 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
-                  _welcomeStep(Icons.payments_outlined, 'Pay Contribution',
+                  _step(Icons.payments_outlined, 'Pay Contribution',
                     'Start building your savings by making your first contribution payment.'),
                   const SizedBox(height: 10),
-                  _welcomeStep(Icons.request_page_outlined, 'Request a Loan',
+                  _step(Icons.request_page_outlined, 'Request a Loan',
                     'Apply for a loan from the fund pool once you have contributions recorded.'),
                   const SizedBox(height: 10),
-                  _welcomeStep(Icons.people_alt_outlined, 'Manage Your Account',
+                  _step(Icons.people_alt_outlined, 'Manage Your Account',
                     'Update your profile, view your contribution history, and track loan repayments.'),
                   const SizedBox(height: 32),
                   SizedBox(
-                    width: double.infinity,
-                    height: 56,
+                    width: double.infinity, height: 56,
                     child: ElevatedButton(
                       onPressed: () => context.go('/member-home'),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
+                        backgroundColor: AppColors.primary, foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
@@ -333,6 +255,78 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
       );
     }
 
+    if (_showPrompt && !_existingUserMode) {
+      return Scaffold(
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 88, height: 88,
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Icon(Icons.group_off_rounded, size: 44, color: AppColors.warning),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  "You're not with a group yet",
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: colorScheme.onSurface,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'After signing in, you need to join a savings group using a group code provided by your fund admin.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity, height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: () => setState(() => _showPrompt = false),
+                    icon: const Icon(Icons.vpn_key_rounded),
+                    label: const Text('I Have a Group Code',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity, height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: _handleLogout,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Log Out / Exit',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: colorScheme.onSurface,
+                      side: BorderSide(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -341,13 +335,13 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                _isExistingUser ? Icons.edit_note_rounded : Icons.app_registration_rounded,
+                _existingUserMode ? Icons.edit_note_rounded : Icons.app_registration_rounded,
                 size: 72,
                 color: AppColors.primary.withValues(alpha: 0.8),
               ),
               const SizedBox(height: 20),
               Text(
-                _isExistingUser ? 'Complete Your Profile' : 'Complete Your Setup',
+                _existingUserMode ? 'Complete Your Profile' : 'Complete Your Setup',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
@@ -355,7 +349,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                _isExistingUser
+                _existingUserMode
                     ? 'Please provide your display name and contact number to continue.'
                     : 'Fill in your details to join the savings fund.',
                 textAlign: TextAlign.center,
@@ -364,7 +358,21 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                   height: 1.4,
                 ),
               ),
-              const SizedBox(height: 28),
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(_error!,
+                    style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                ),
+              ],
+              const SizedBox(height: 24),
               TextField(
                 controller: _nameController,
                 decoration: const InputDecoration(
@@ -373,56 +381,52 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
                 ),
                 textCapitalization: TextCapitalization.words,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _headsController,
-                readOnly: _isExistingUser,
-                decoration: InputDecoration(
-                  labelText: 'Number of Heads',
-                  helperText: _isExistingUser
-                      ? 'To change your head count, submit a head change request.'
-                      : 'Each head = one share. You can change this later.',
-                  helperMaxLines: 2,
-                  prefixIcon: const Icon(Icons.group_add_outlined),
+              if (!_existingUserMode) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _headsController,
+                  decoration: const InputDecoration(
+                    labelText: 'Number of Heads',
+                    helperText: 'Each head = one share. You can change this later.',
+                    helperMaxLines: 2,
+                    prefixIcon: Icon(Icons.group_add_outlined),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-                keyboardType: TextInputType.number,
-              ),
+              ],
               const SizedBox(height: 16),
               TextField(
                 controller: _contactController,
                 decoration: const InputDecoration(
-                  labelText: 'Contact Number',
+                  labelText: 'Contact Number (optional)',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
                 keyboardType: TextInputType.phone,
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _codeController,
-                readOnly: _isExistingUser,
-                decoration: InputDecoration(
-                  labelText: 'Group Code',
-                  helperText: _isExistingUser
-                      ? 'You are already part of the fund.'
-                      : 'Ask the fund admin for the group code to join.',
-                  helperMaxLines: 2,
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  errorText: _error,
+              if (!_existingUserMode) ...[
+                const SizedBox(height: 16),
+                TextField(
+                  controller: _codeController,
+                  decoration: InputDecoration(
+                    labelText: 'Group Code',
+                    helperText: 'Ask the fund admin for the group code to join.',
+                    helperMaxLines: 2,
+                    prefixIcon: const Icon(Icons.lock_outline),
+                  ),
+                  textCapitalization: TextCapitalization.characters,
                 ),
-                textCapitalization: TextCapitalization.characters,
-              ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _submitSetup,
-                  child: _isLoading
+                  onPressed: _submitting ? null : _handleSubmit,
+                  child: _submitting
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 20, width: 20,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : Text(_isExistingUser ? 'Save' : 'Join Group'),
+                      : Text(_existingUserMode ? 'Save' : 'Join Group'),
                 ),
               ),
               const SizedBox(height: 24),
@@ -431,12 +435,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () async {
-                    await ref.read(currentUserProvider).logout();
-                    if (context.mounted) {
-                      context.go('/login');
-                    }
-                  },
+                  onPressed: _submitting ? null : _handleLogout,
                   icon: const Icon(Icons.logout),
                   label: const Text('Log Out'),
                   style: OutlinedButton.styleFrom(
@@ -453,7 +452,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
     );
   }
 
-  Widget _welcomeStep(IconData icon, String title, String description) {
+  Widget _step(IconData icon, String title, String description) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,

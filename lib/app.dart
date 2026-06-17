@@ -70,13 +70,11 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     refreshListenable: authNotifier,
     redirect: (context, state) {
       final user = authNotifier.state;
-      final isRecognized = authNotifier.isRecognized;
       final isAdmin = authNotifier.isAdmin;
 
       final location = state.matchedLocation;
       final isLoggingIn = location == '/login';
       final isIntro = location == '/intro';
-      final isUnrecognized = location == '/unrecognized';
       final isMemberRoute = location == '/member-home' ||
           location == '/member-contributions' ||
           location == '/member-loans' ||
@@ -84,7 +82,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
           location == '/member-profile' ||
           location == '/member-loan-calculator' ||
           location == '/member-treasurer';
-      final isPublicRoute = isLoggingIn || isIntro || isUnrecognized ||
+      final isPublicRoute = isLoggingIn || isIntro ||
+          location == '/unrecognized' ||
           location == '/biometric-verify' ||
           location == '/changelog' ||
           location == '/help' || location == '/about' ||
@@ -100,25 +99,9 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return '/maintenance';
       }
 
-      // Still resolving auth state — wait (prevents flash of /unrecognized
-      // on cold start while _onAuthChanged is reading Firestore)
-      if (authNotifier.isFirebaseUser && authNotifier.isLoading && !isRecognized) {
+      // Still resolving auth state — wait
+      if (authNotifier.isFirebaseUser && authNotifier.isLoading) {
         return null;
-      }
-
-      // Recognized but needs setup → go to setup page (members only)
-      if (!isAdmin && authNotifier.isFirebaseUser && isRecognized && authNotifier.needsSetup && !isUnrecognized) {
-        return '/unrecognized';
-      }
-
-      // Unrecognized → redirect to home if recognized
-      if (authNotifier.isFirebaseUser && isRecognized && !authNotifier.needsSetup && isUnrecognized) {
-        return isAdmin ? '/' : '/member-home';
-      }
-
-      // Firebase user but unrecognized (members only) → go to unrecognized page
-      if (!isAdmin && authNotifier.isFirebaseUser && !isRecognized && !isUnrecognized) {
-        return '/unrecognized';
       }
 
       // No Firebase user → login (unless already there)
@@ -126,27 +109,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // Already logged in and recognized → redirect from login/auth pages
-      if (user != null && isRecognized && !authNotifier.needsSetup && isLoggingIn) {
+      // Unrecognized user (no member linked, not admin) → setup screen
+      if (user != null && !authNotifier.isRecognized && location != '/unrecognized' && !isIntro) {
+        return '/unrecognized';
+      }
+
+      // Firebase user exists — go to home based on role
+      if (user != null && !isLoggingIn && !isIntro) {
+        if (isAdmin && isMemberRoute) return '/';
+        if (!isAdmin && !isPublicRoute && !isMemberRoute) return '/member-home';
+        return null;
+      }
+
+      // Already logged in → redirect from login/auth pages
+      if (user != null && isLoggingIn) {
         return isAdmin ? '/' : '/member-home';
       }
 
       // Biometric required → verify unless already there
-      if (user != null && isRecognized && !authNotifier.needsSetup && authNotifier.isBiometricRequired && location != '/biometric-verify') {
+      if (user != null && authNotifier.isBiometricRequired && location != '/biometric-verify') {
         return '/biometric-verify';
       }
 
       // Intro → skip if completed
       if (isIntro && onboardingComplete) {
         return '/login';
-      }
-
-      // Route-level auth: prevent crossing between admin and member shells
-      if (isRecognized && !authNotifier.needsSetup && isAdmin && isMemberRoute) {
-        return '/';
-      }
-      if (isRecognized && !isAdmin && !isPublicRoute && !isMemberRoute && !isLoggingIn) {
-        return '/member-home';
       }
 
       return null;
