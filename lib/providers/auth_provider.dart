@@ -45,6 +45,16 @@ class CurrentUserNotifier extends ChangeNotifier {
   bool get isBiometricRequired => _biometricRequired;
   String? get deactivationReason => _deactivationReason;
 
+  /// Called by UnrecognizedScreen when it independently confirms that the
+  /// member's profile is complete. This clears _needsSetup so the routing
+  /// guard doesn't redirect right back to /unrecognized.
+  void markSetupComplete() {
+    if (!_disposed && _needsSetup) {
+      _needsSetup = false;
+      notifyListeners();
+    }
+  }
+
   CurrentUserNotifier(this.ref) {
     _initAuthListener();
   }

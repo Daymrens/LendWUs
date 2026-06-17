@@ -38,49 +38,58 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
   }
 
   Future<void> _loadInitialData() async {
-    final auth = ref.read(currentUserProvider);
-    final firebaseUser = FirebaseService.auth.currentUser;
-    String? memberId = auth.memberId;
+    try {
+      final auth = ref.read(currentUserProvider);
+      final firebaseUser = FirebaseService.auth.currentUser;
+      String? memberId = auth.memberId;
 
-    if (memberId == null && firebaseUser?.email != null) {
-      final linked = await ref.read(memberRepositoryProvider)
-          .findMemberByLinkedEmail(firebaseUser!.email!);
-      if (linked != null) memberId = linked.id;
-    }
+      if (memberId == null && firebaseUser?.email != null) {
+        final linked = await ref.read(memberRepositoryProvider)
+            .findMemberByLinkedEmail(firebaseUser!.email!);
+        if (linked != null) memberId = linked.id;
+      }
 
-    final settings = ref.read(settingsProvider);
-    _defaultGroupCode = settings.asData?.value.groupCode ?? 'LENDWUS';
+      final settings = ref.read(settingsProvider);
+      _defaultGroupCode = settings.asData?.value.groupCode ?? 'LENDWUS';
 
-    // Self-heal: read member from Firestore directly. If they already have
-    // complete info, redirect away immediately — this handles any false
-    // positives from the auth provider's _needsSetup.
-    if (memberId != null) {
-      final member = await ref.read(memberRepositoryProvider)
-          .getMemberById(memberId);
-      if (member != null && mounted) {
-        final hasName = member.name.isNotEmpty;
-        final hasPhone = member.contactNumber != null &&
-            member.contactNumber!.isNotEmpty;
-        if (hasName && hasPhone) {
-          final authNow = ref.read(currentUserProvider);
-          if (authNow.isAdmin) {
-            context.go('/');
-          } else {
-            context.go('/member-home');
+      // Self-heal: read member from Firestore directly. If they already have
+      // complete info, redirect away immediately — this handles any false
+      // positives from the auth provider's _needsSetup.
+      if (memberId != null) {
+        final member = await ref.read(memberRepositoryProvider)
+            .getMemberById(memberId);
+        if (member != null && mounted) {
+          final hasName = member.name.isNotEmpty;
+          final hasPhone = member.contactNumber != null &&
+              member.contactNumber!.isNotEmpty;
+          if (hasName && hasPhone) {
+            debugPrint('[UnrecognizedScreen] member data complete, redirecting');
+            ref.read(currentUserProvider).markSetupComplete();
+            _dataLoaded = true;
+            if (mounted) {
+              final authNow = ref.read(currentUserProvider);
+              if (authNow.isAdmin) {
+                context.go('/');
+              } else {
+                context.go('/member-home');
+              }
+            }
+            return;
           }
-          return;
-        }
-        _isExistingUser = true;
-        _nameController.text = member.name;
-        _headsController.text = member.headsCount.toString();
-        _codeController.text = _defaultGroupCode;
-        if (member.contactNumber != null) {
-          _contactController.text = member.contactNumber!;
+          _isExistingUser = true;
+          _nameController.text = member.name;
+          _headsController.text = member.headsCount.toString();
+          _codeController.text = _defaultGroupCode;
+          if (member.contactNumber != null) {
+            _contactController.text = member.contactNumber!;
+          }
         }
       }
+    } catch (e) {
+      debugPrint('UnrecognizedScreen _loadInitialData error: $e');
+    } finally {
+      if (mounted) setState(() => _dataLoaded = true);
     }
-
-    if (mounted) setState(() => _dataLoaded = true);
   }
 
   void _checkDeactivation() {
