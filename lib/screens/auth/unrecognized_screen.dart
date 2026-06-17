@@ -43,22 +43,34 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
     String? memberId = auth.memberId;
 
     if (memberId == null && firebaseUser?.email != null) {
-      final linked = await ref.read(memberRepositoryProvider).findMemberByLinkedEmail(firebaseUser!.email!);
+      final linked = await ref.read(memberRepositoryProvider)
+          .findMemberByLinkedEmail(firebaseUser!.email!);
       if (linked != null) memberId = linked.id;
     }
 
     final settings = ref.read(settingsProvider);
     _defaultGroupCode = settings.asData?.value.groupCode ?? 'LENDWUS';
 
-    if (auth.isRecognized && auth.needsSetup) {
-      _isExistingUser = true;
-    } else if (memberId != null) {
-      _isExistingUser = true;
-    }
-
-    if (_isExistingUser && memberId != null) {
-      final member = await ref.read(memberRepositoryProvider).getMemberById(memberId);
+    // Self-heal: read member from Firestore directly. If they already have
+    // complete info, redirect away immediately — this handles any false
+    // positives from the auth provider's _needsSetup.
+    if (memberId != null) {
+      final member = await ref.read(memberRepositoryProvider)
+          .getMemberById(memberId);
       if (member != null && mounted) {
+        final hasName = member.name.isNotEmpty;
+        final hasPhone = member.contactNumber != null &&
+            member.contactNumber!.isNotEmpty;
+        if (hasName && hasPhone) {
+          final authNow = ref.read(currentUserProvider);
+          if (authNow.isAdmin) {
+            context.go('/');
+          } else {
+            context.go('/member-home');
+          }
+          return;
+        }
+        _isExistingUser = true;
         _nameController.text = member.name;
         _headsController.text = member.headsCount.toString();
         _codeController.text = _defaultGroupCode;
@@ -205,6 +217,22 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
         if (mounted) context.go('/');
       });
       return const SizedBox.shrink();
+    }
+
+    // Show loading spinner while checking Firestore for member data
+    if (!_dataLoaded) {
+      return Scaffold(
+        body: Center(
+          child: SizedBox(
+            height: 28,
+            width: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
     }
 
     if (_welcomeMode) {
@@ -369,7 +397,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading || (_isExistingUser && !_dataLoaded) ? null : _submitSetup,
+                  onPressed: _isLoading ? null : _submitSetup,
                   child: _isLoading
                       ? const SizedBox(
                           height: 20,
