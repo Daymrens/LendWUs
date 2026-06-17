@@ -388,6 +388,17 @@ class _MemberStatsSection extends ConsumerWidget {
                       ),
                     ],
                   ),
+                  if (member.contactNumber != null && member.contactNumber!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(Icons.phone, size: 14, color: AppColors.textMuted),
+                        const SizedBox(width: 6),
+                        Text(member.contactNumber!,
+                          style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

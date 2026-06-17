@@ -64,7 +64,12 @@ service cloud.firestore {
     match /members/{memberId} {
       allow create: if isAuth();
       allow read: if isAuth();
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuth()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'contactNumber'])
+        && (isMemberOf(memberId) || isMemberByLinkedEmail(memberId))
+      );
+      allow delete: if isAdmin();
     }
 
     // ─── contributions ──────────────────────────────────────
@@ -119,6 +124,12 @@ service cloud.firestore {
 
     // ─── app_settings ───────────────────────────────────────
     match /app_settings/{settingId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ─── popups ─────────────────────────────────────────────
+    match /popups/{popupId} {
       allow read: if isAuth();
       allow create, update, delete: if isAdmin();
     }

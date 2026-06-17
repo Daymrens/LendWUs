@@ -22,6 +22,7 @@ import '../modals/member_loan_request_modal.dart';
 import '../modals/member_head_change_modal.dart';
 import '../../providers/notification_provider.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../dashboard/widgets/popup_overlay.dart';
 
 final memberContributionsStreamProvider = StreamProvider.family<List<Contribution>, String>((ref, memberId) {
   return ref.watch(contributionRepositoryProvider).watchMemberContributions(memberId);
@@ -57,7 +58,8 @@ class MemberDashboardScreen extends ConsumerWidget {
     final memberAsync = ref.watch(memberByIdProvider(memberId));
 
     return _BiometricPromptGate(
-      child: Scaffold(
+      child: PopupOverlay(
+        child: Scaffold(
         appBar: AppBar(
           title: const Text('My Dashboard'),
           actions: [
@@ -183,7 +185,7 @@ class MemberDashboardScreen extends ConsumerWidget {
         ),
       ),
     ),
-  );
+  ));
   }
 
   Widget _buildContributionCard(BuildContext context, WidgetRef ref, double total, String memberId, AppSettings? settings) {
@@ -318,7 +320,7 @@ class MemberDashboardScreen extends ConsumerWidget {
                   children: [
                     _infoChip(Icons.people_outline, '$heads head${heads > 1 ? 's' : ''}', AppColors.primary, colorScheme),
                     const SizedBox(width: 10),
-                    _infoChip(Icons.monetization_on_outlined, '${CurrencyFormatter.currencySymbol}${CurrencyFormatter.format(perHead)}/head', AppColors.warning, colorScheme),
+                    _infoChip(Icons.monetization_on_outlined, '${CurrencyFormatter.format(perHead)}/head', AppColors.warning, colorScheme),
                     const SizedBox(width: 10),
                     _infoChip(Icons.assignment, 'Req: ${CurrencyFormatter.format(totalRequired)}', AppColors.secondary, colorScheme),
                   ],

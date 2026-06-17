@@ -23,7 +23,9 @@ class CurrentUserNotifier extends ChangeNotifier {
   final Ref ref;
   User? _user;
   bool _isRecognized = false;
+  bool _needsSetup = false;
   bool _isLoading = false;
+  bool _resolveInProgress = false;
   bool _biometricRequired = false;
   bool _biometricChecked = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
@@ -37,6 +39,7 @@ class CurrentUserNotifier extends ChangeNotifier {
 
   User? get state => _user;
   bool get isRecognized => _isRecognized;
+  bool get needsSetup => _needsSetup;
   bool get isLoading => _isLoading;
   bool get isFirebaseUser => FirebaseService.auth.currentUser != null;
   bool get isBiometricRequired => _biometricRequired;
@@ -67,116 +70,133 @@ class CurrentUserNotifier extends ChangeNotifier {
 
   Future<void> _onAuthChanged(firebase_auth.User? firebaseUser) async {
     if (_disposed) return;
+
+    // Guard against concurrent calls (e.g. auth listener + explicit call after sign-in)
+    if (_resolveInProgress) return;
+    _resolveInProgress = true;
+
     _stopMemberWatcher();
 
-    if (firebaseUser != null) {
-      // Wait for settings to load before checking admin/treasurer emails
-      await ref.read(settingsProvider.future);
+    _isLoading = true;
+    if (!_disposed) notifyListeners();
 
-      final repo = ref.read(userRepositoryProvider);
-      _user = await repo.getUserById(firebaseUser.uid);
+    try {
+      if (firebaseUser != null) {
+        await ref.read(settingsProvider.future);
 
-      if (!firebaseUser.emailVerified && _user == null) {
-        _user = null;
-        _isRecognized = false;
-        if (!_disposed) notifyListeners();
-        return;
-      }
+        final repo = ref.read(userRepositoryProvider);
+        _user = await repo.getUserById(firebaseUser.uid);
 
-      // Treasurer flag check: if user exists and email is in treasurerEmails
-      if (_user != null && _treasurerEmails.contains(firebaseUser.email)) {
-        if (!_user!.isTreasurer) {
-          _user!.isTreasurer = true;
-          await repo.updateUserDoc(_user!);
-        }
-      }
-
-      if (_user == null && firebaseUser.email != null) {
-        if (_adminEmails.contains(firebaseUser.email)) {
-          final newUser = User(
-            id: firebaseUser.uid,
-            username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-            email: firebaseUser.email!,
-            role: UserRole.admin,
-            photoUrl: firebaseUser.photoURL,
-            createdAt: DateTime.now(),
-          );
-          await repo.createUserDoc(newUser);
-          _user = newUser;
-        } else {
-          final memberRepo = ref.read(memberRepositoryProvider);
-          final linkedMember = await memberRepo.findMemberByLinkedEmail(firebaseUser.email!);
-          final isTreasurer = _treasurerEmails.contains(firebaseUser.email);
-          if (linkedMember != null) {
-            final newUser = User(
-              id: firebaseUser.uid,
-              username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-              email: firebaseUser.email!,
-              role: UserRole.member,
-              memberId: linkedMember.id,
-              isTreasurer: isTreasurer,
-              photoUrl: firebaseUser.photoURL,
-              createdAt: DateTime.now(),
-            );
-            await repo.createUserDoc(newUser);
-            _user = newUser;
-          } else if (isTreasurer) {
-            // Treasurer without linked member account
-            final newUser = User(
-              id: firebaseUser.uid,
-              username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
-              email: firebaseUser.email!,
-              role: UserRole.member,
-              isTreasurer: true,
-              photoUrl: firebaseUser.photoURL,
-              createdAt: DateTime.now(),
-            );
-            await repo.createUserDoc(newUser);
-            _user = newUser;
-          }
-        }
-      }
-
-      if (_user != null && _user!.memberId != null && _user!.role == UserRole.member) {
-        final member = await ref.read(memberRepositoryProvider).getMemberById(_user!.memberId!);
-        if (member == null || !member.isActive) {
+        if (!firebaseUser.emailVerified && _user == null) {
           _user = null;
           _isRecognized = false;
-        } else {
-          _isRecognized = true;
-          _user!.displayId = member.memberId;
-          _startMemberWatcher(_user!.memberId!);
+          return;
         }
-      } else if (_user != null) {
-        _isRecognized = true;
-      } else {
-        _isRecognized = false;
-      }
 
-      if (_user != null) {
-        await _registerFcmToken();
-        _notificationWatcher.start(_user!.id!);
-        _allPaidWatcher.start();
-        if (!_biometricChecked) {
-          _biometricChecked = true;
-          try {
-            _biometricRequired = await SecurityService.isBiometricEnabled();
-          } catch (_) {
-            _biometricRequired = false;
+        if (_user != null && _treasurerEmails.contains(firebaseUser.email)) {
+          if (!_user!.isTreasurer) {
+            _user!.isTreasurer = true;
+            await repo.updateUserDoc(_user!);
           }
         }
-      } else {
-        _notificationWatcher.dispose();
-        _allPaidWatcher.dispose();
-      }
-    } else {
-      _user = null;
-      _isRecognized = false;
-      _biometricChecked = false;
-      _biometricRequired = false;
-    }
 
-    if (!_disposed) notifyListeners();
+        if (_user == null && firebaseUser.email != null) {
+          if (_adminEmails.contains(firebaseUser.email)) {
+            final newUser = User(
+              id: firebaseUser.uid,
+              username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+              email: firebaseUser.email!,
+              role: UserRole.admin,
+              photoUrl: firebaseUser.photoURL,
+              createdAt: DateTime.now(),
+            );
+            await repo.createUserDoc(newUser);
+            _user = newUser;
+          } else {
+            final memberRepo = ref.read(memberRepositoryProvider);
+            final linkedMember = await memberRepo.findMemberByLinkedEmail(firebaseUser.email!);
+            final isTreasurer = _treasurerEmails.contains(firebaseUser.email);
+            if (linkedMember != null) {
+              final newUser = User(
+                id: firebaseUser.uid,
+                username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+                email: firebaseUser.email!,
+                role: UserRole.member,
+                memberId: linkedMember.id,
+                isTreasurer: isTreasurer,
+                photoUrl: firebaseUser.photoURL,
+                createdAt: DateTime.now(),
+              );
+              await repo.createUserDoc(newUser);
+              _user = newUser;
+            } else if (isTreasurer) {
+              final newUser = User(
+                id: firebaseUser.uid,
+                username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+                email: firebaseUser.email!,
+                role: UserRole.member,
+                isTreasurer: true,
+                photoUrl: firebaseUser.photoURL,
+                createdAt: DateTime.now(),
+              );
+              await repo.createUserDoc(newUser);
+              _user = newUser;
+            }
+          }
+        }
+
+        if (_user != null && _user!.memberId != null && _user!.role == UserRole.member) {
+          final member = await ref.read(memberRepositoryProvider).getMemberById(_user!.memberId!);
+          if (member == null || !member.isActive) {
+            _user = null;
+            _isRecognized = false;
+            _needsSetup = false;
+          } else {
+            _isRecognized = true;
+            _needsSetup = false;
+            _user!.displayId = member.memberId;
+            _startMemberWatcher(_user!.memberId!);
+          }
+        } else if (_user != null) {
+          _isRecognized = true;
+        } else {
+          _isRecognized = false;
+        }
+
+        if (_user != null) {
+          await _registerFcmToken();
+          _notificationWatcher.start(_user!.id!);
+          _allPaidWatcher.start();
+          if (!_biometricChecked) {
+            _biometricChecked = true;
+            try {
+              _biometricRequired = await SecurityService.isBiometricEnabled();
+            } catch (_) {
+              _biometricRequired = false;
+            }
+          }
+        } else {
+          _notificationWatcher.dispose();
+          _allPaidWatcher.dispose();
+        }
+      } else {
+        _user = null;
+        _isRecognized = false;
+        _needsSetup = false;
+        _biometricChecked = false;
+        _biometricRequired = false;
+      }
+    } catch (e) {
+      debugPrint('_onAuthChanged error: $e');
+      debugPrintStack(label: '_onAuthChanged');
+      // Don't null out _user/_isRecognized on transient errors —
+      // they may hold a valid session from a prior auth state change.
+      // A subsequent auth state change will retry the resolve.
+    } finally {
+      _resolveInProgress = false;
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
+    }
   }
 
   void _startMemberWatcher(String memberId) {
@@ -246,9 +266,15 @@ class CurrentUserNotifier extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    _isLoading = true;
+    notifyListeners();
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return false;
+      if (googleUser == null) {
+        _isLoading = false;
+        if (!_disposed) notifyListeners();
+        return false;
+      }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final firebase_auth.AuthCredential credential = firebase_auth.GoogleAuthProvider.credential(
@@ -257,8 +283,20 @@ class CurrentUserNotifier extends ChangeNotifier {
       );
 
       await FirebaseService.auth.signInWithCredential(credential);
+
+      // Kick off auth resolution synchronously so routing is ready immediately.
+      // The _resolveInProgress guard prevents a concurrent call from the
+      // authStateChanges listener (queued as a microtask).
+      if (FirebaseService.auth.currentUser != null) {
+        await _onAuthChanged(FirebaseService.auth.currentUser);
+      }
+
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
       return true;
     } catch (e) {
+      _isLoading = false;
+      if (!_disposed) notifyListeners();
       debugPrint('Google Sign-In Error: $e');
       return false;
     }
@@ -307,7 +345,7 @@ class CurrentUserNotifier extends ChangeNotifier {
     if (!_disposed) notifyListeners();
   }
 
-  Future<bool> joinWithGroupCode(String code) async {
+  Future<bool> joinWithGroupCode(String code, {String? displayName, int headsCount = 1, String? contactNumber}) async {
     final settings = ref.read(settingsProvider);
     final expectedCode = settings.asData?.value.groupCode ?? 'LENDWUS';
     if (code.toUpperCase() != expectedCode.toUpperCase()) return false;
@@ -318,20 +356,24 @@ class CurrentUserNotifier extends ChangeNotifier {
     try {
       final firestore = FirebaseService.firestore;
 
+      final name = displayName ?? firebaseUser.displayName ?? firebaseUser.email!.split('@')[0];
+      final totalRequired = headsCount * 500.0;
+
       String? memberDocId;
       String? customMemberId;
       await firestore.runTransaction((tx) async {
         customMemberId = await MemberIdGenerator.generateNextMemberId(firestore);
         
         final member = Member(
-          name: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          name: name,
           linkedEmail: firebaseUser.email,
-          headsCount: 1,
+          headsCount: headsCount,
           amountPerHead: 500.0,
-          totalRequired: 500.0,
+          totalRequired: totalRequired,
           joinedAt: DateTime.now(),
           isActive: true,
           memberId: customMemberId,
+          contactNumber: contactNumber,
         );
         final memberDocRef = firestore.collection('members').doc();
         memberDocId = memberDocRef.id;
@@ -340,7 +382,7 @@ class CurrentUserNotifier extends ChangeNotifier {
 
         final newUser = User(
           id: firebaseUser.uid,
-          username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          username: name,
           email: firebaseUser.email!,
           role: UserRole.member,
           memberId: memberDocId,
@@ -355,7 +397,7 @@ class CurrentUserNotifier extends ChangeNotifier {
         _deactivationReason = null;
         _user = User(
           id: firebaseUser.uid,
-          username: firebaseUser.displayName ?? firebaseUser.email!.split('@')[0],
+          username: name,
           email: firebaseUser.email!,
           role: UserRole.member,
           memberId: memberDocId,
@@ -371,6 +413,26 @@ class CurrentUserNotifier extends ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('Join Group Code Error: $e');
+      return false;
+    }
+  }
+
+  Future<bool> completeProfile({required String name, String? contactNumber}) async {
+    if (_user?.memberId == null) return false;
+    try {
+      final member = await ref.read(memberRepositoryProvider).getMemberById(_user!.memberId!);
+      if (member == null) return false;
+
+      member.name = name;
+      member.contactNumber = contactNumber;
+      await ref.read(memberRepositoryProvider).updateMember(member);
+
+      _user!.username = name;
+      _needsSetup = false;
+      if (!_disposed) notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('completeProfile error: $e');
       return false;
     }
   }

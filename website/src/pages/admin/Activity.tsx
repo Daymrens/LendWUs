@@ -17,6 +17,9 @@ interface ActivityItem {
   date: Date;
   memberName?: string;
   details?: string;
+  receiptUrl?: string;
+  notes?: string;
+  rawStatus?: string;
 }
 
 interface GroupedItems {
@@ -25,6 +28,24 @@ interface GroupedItems {
 }
 
 const PAGE_SIZE = 30;
+
+const TYPE_LABELS: Record<string, string> = {
+  contribution: "Contribution",
+  loan: "Loan Issuance",
+  repayment: "Loan Repayment",
+  payment: "Payment Request",
+  loan_request: "Loan Request",
+  head_change: "Head Change",
+};
+
+const TYPE_ICONS: Record<string, string> = {
+  contribution: "💰",
+  loan: "🏦",
+  repayment: "💳",
+  payment: "💵",
+  loan_request: "📋",
+  head_change: "👥",
+};
 
 function getRelativeTime(d: Date): string {
   const now = new Date();
@@ -53,14 +74,14 @@ function getGroupLabel(d: Date): string {
   return month;
 }
 
-const TYPE_ICONS: Record<string, string> = {
-  contribution: "💰",
-  loan: "🏦",
-  repayment: "💳",
-  payment: "💵",
-  loan_request: "📋",
-  head_change: "👥",
-};
+const formatDate = (d: Date) =>
+  d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
 const Activity: React.FC = () => {
   const [allItems, setAllItems] = useState<ActivityItem[]>([]);
@@ -71,6 +92,7 @@ const Activity: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     loadActivity();
@@ -117,9 +139,11 @@ const Activity: React.FC = () => {
           type: "contribution",
           description: `Contribution by ${names[c.memberId as string] || (c.memberId as string)}`,
           amount: `₱${(Number(c.amount) || 0).toLocaleString()}`,
-          status: (c.status as string) || "pending",
+          status: "approved",
           date: (c.date as Timestamp)?.toDate?.() || new Date(),
           memberName: names[c.memberId as string],
+          receiptUrl: (c.receiptUrl as string) || undefined,
+          notes: (c.notes as string) || undefined,
         });
       });
 
@@ -148,6 +172,9 @@ const Activity: React.FC = () => {
           status: (p.status as string) || "pending",
           date: (p.requestDate as Timestamp)?.toDate?.() || new Date(),
           memberName: names[p.memberId as string],
+          receiptUrl: (p.receiptUrl as string) || undefined,
+          notes: (p.notes as string) || undefined,
+          rawStatus: (p.status as string) || "pending",
         });
       });
 
@@ -161,6 +188,7 @@ const Activity: React.FC = () => {
           status: (r.status as string) || "pending",
           date: (r.requestedAt as Timestamp)?.toDate?.() || new Date(),
           memberName: (r.memberName as string) || names[r.memberId as string],
+          notes: (r.notes as string) || undefined,
         });
       });
 
@@ -170,7 +198,7 @@ const Activity: React.FC = () => {
           id: d.id,
           type: "head_change",
           description: `Head change request from ${(h.memberName as string) || names[h.memberId as string] || (h.memberId as string)}`,
-          amount: `${h.currentHeads} \u2192 ${h.requestedHeads} heads`,
+          amount: `${h.currentHeads} → ${h.requestedHeads} heads`,
           status: (h.status as string) || "pending",
           date: (h.requestedAt as Timestamp)?.toDate?.() || new Date(),
           memberName: (h.memberName as string) || names[h.memberId as string],
@@ -310,7 +338,12 @@ const Activity: React.FC = () => {
             {group.items.map(item => {
               const st = statusColor(item.status);
               return (
-                <div key={`${item.type}-${item.id}`} className="activity-card">
+                <div
+                  key={`${item.type}-${item.id}`}
+                  className="activity-card"
+                  onClick={() => setSelected(item)}
+                  style={{ cursor: "pointer" }}
+                >
                   <div className={`activity-card-icon activity-icon-${item.type}`}>
                     {TYPE_ICONS[item.type] || "\u{1F4CB}"}
                   </div>
@@ -346,8 +379,58 @@ const Activity: React.FC = () => {
           </button>
         </div>
       )}
+
+      {selected && (
+        <div className="modal-overlay" onClick={() => setSelected(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 500 }}>
+            <div className="modal-header">
+              <h3>{TYPE_LABELS[selected.type] || "Transaction"} Details</h3>
+              <button className="btn-icon" onClick={() => setSelected(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <DetailRow label="Type" value={TYPE_LABELS[selected.type] || selected.type} />
+                <DetailRow label="Member" value={selected.memberName || "—"} />
+                {selected.amount && <DetailRow label="Amount" value={selected.amount} />}
+                <DetailRow label="Status" value={fmtStatus(selected.status).label} />
+                <DetailRow label="Date" value={formatDate(selected.date)} />
+                {selected.details && <DetailRow label="Details" value={selected.details} />}
+                {selected.notes && <DetailRow label="Notes" value={selected.notes} />}
+              </div>
+
+              {selected.receiptUrl && (
+                <>
+                  <div style={{ height: 1, background: "#30363d", margin: "16px 0" }} />
+                  <div>
+                    <h4 style={{ color: "#e6edf3", margin: "0 0 8px", fontSize: 14 }}>Receipt</h4>
+                    <img
+                      src={selected.receiptUrl}
+                      alt="Receipt"
+                      style={{ maxWidth: "100%", maxHeight: "50vh", borderRadius: 8, objectFit: "contain" }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+      <span style={{ color: "#8b949e", fontSize: 13, minWidth: 70 }}>{label}</span>
+      <span style={{ color: "#e6edf3", fontSize: 13, textAlign: "right", wordBreak: "break-word" }}>{value}</span>
+    </div>
+  );
+}
 
 export default Activity;

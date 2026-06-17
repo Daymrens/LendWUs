@@ -33,6 +33,7 @@ import ComplianceReportsPage from './pages/admin/ComplianceReports';
 import MemberUnrecognized from './pages/member/Unrecognized';
 import TreasurerDashboard from './pages/treasurer/Dashboard';
 import TreasurerConfirmations from './pages/treasurer/Dashboard';
+import PopupOverlay from './components/PopupOverlay';
 import {
   ArrowRight,
   Download,
@@ -127,7 +128,7 @@ const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             <Search size={20} />
           </button>
         </div>
-        {children}
+        <PopupOverlay>{children}</PopupOverlay>
       </main>
       {searchOpen && <GlobalSearch onClose={() => setSearchOpen(false)} />}
     </div>
@@ -905,7 +906,7 @@ const LandingPage: React.FC = () => {
 };
 
 const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, loading, isRecognized } = useAuth();
+  const { user, loading, isRecognized, needsSetup } = useAuth();
   const [maintenance, setMaintenance] = useState<{ on: boolean }>({ on: false });
 
   useEffect(() => {
@@ -920,6 +921,7 @@ const ProtectedMemberRoute: React.FC<{ children: React.ReactNode }> = ({ childre
   if (!user) return <Navigate to="/login" replace />;
   if (user.role !== "member") return <Navigate to="/admin/dashboard" replace />;
   if (!isRecognized) return <Navigate to="/member/unrecognized" replace />;
+  if (isRecognized && needsSetup) return <Navigate to="/member/unrecognized" replace />;
   if (maintenance.on) return <MaintenanceScreen />;
   return <>{children}</>;
 };
@@ -1015,7 +1017,7 @@ const MemberLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           </button>
           <span className="topbar-title">Member Portal</span>
         </div>
-        {children}
+        <PopupOverlay>{children}</PopupOverlay>
       </main>
     </div>
   );

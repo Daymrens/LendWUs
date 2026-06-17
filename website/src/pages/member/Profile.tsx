@@ -13,6 +13,7 @@ interface MemberData {
   balance: number;
   memberId: string;
   linkedEmail?: string;
+  contactNumber?: string;
   joinedAt?: { toDate?: () => Date };
 }
 
@@ -167,6 +168,10 @@ const Profile: React.FC = () => {
         <div className="form-group">
           <label>Email</label>
           <input type="email" value={user?.email || "N/A"} disabled />
+        </div>
+        <div className="form-group">
+          <label>Phone Number</label>
+          <input type="tel" value={member?.contactNumber || "N/A"} disabled />
         </div>
         <div className="form-group">
           <label>Member ID</label>

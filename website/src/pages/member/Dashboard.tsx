@@ -199,10 +199,11 @@ const Dashboard: React.FC = () => {
   }, 0);
   const perHeadShare = totalHeadsCount > 0 ? totalInterestEarned / totalHeadsCount : 0;
 
-  const paymentMet = fullMonthlyRequired > 0 && totalThisMonth >= fullMonthlyRequired;
+  const perCutoffMet = perCutoffAmount > 0 && totalThisMonth >= perCutoffAmount;
+  const fullMonthMet = fullMonthlyRequired > 0 && totalThisMonth >= fullMonthlyRequired;
   const cutoffInfo = computeCutoff(now, cutoffDay1, cutoffDay2);
-  const cutoffLabel = paymentMet ? "✓ Paid" : cutoffInfo.statusText;
-  const cutoffColor = paymentMet ? "#22c55e" : cutoffInfo.statusColor;
+  const cutoffLabel = fullMonthMet ? "✓ Paid" : perCutoffMet ? "✓ Cutoff Met" : cutoffInfo.statusText;
+  const cutoffColor = fullMonthMet ? "#22c55e" : perCutoffMet ? "#22c55e" : cutoffInfo.statusColor;
   const cutoffProgress = Math.max(0, Math.min(100, (1 - Math.max(0, cutoffInfo.daysUntilNext) / 30) * 100));
 
   if (loading) return (
@@ -325,12 +326,12 @@ const Dashboard: React.FC = () => {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={cutoffColor} strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#c9d1d9" }}>Next Cutoff</span>
             </div>
-            <span className={`chip ${paymentMet ? "active-chip" : cutoffInfo.state === CutoffState.dueToday ? "inactive-chip" : cutoffInfo.state === CutoffState.nearDeadline ? "badge-orange" : "active-chip"}`}>
+            <span className={`chip ${fullMonthMet || perCutoffMet ? "active-chip" : cutoffInfo.state === CutoffState.dueToday ? "inactive-chip" : cutoffInfo.state === CutoffState.nearDeadline ? "badge-orange" : "active-chip"}`}>
               {cutoffLabel}
             </span>
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: cutoffColor, marginBottom: 8 }}>
-            {paymentMet ? "✓ All Paid" : cutoffInfo.state === CutoffState.dueToday ? "Due Today" : `${cutoffInfo.daysUntilNext} day${cutoffInfo.daysUntilNext !== 1 ? "s" : ""}`}
+            {fullMonthMet ? "✓ All Paid" : perCutoffMet ? "✓ Cutoff Met" : cutoffInfo.state === CutoffState.dueToday ? "Due Today" : `${cutoffInfo.daysUntilNext} day${cutoffInfo.daysUntilNext !== 1 ? "s" : ""}`}
           </div>
           <div style={{ height: 4, background: "#1c2128", borderRadius: 2, overflow: "hidden" }}>
             <div style={{

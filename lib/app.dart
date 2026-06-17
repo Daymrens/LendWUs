@@ -100,13 +100,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         return '/maintenance';
       }
 
+      // Still resolving auth state — wait (prevents flash of /unrecognized
+      // on cold start while _onAuthChanged is reading Firestore)
+      if (authNotifier.isFirebaseUser && authNotifier.isLoading && !isRecognized) {
+        return null;
+      }
+
+      // Recognized but needs setup → go to setup page (members only)
+      if (!isAdmin && authNotifier.isFirebaseUser && isRecognized && authNotifier.needsSetup && !isUnrecognized) {
+        return '/unrecognized';
+      }
+
       // Unrecognized → redirect to home if recognized
-      if (authNotifier.isFirebaseUser && isRecognized && isUnrecognized) {
+      if (authNotifier.isFirebaseUser && isRecognized && !authNotifier.needsSetup && isUnrecognized) {
         return isAdmin ? '/' : '/member-home';
       }
 
-      // Firebase user but unrecognized → go to unrecognized page
-      if (authNotifier.isFirebaseUser && !isRecognized && !isUnrecognized) {
+      // Firebase user but unrecognized (members only) → go to unrecognized page
+      if (!isAdmin && authNotifier.isFirebaseUser && !isRecognized && !isUnrecognized) {
         return '/unrecognized';
       }
 
@@ -116,12 +127,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // Already logged in and recognized → redirect from login/auth pages
-      if (user != null && isRecognized && isLoggingIn) {
+      if (user != null && isRecognized && !authNotifier.needsSetup && isLoggingIn) {
         return isAdmin ? '/' : '/member-home';
       }
 
       // Biometric required → verify unless already there
-      if (user != null && isRecognized && authNotifier.isBiometricRequired && location != '/biometric-verify') {
+      if (user != null && isRecognized && !authNotifier.needsSetup && authNotifier.isBiometricRequired && location != '/biometric-verify') {
         return '/biometric-verify';
       }
 
@@ -131,7 +142,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // Route-level auth: prevent crossing between admin and member shells
-      if (isRecognized && isAdmin && isMemberRoute) {
+      if (isRecognized && !authNotifier.needsSetup && isAdmin && isMemberRoute) {
         return '/';
       }
       if (isRecognized && !isAdmin && !isPublicRoute && !isMemberRoute && !isLoggingIn) {

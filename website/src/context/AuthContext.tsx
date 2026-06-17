@@ -34,9 +34,11 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   isRecognized: boolean;
+  needsSetup: boolean;
   login: (email: string, password: string) => Promise<AuthResult>;
   signInWithGoogle: () => Promise<AuthResult>;
-  joinWithGroupCode: (code: string) => Promise<AuthResult>;
+  joinWithGroupCode: (code: string, options?: { displayName?: string; headsCount?: number; contactNumber?: string }) => Promise<AuthResult>;
+  completeProfile: (options: { name: string; contactNumber?: string }) => Promise<boolean>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -288,6 +290,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isRecognized, setIsRecognized] = useState(false);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   const unsubMemberWatcherRef = useRef<(() => void) | null>(null);
   const resolveLockRef = useRef<Promise<void> | null>(null);
@@ -301,6 +304,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     stopMemberWatcher();
     const unsub = onSnapshot(doc(db, "members", memberDocId), (snapshot) => {
       if (!snapshot.exists()) {
+        setNeedsSetup(false);
         setError("Your account has been removed. Contact an admin.");
         setUser(null);
         setIsRecognized(false);
@@ -308,10 +312,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         const data = snapshot.data();
         if (!(data?.active ?? data?.isActive)) {
+          setNeedsSetup(false);
           setError("Your account has been deactivated. Contact an admin.");
           setUser(null);
           setIsRecognized(false);
           signOut(auth);
+        } else {
+          setNeedsSetup(false);
         }
       }
     });
@@ -440,7 +447,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const joinWithGroupCode = async (code: string): Promise<AuthResult> => {
+  const joinWithGroupCode = async (code: string, options?: { displayName?: string; headsCount?: number; contactNumber?: string }): Promise<AuthResult> => {
     setError(null);
     setLoading(true);
 
@@ -476,15 +483,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const memberRef = doc(collection(db, "members"));
         memberDocId = memberRef.id;
 
+        const name = options?.displayName || fbUser.displayName || fbUser.email!.split("@")[0];
+        const headsCount = options?.headsCount || 1;
+        const totalRequired = headsCount * 500;
+        const contactNumber = options?.contactNumber || "";
+
         tx.set(memberRef, {
-          name: fbUser.displayName || fbUser.email!.split("@")[0],
+          name,
           linkedEmail: fbUser.email,
-          headsCount: 1,
+          headsCount,
           amountPerHead: 500,
-          totalRequired: 500,
+          totalRequired,
           joinedAt: serverTimestamp(),
           active: true,
           memberId: customMemberId,
+          ...(contactNumber ? { contactNumber } : {}),
         });
 
         tx.set(doc(db, "users", fbUser.uid), {
@@ -498,11 +511,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (memberDocId && customMemberId) {
+        const name = options?.displayName || fbUser.displayName || fbUser.email!.split("@")[0];
         setUser({
           uid: fbUser.uid,
           email: fbUser.email,
           role: "member",
-          username: fbUser.displayName || fbUser.email!.split("@")[0],
+          username: name,
           memberId: memberDocId,
           customMemberId: customMemberId,
           photoUrl: fbUser.photoURL || undefined,
@@ -524,12 +538,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const completeProfile = async (options: { name: string; contactNumber?: string }): Promise<boolean> => {
+    try {
+      const memberId = user?.memberId;
+      if (!memberId) return false;
+
+      const memberRef = doc(db, "members", memberId);
+      const memberSnap = await getDoc(memberRef);
+      if (!memberSnap.exists()) return false;
+
+      const updateData: Record<string, any> = { name: options.name };
+      if (options.contactNumber) updateData.contactNumber = options.contactNumber;
+      await setDoc(memberRef, updateData, { merge: true });
+
+      setUser(prev => prev ? { ...prev, username: options.name } : prev);
+      setNeedsSetup(false);
+      setError(null);
+      return true;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save profile";
+      setError(message);
+      return false;
+    }
+  };
+
   const logout = async () => {
     stopMemberWatcher();
     await signOut(auth);
     setUser(null);
     setFirebaseUser(null);
     setIsRecognized(false);
+    setNeedsSetup(false);
     setError(null);
   };
 
@@ -537,7 +576,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider
-      value={{ user, firebaseUser, loading, error, isRecognized, login, signInWithGoogle, joinWithGroupCode, logout, clearError }}
+      value={{ user, firebaseUser, loading, error, isRecognized, needsSetup, login, signInWithGoogle, joinWithGroupCode, completeProfile, logout, clearError }}
     >
       {children}
     </AuthContext.Provider>

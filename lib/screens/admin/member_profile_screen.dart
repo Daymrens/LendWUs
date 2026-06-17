@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
@@ -149,9 +150,19 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _ContributionsTab(contributions: memberContribs),
-                    _LoansTab(loans: memberLoans, repayments: memberRepayments),
-                    _PaymentsTab(payments: memberPayments),
+                    _ContributionsTab(
+                      contributions: memberContribs,
+                      onTap: _showContributionDetail,
+                    ),
+                    _LoansTab(
+                      loans: memberLoans,
+                      repayments: memberRepayments,
+                      onTap: _showLoanDetail,
+                    ),
+                    _PaymentsTab(
+                      payments: memberPayments,
+                      onTap: _showPaymentDetail,
+                    ),
                   ],
                 ),
               ),
@@ -169,6 +180,255 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
       ),
     );
   }
+
+  void _showContributionDetail(Contribution c) {
+  final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      final timestamp = '${c.date.year}-${c.date.month.toString().padLeft(2, '0')}-${c.date.day.toString().padLeft(2, '0')} '
+          '${c.date.hour.toString().padLeft(2, '0')}:${c.date.minute.toString().padLeft(2, '0')}:${c.date.second.toString().padLeft(2, '0')}';
+      return DraggableScrollableSheet(
+        initialChildSize: 0.55,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Center(child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )),
+              const SizedBox(height: 20),
+              Text('Contribution Details', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              _detailRow('Amount', CurrencyFormatter.format(c.amount)),
+              _detailRow('Period', '${months[c.month - 1]} ${c.year}'),
+              _detailRow('Timestamp', timestamp),
+              _detailRow('Transaction ID', c.id ?? 'N/A'),
+              if (c.notes != null && c.notes!.isNotEmpty)
+                _detailRow('Notes', c.notes!),
+              if (c.createdBy != null)
+                _detailRow('Created By', c.createdBy == 'member' ? 'Member (via request)' : 'Admin'),
+              if (c.receiptUrl != null && c.receiptUrl!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _viewReceipt(context, c.receiptUrl!),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: c.receiptUrl!.startsWith('data:image')
+                      ? Image.memory(base64Decode(c.receiptUrl!.split(',').last),
+                          height: 200, width: double.infinity, fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt'))
+                      : Image.network(c.receiptUrl!,
+                          height: 200, width: double.infinity, fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt')),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _showLoanDetail(Loan loan, List<Repayment> loanRepayments) {
+  final totalPaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
+  final totalDue = loan.principal + (loan.principal * loan.interestRate);
+  final remaining = totalDue - totalPaid;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.5,
+      minChildSize: 0.3,
+      maxChildSize: 0.8,
+      expand: false,
+      builder: (_, scrollController) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: ListView(
+          controller: scrollController,
+          children: [
+            Center(child: Container(width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.textMuted.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            )),
+            const SizedBox(height: 20),
+            Text('Loan Details', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            _detailRow('Principal', CurrencyFormatter.format(loan.principal)),
+            _detailRow('Interest Rate', '${(loan.interestRate * 100).toStringAsFixed(1)}%'),
+            _detailRow('Total Due', CurrencyFormatter.format(totalDue)),
+            _detailRow('Issued', DateFormat('MMM d, yyyy').format(loan.issuedDate)),
+            _detailRow('Due', DateFormat('MMM d, yyyy').format(loan.dueDate)),
+            _detailRow('Total Paid', CurrencyFormatter.format(totalPaid)),
+            _detailRow('Remaining', CurrencyFormatter.format(remaining > 0 ? remaining : 0)),
+            _detailRow('Status', loan.isFullyRepaid ? 'Paid' : remaining > 0 ? 'Active' : 'Paid'),
+            if (loanRepayments.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text('Repayments', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...loanRepayments.map((r) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    Icon(Icons.receipt, size: 16, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text(CurrencyFormatter.format(r.amountPaid), style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const Spacer(),
+                    Text(DateFormat('MMM d, yyyy').format(r.date), style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
+              )),
+            ],
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _showPaymentDetail(PaymentRequest p) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) {
+      final statusStr = p.status == PaymentStatus.approved ? 'Approved'
+          : p.status == PaymentStatus.rejected ? 'Rejected' : 'Pending';
+      return DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.8,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.all(20),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Center(child: Container(width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.textMuted.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              )),
+              const SizedBox(height: 20),
+              Text('Payment Request', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 20),
+              _detailRow('Type', p.type == PaymentType.loan ? 'Loan Repayment' : 'Contribution'),
+              _detailRow('Amount', CurrencyFormatter.format(p.amount)),
+              _detailRow('Date', DateFormat('MMM d, yyyy').format(p.requestDate)),
+              _detailRow('Status', statusStr),
+              if (p.notes != null && p.notes!.isNotEmpty)
+                _detailRow('Notes', p.notes!),
+              if (p.bankConfirmed)
+                _detailRow('Bank Confirmed', 'Yes'),
+              if (p.receiptUrl != null && p.receiptUrl!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text('Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _viewReceipt(context, p.receiptUrl!),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: p.receiptUrl!.startsWith('data:image')
+                      ? Image.memory(base64Decode(p.receiptUrl!.split(',').last),
+                          height: 200, width: double.infinity, fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt'))
+                      : Image.network(p.receiptUrl!,
+                          height: 200, width: double.infinity, fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt')),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _viewReceipt(BuildContext context, String receiptUrl) {
+  final isBase64 = receiptUrl.startsWith('data:image');
+
+  Widget body;
+  if (isBase64) {
+    try {
+      final bytes = base64Decode(receiptUrl.split(',').last);
+      body = Image.memory(bytes, fit: BoxFit.contain,
+          errorBuilder: (_, e, __) => Text('Err: $e',
+              style: const TextStyle(color: Colors.red, fontSize: 20)));
+    } catch (e) {
+      body = Text('Decode fail: $e',
+          style: const TextStyle(color: Colors.red, fontSize: 20));
+    }
+  } else {
+    body = Image.network(receiptUrl, fit: BoxFit.contain,
+        errorBuilder: (_, e, __) => Text('Err: $e',
+            style: const TextStyle(color: Colors.red, fontSize: 20)));
+  }
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => Scaffold(
+        backgroundColor: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.black,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(child: body),
+      ),
+    ),
+  );
+}
+
+Widget _detailRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 110,
+          child: Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+        ),
+        Expanded(
+          child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        ),
+      ],
+    ),
+  );
+}
+
 }
 
 class _MemberHeader extends StatelessWidget {
@@ -344,8 +604,9 @@ class _StatTile extends StatelessWidget {
 
 class _ContributionsTab extends StatelessWidget {
   final List<Contribution> contributions;
+  final void Function(Contribution) onTap;
 
-  const _ContributionsTab({required this.contributions});
+  const _ContributionsTab({required this.contributions, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -359,10 +620,11 @@ class _ContributionsTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: sorted.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final c = sorted[index];
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 4),
+        itemBuilder: (context, index) {
+          final c = sorted[index];
+          return ListTile(
+            onTap: () => onTap(c),
+            contentPadding: const EdgeInsets.symmetric(vertical: 4),
           leading: CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.primary.withAlpha(25),
@@ -382,8 +644,9 @@ class _ContributionsTab extends StatelessWidget {
 class _LoansTab extends StatelessWidget {
   final List<Loan> loans;
   final List<Repayment> repayments;
+  final void Function(Loan, List<Repayment>) onTap;
 
-  const _LoansTab({required this.loans, required this.repayments});
+  const _LoansTab({required this.loans, required this.repayments, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -418,7 +681,9 @@ class _LoansTab extends StatelessWidget {
           statusLabel = 'Active';
         }
 
-        return Container(
+        return GestureDetector(
+          onTap: () => onTap(loan, loanRepayments),
+          child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: isOverdue
               ? BoxDecoration(
@@ -457,16 +722,18 @@ class _LoansTab extends StatelessWidget {
                   style: TextStyle(color: isOverdue ? AppColors.error : remaining > 0 ? AppColors.warning : AppColors.primary, fontSize: 12, fontWeight: FontWeight.w600)),
             ],
           ),
-        );
-      },
+        ),
+      );
+    },
     );
   }
 }
 
 class _PaymentsTab extends StatelessWidget {
   final List<PaymentRequest> payments;
+  final void Function(PaymentRequest) onTap;
 
-  const _PaymentsTab({required this.payments});
+  const _PaymentsTab({required this.payments, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -480,26 +747,27 @@ class _PaymentsTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       itemCount: sorted.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final p = sorted[index];
+        itemBuilder: (context, index) {
+          final p = sorted[index];
 
-        Color statusColor;
-        String statusLabel;
-        switch (p.status) {
-          case PaymentStatus.approved:
-            statusColor = AppColors.primary;
-            statusLabel = 'Approved';
-            break;
-          case PaymentStatus.rejected:
-            statusColor = AppColors.error;
-            statusLabel = 'Rejected';
-            break;
-          default:
-            statusColor = AppColors.warning;
-            statusLabel = 'Pending';
-        }
+          Color statusColor;
+          String statusLabel;
+          switch (p.status) {
+            case PaymentStatus.approved:
+              statusColor = AppColors.primary;
+              statusLabel = 'Approved';
+              break;
+            case PaymentStatus.rejected:
+              statusColor = AppColors.error;
+              statusLabel = 'Rejected';
+              break;
+            default:
+              statusColor = AppColors.warning;
+              statusLabel = 'Pending';
+          }
 
-        return ListTile(
+          return ListTile(
+            onTap: () => onTap(p),
           contentPadding: const EdgeInsets.symmetric(vertical: 4),
           leading: Icon(
             p.type == PaymentType.loan ? Icons.account_balance : Icons.payments,

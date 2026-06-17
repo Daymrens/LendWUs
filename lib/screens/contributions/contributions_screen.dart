@@ -494,7 +494,10 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                               Text(CurrencyFormatter.format(contrib.amount),
                                 style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 15)),
                               if (contrib.receiptUrl != null && contrib.receiptUrl!.isNotEmpty)
-                                Icon(Icons.image, size: 14, color: AppColors.textMuted)
+                                GestureDetector(
+                                  onTap: () => _viewReceipt(context, contrib.receiptUrl!),
+                                  child: Icon(Icons.image, size: 20, color: AppColors.primary),
+                                )
                               else
                                 Text('#${(contrib.id?.length ?? 0) >= 4 ? contrib.id!.substring(0, 4) : contrib.id ?? ''}',
                                   style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
@@ -564,25 +567,31 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
                   const Text('Receipt', style: TextStyle(fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   if (contrib.receiptUrl!.startsWith('data:image'))
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.memory(
-                        base64Decode(contrib.receiptUrl!.split(',').last),
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                    GestureDetector(
+                      onTap: () => _viewReceipt(context, contrib.receiptUrl!),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.memory(
+                          base64Decode(contrib.receiptUrl!.split(',').last),
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                        ),
                       ),
                     )
                   else
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(
-                        contrib.receiptUrl!,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                    GestureDetector(
+                      onTap: () => _viewReceipt(context, contrib.receiptUrl!),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.network(
+                          contrib.receiptUrl!,
+                          height: 200,
+                          width: double.infinity,
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Text('Failed to load receipt'),
+                        ),
                       ),
                     ),
                 ],
@@ -592,6 +601,41 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _viewReceipt(BuildContext context, String receiptUrl) {
+    final isBase64 = receiptUrl.startsWith('data:image');
+
+    Widget body;
+    if (isBase64) {
+      try {
+        final bytes = base64Decode(receiptUrl.split(',').last);
+        body = Image.memory(bytes, fit: BoxFit.contain,
+            errorBuilder: (_, e, __) => Text('Err: $e',
+                style: const TextStyle(color: Colors.red, fontSize: 20)));
+      } catch (e) {
+        body = Text('Decode fail: $e',
+            style: const TextStyle(color: Colors.red, fontSize: 20));
+      }
+    } else {
+      body = Image.network(receiptUrl, fit: BoxFit.contain,
+          errorBuilder: (_, e, __) => Text('Err: $e',
+              style: const TextStyle(color: Colors.red, fontSize: 20)));
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: Center(child: body),
+        ),
+      ),
     );
   }
 

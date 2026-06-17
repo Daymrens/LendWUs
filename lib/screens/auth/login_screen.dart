@@ -476,6 +476,9 @@ class _LoginNotifier extends StateNotifier<_LoginState> {
       if (context.mounted) {
         state = state.copyWith(isLoading: false);
         if (success) {
+          final user = ref.read(currentUserProvider).state;
+          final route = user?.role == UserRole.admin ? '/' : '/member-home';
+          if (context.mounted) context.go(route);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(

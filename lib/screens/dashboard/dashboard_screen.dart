@@ -22,6 +22,7 @@ import '../modals/record_repayment_modal.dart';
 import '../../providers/notification_provider.dart';
 import '../../core/utils/member_id_generator.dart';
 import '../../core/firebase/firebase_service.dart';
+import 'widgets/popup_overlay.dart';
 import 'widgets/donut_charts_row.dart';
 import 'widgets/trends_bar_chart.dart';
 import 'widgets/collection_rate_chart.dart';
@@ -63,7 +64,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final overdueLoansCount = ref.watch(overdueLoansCountProvider);
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
+    return PopupOverlay(
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -331,6 +333,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const RecentActivityList(),
           ],
         ),
+      ),
       ),
     );
   }

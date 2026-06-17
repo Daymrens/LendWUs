@@ -12,6 +12,7 @@ class Member {
   DateTime joinedAt;
   bool isActive;
   String? linkedEmail;
+  String? contactNumber;
 
   Member({
     this.id,
@@ -25,6 +26,7 @@ class Member {
     required this.joinedAt,
     this.isActive = true,
     this.linkedEmail,
+    this.contactNumber,
   });
 
   String get displayId => memberId ?? id ?? '';
@@ -42,6 +44,7 @@ class Member {
       'joinedAt': joinedAt.toIso8601String(),
       'isActive': isActive,
       if (linkedEmail != null) 'linkedEmail': linkedEmail,
+      if (contactNumber != null) 'contactNumber': contactNumber,
     };
   }
 
@@ -58,6 +61,7 @@ class Member {
       joinedAt: parseFirestoreDate(map['joinedAt']),
       isActive: map['isActive'] == true || map['isActive'] == 1,
       linkedEmail: map['linkedEmail'],
+      contactNumber: map['contactNumber'],
     );
   }
 }
