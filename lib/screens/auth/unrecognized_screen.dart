@@ -52,10 +52,19 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
       final settings = ref.read(settingsProvider);
       _defaultGroupCode = settings.asData?.value.groupCode ?? 'LENDWUS';
 
-      // Self-heal: read member from Firestore directly. If they already have
-      // complete info, redirect away immediately — this handles any false
-      // positives from the auth provider's _needsSetup.
-      if (memberId != null) {
+      // Determine if this is an existing user from auth state (same logic as
+      // the original code). This must be based on auth state, NOT on whether
+      // getMemberById succeeds, to avoid falling into the new-user
+      // registration path and creating a duplicate member.
+      if (auth.isRecognized && auth.needsSetup) {
+        _isExistingUser = true;
+      } else if (memberId != null) {
+        _isExistingUser = true;
+      }
+
+      // Self-heal: if existing user AND member data is actually complete,
+      // redirect away immediately — overrides any false-positive needsSetup.
+      if (_isExistingUser && memberId != null) {
         final member = await ref.read(memberRepositoryProvider)
             .getMemberById(memberId);
         if (member != null && mounted) {
@@ -63,7 +72,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
           final hasPhone = member.contactNumber != null &&
               member.contactNumber!.isNotEmpty;
           if (hasName && hasPhone) {
-            debugPrint('[UnrecognizedScreen] member data complete, redirecting');
+            debugPrint('[UnrecognizedScreen] existing member data complete, redirecting');
             ref.read(currentUserProvider).markSetupComplete();
             _dataLoaded = true;
             if (mounted) {
@@ -76,7 +85,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
             }
             return;
           }
-          _isExistingUser = true;
+          // Incomplete data — pre-fill form
           _nameController.text = member.name;
           _headsController.text = member.headsCount.toString();
           _codeController.text = _defaultGroupCode;
