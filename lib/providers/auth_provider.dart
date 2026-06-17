@@ -156,6 +156,7 @@ class CurrentUserNotifier extends ChangeNotifier {
             final missingName = member.name.isEmpty;
             final missingPhone = member.contactNumber == null || member.contactNumber!.isEmpty;
             _needsSetup = missingName || missingPhone;
+            debugPrint('[Auth] member resolved: name="${member.name}" phone="${member.contactNumber}" needsSetup=$_needsSetup');
             _user!.displayId = member.memberId;
             _startMemberWatcher(_user!.memberId!);
           }
@@ -424,6 +425,7 @@ class CurrentUserNotifier extends ChangeNotifier {
           createdAt: DateTime.now(),
         );
         _isRecognized = true;
+        _needsSetup = false;
         _startMemberWatcher(memberDocId!);
         if (!_disposed) notifyListeners();
         return true;

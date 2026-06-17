@@ -132,6 +132,12 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
       return;
     }
 
+    final contact = _contactController.text.trim();
+    if (contact.isEmpty) {
+      setState(() => _error = 'Contact number is required');
+      return;
+    }
+
     if (!_isExistingUser) {
       final heads = int.tryParse(_headsController.text.trim());
       if (heads == null || heads < 1) {
@@ -151,8 +157,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
         code,
         displayName: name,
         headsCount: heads,
-        contactNumber: _contactController.text.trim().isEmpty
-            ? null : _contactController.text.trim(),
+        contactNumber: contact,
       );
 
       if (mounted) {
@@ -167,8 +172,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
 
       final success = await ref.read(currentUserProvider).completeProfile(
         name: name,
-        contactNumber: _contactController.text.trim().isEmpty
-            ? null : _contactController.text.trim(),
+        contactNumber: contact,
       );
 
       if (mounted) {
@@ -341,7 +345,7 @@ class _UnrecognizedScreenState extends ConsumerState<UnrecognizedScreen> {
               TextField(
                 controller: _contactController,
                 decoration: const InputDecoration(
-                  labelText: 'Contact Number (optional)',
+                  labelText: 'Contact Number',
                   prefixIcon: Icon(Icons.phone_outlined),
                 ),
                 keyboardType: TextInputType.phone,
