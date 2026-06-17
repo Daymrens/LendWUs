@@ -523,6 +523,8 @@ class _MemberScaffoldWithNavBarState extends ConsumerState<MemberScaffoldWithNav
     if (widget.location == '/member-contributions') return 1;
     if (widget.location == '/member-loans') return 3;
     if (widget.location == '/member-profile') return 4;
+    if (widget.location == '/member-requests' ||
+        widget.location == '/member-treasurer') return 1;
     return 0;
   }
 

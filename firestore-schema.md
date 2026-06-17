@@ -68,6 +68,7 @@ A payment made by a member toward their head quota.
 | `date`      | string    | ISO 8601 timestamp                       |
 | `month`     | int       | Extraction of `date.month` for queries   |
 | `year`      | int       | Extraction of `date.year` for queries    |
+| `receiptUrl`| string?   | Copied from `payment_requests` on approval |
 | `notes`     | string?   | Optional notes                           |
 | `createdBy` | string?   | `'admin'` or member ID                   |
 
@@ -205,7 +206,6 @@ Admin-configurable app-wide settings. Known doc: `app_settings/fund_settings`.
 | `adminEmails`        | array\<string> | Emails granted admin access via `isAdmin()` rule check  |
 | `treasurerEmails`    | array\<string> | Emails granted treasurer access via `isTreasurer()` rule check |
 | `currencySymbol`     | string         | `'₱'` \| `'$'` \| `'€'`                                |
-| `currencySymbol`     | string         | `'₱'` \| `'$'` \| `'€'`                                |
 | `currencyCode`       | string         | `'PHP'` \| `'USD'` \| `'EUR'`                          |
 | `loanInterestPercent`| double         | Default interest rate as whole percentage (e.g. `10.0`)|
 | `minPaymentPerHead`  | double         | Minimum per-head contribution                           |
@@ -215,7 +215,12 @@ Admin-configurable app-wide settings. Known doc: `app_settings/fund_settings`.
 | `paymentTatHours`    | int            | Payment turnaround hours (default `24`)                 |
 | `qrAccountName`      | string         | QR payment account name                                 |
 | `qrAccountNumber`    | string         | QR payment account number                               |
-| `qrImageUrl`         | string         | QR code image URL                                       |
+| `qrImageUrl`         | string         | QR code image URL / base64 data                         |
+| `apkDownloadUrl`     | string         | APK download link                                       |
+| `apkVersion`         | string         | Latest APK version                                      |
+| `downloadCount`      | int            | APK download counter                                    |
+| `contactEmail`       | string         | Support email                                           |
+| `contactPhone`       | string         | Support phone                                           |
 | `groupCode`          | string         | Self-onboarding group code (default `'LENDWUS'`)        |
 | `isMaintenanceMode`  | bool           | App maintenance flag                                    |
 | `maintenanceMessage` | string         | Message shown in maintenance mode                       |
@@ -271,6 +276,57 @@ End-of-year return computations (total interest ÷ heads, per-member share).
 - Create / Update / Delete: admin only
 
 > Guard against `totalHeads == 0` (division by zero) before computing `perHeadShare`.
+
+---
+
+## `loan_receipts/{receiptId}`
+
+Generated loan receipt records (two per loan: one for admin, one for borrower). Created during loan approval in the website admin panel.
+
+| Field            | Type      | Notes                                               |
+| ---------------- | --------- | ----------------------------------------------------- |
+| `loanId`         | string    | Reference to `loans/{loanId}`                         |
+| `receiptNumber`  | string    | e.g. `LR-202606-00001`                                |
+| `memberId`       | string    | Borrower reference                                     |
+| `memberName`     | string    | Denormalized borrower name                             |
+| `principal`      | double    | Loan principal                                         |
+| `interestRate`   | double    | Decimal (e.g. `0.05` = 5%)                             |
+| `interestAmount` | double    | `principal * interestRate`                             |
+| `totalAmountDue` | double    | `principal + interestAmount`                           |
+| `issuedDate`     | timestamp |                                                       |
+| `dueDate`        | timestamp |                                                       |
+| `status`         | string    | `'active'` initially                                   |
+| `copyFor`        | string    | `'admin'` \| `'borrower'`                             |
+| `generatedAt`    | timestamp |                                                       |
+
+**Access**: admin only (same as `loans`).
+
+> Note: `loan_receipts` is currently **website-only**; the Flutter app does not reference it. It's created purely by the website admin loan approval flow.
+
+---
+
+## `groups/{groupId}`
+
+Super-admin-only collection for managing multiple fund groups via the website. Locked down to `admin001@lendwus.app` in `firestore.rules`.
+
+| Field                | Type           | Notes                                    |
+| -------------------- | -------------- | ------------------------------------------ |
+| `groupCode`          | string         | Unique group code (e.g. `'LENDWUS'`)       |
+| `name`               | string         | Display name                                |
+| `adminEmails`        | array\<string> | Admin email list for this group             |
+| `treasurerEmails`    | array\<string> | Treasurer email list                        |
+| `loanInterestPercent`| double         | Default interest rate as whole %            |
+| `currencySymbol`     | string         | `'₱'` \| `'$'` \| `'€'`                    |
+| `currencyCode`       | string         | `'PHP'` \| `'USD'` \| `'EUR'`              |
+| `isActive`           | bool           | Whether the group is active                 |
+| `minPaymentPerHead`  | double         | Minimum per-head contribution               |
+| `maxPaymentPerHead`  | double         | Maximum per-head contribution               |
+| `createdAt`          | timestamp      |                                             |
+| `updatedAt`          | timestamp?     |                                             |
+
+**Access**: super admin only (`admin001@lendwus.app`).
+
+> Note: The `groups` collection is **website-only** and separate from `app_settings/fund_settings`. The Flutter app reads `app_settings/fund_settings` for the single-group configuration; the website's Administrator page manages multiple group records in `groups`.
 
 ---
 
@@ -398,5 +454,4 @@ Any compound query (e.g. `contributions` filtered by `memberId` + ordered by `da
 
 ## Notes
 
-- **Monetary values**: Despite the spec saying "store as int centavos", the actual Dart models store monetary values as `double` (not centavos). This is inconsistent with `sinking_fund_logic.md` §10. If migrating to centavos, update all models (`Contribution.amount`, `Loan.principal`, `Repayment.amountPaid`, `PaymentRequest.amount`, etc.) simultaneously.
-- **Cloud Functions**: The `functions/` directory contains Cloud Functions triggers (`onPaymentRequestUpdate`, `onLoanRequestUpdate`, `onHeadChangeRequestUpdate`, `onPaymentRequestCreate`, `onLoanRequestCreate`, `onHeadChangeRequestCreate`, `joinWithGroupCode` callable). These contradict the "Spark plan, no Functions" constraint in AGENTS.md — either the plan has been upgraded or these are stale/dead code. If deploying Functions, remove the "no Functions" notices from docs.
+- **Monetary values**: All monetary values stored as `double` (not centavos). See `sinking_fund_logic.md` §11 for the currency/locale configuration used for display formatting.

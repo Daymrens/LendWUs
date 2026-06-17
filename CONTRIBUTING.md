@@ -51,7 +51,7 @@ If you touched `firestore.rules` or `firestore.indexes.json`, also:
 This project has **no Cloud Functions** (Spark plan) — all enforcement is client + `firestore.rules`. When testing:
 
 - Prefer the Firebase Local Emulator Suite for rules changes (`firebase emulators:start`) so you don't risk writing bad data to the live `lmsystemm` project.
-- If testing against the live project, use a non-admin test account where possible — don't use `act.drapor@gmail.com` / `daymrens@gmail.com` for routine testing since these have admin access.
+- If testing against the live project, use a non-admin test account where possible — don't use `daymrens@gmail.com` for routine testing since these have admin access.
 - Never commit real member data, receipts, or production Firestore exports.
 
 ## Code Style

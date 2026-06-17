@@ -561,7 +561,7 @@ const Dashboard: React.FC = () => {
         <div className="stat-card">
           <div className="stat-label">Active Members</div>
           <div className="stat-value">{data.activeMembers}</div>
-          <div className="stat-sub">{data.totalHeads} total heads · of {data.totalMembers} registered</div>
+          <div className="stat-sub">{data.totalHeads} total heads · {data.totalMembers} member{(data.totalMembers === 1) ? '' : 's'}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Loans</div>

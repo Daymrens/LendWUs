@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// Firebase Storage not available on Spark plan — base64 only
 import { db } from "../../firebase";
 
 interface AppSettings {
@@ -140,24 +140,15 @@ const Settings: React.FC = () => {
   const handleQRImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      setMessage(null);
-      const storage = getStorage();
-      const storageRef = ref(storage, `qr_codes/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(snapshot.ref);
-      set("qrImageUrl", downloadUrl);
-      setMessage({ ok: true, text: "QR uploaded to storage" });
-    } catch {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === "string") {
-          set("qrImageUrl", reader.result);
-          setMessage({ ok: true, text: "QR saved as base64 (Spark fallback)" });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+    setMessage(null);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        set("qrImageUrl", reader.result);
+        setMessage({ ok: true, text: "QR saved as base64" });
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const scrollTo = useCallback((id: string) => {

@@ -132,7 +132,7 @@ class LoanRequestRepository {
 
     // Pre-check for active loans to avoid creating duplicates when two
     // admins approve concurrent requests. The transaction below re-checks
-    // the request status to prevent double-approval of the same request.
+    // with txn.get() on any found active loans.
     final existingActive = await firestore
         .collection('loans')
         .where('memberId', isEqualTo: memberId)
@@ -151,8 +151,8 @@ class LoanRequestRepository {
     // A concurrent admin approval could slightly alter the balance between
     // this check and the transaction below — this is a known limitation
     // of the Spark plan (no Cloud Functions for server-side enforcement).
-    // The transaction re-verifies the request status to prevent
-    // double-approval of the same request.
+    // The transaction re-verifies the request status and active-loan status
+    // to prevent double-approval of the same request.
     final contribSnap = await firestore.collection('contributions').get();
     final loanSnap = await firestore.collection('loans').get();
     final repaySnap = await firestore.collection('repayments').get();
@@ -173,12 +173,14 @@ class LoanRequestRepository {
       final amount = (r['amountPaid'] as num?)?.toDouble() ?? 0;
       repayByLoan.putIfAbsent(loanId!, () => []).add(amount);
     }
+    final preCheckLoanIds = <String>{};
     for (final doc in loanSnap.docs) {
       final l = doc.data();
       if (l['isFullyRepaid'] == true) continue;
       final loanPrincipal = (l['principal'] as num?)?.toDouble() ?? 0;
       final rate = (l['interestRate'] as num?)?.toDouble() ?? 0;
       final loanId = doc.id;
+      preCheckLoanIds.add(loanId);
       final totalRepaid =
           (repayByLoan[loanId] ?? []).fold<double>(0.0, (s, a) => s + a);
       final totalDue = loanPrincipal + (loanPrincipal * rate);
@@ -203,6 +205,17 @@ class LoanRequestRepository {
       if (!snap.exists) return false;
       final fresh = snap.data()!;
       if (fresh['status'] != 'pending') return false;
+
+      // Re-check per-doc within the transaction to catch races where a
+      // concurrent admin created a loan for this member between our pre-check
+      // and now. We can only check individual docs (no collection queries in
+      // transactions), so we check the loan IDs we saw during pre-check.
+      for (final loanId in preCheckLoanIds) {
+        final loanDoc = await tx.get(firestore.collection('loans').doc(loanId));
+        if (loanDoc.exists && loanDoc.data()?['isFullyRepaid'] == false) {
+          return false; // leave request pending — caller handles silently
+        }
+      }
 
       final loan = Loan(
         memberId: memberId,

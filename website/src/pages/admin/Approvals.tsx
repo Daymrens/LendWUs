@@ -153,15 +153,17 @@ const PaymentsTab: React.FC = () => {
             approvedDate: now,
           });
 
-          const contribRef = doc(collection(db, "contributions"));
-          transaction.set(contribRef, {
+          const contribData: Record<string, unknown> = {
             memberId: memberDocId,
             amount: req.amount,
             date: now,
             month,
             year,
             createdBy: "member",
-          });
+          };
+          if (req.receiptUrl) contribData.receiptUrl = req.receiptUrl;
+          const contribRef = doc(collection(db, "contributions"));
+          transaction.set(contribRef, contribData);
         });
 
         const contribsSnap = await getDocs(
@@ -443,8 +445,7 @@ const LoansTab: React.FC = () => {
 
         memberId = data.memberId;
 
-        const rawRate = (data.interestRate as number) || 0;
-        interestRate = rawRate > 1 ? rawRate / 100 : rawRate;
+        interestRate = ((data.interestRate as number) || 0) / 100;
         principal = data.amount;
         dueDate = data.dueDate instanceof Timestamp
           ? data.dueDate
@@ -729,9 +730,21 @@ const HeadsTab: React.FC = () => {
     }
 
     try {
-      await updateDoc(doc(db, "head_change_requests", id), {
-        status: "approved",
-        processedAt: Timestamp.now(),
+      await runTransaction(db, async (transaction) => {
+        const requestRef = doc(db, "head_change_requests", id);
+        const requestSnap = await transaction.get(requestRef);
+        if (!requestSnap.exists()) throw new Error("Request not found");
+        if (requestSnap.data().status !== "pending") throw new Error("Request already processed");
+
+        transaction.update(requestRef, {
+          status: "approved",
+          processedAt: Timestamp.now(),
+        });
+
+        const memberRef = doc(db, "members", memberId);
+        transaction.update(memberRef, {
+          headsCount: requestedHeads,
+        });
       });
       load();
     } catch (err: unknown) {

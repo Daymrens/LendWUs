@@ -708,7 +708,8 @@ class CurrentUserNotifier extends ChangeNotifier {
       final firestore = FirebaseService.firestore;
 
       final name = displayName ?? firebaseUser.displayName ?? firebaseUser.email!.split('@')[0];
-      final totalRequired = headsCount * 500.0;
+      final amountPerHead = settings.asData?.value.defaultAmountPerHead ?? 500.0;
+      final totalRequired = headsCount * amountPerHead;
 
       String? memberDocId;
       String? customMemberId;
@@ -719,7 +720,7 @@ class CurrentUserNotifier extends ChangeNotifier {
           name: name,
           linkedEmail: firebaseUser.email,
           headsCount: headsCount,
-          amountPerHead: 500.0,
+          amountPerHead: amountPerHead,
           totalRequired: totalRequired,
           joinedAt: DateTime.now(),
           isActive: true,

@@ -12,6 +12,7 @@ class AppSettings {
   final String qrAccountName;
   final String qrAccountNumber;
   final String qrImageUrl;
+  final double defaultAmountPerHead;
   final String groupCode;
   final bool isMaintenanceMode;
   final String maintenanceMessage;
@@ -30,6 +31,7 @@ class AppSettings {
     this.qrAccountName = '',
     this.qrAccountNumber = '',
     this.qrImageUrl = '',
+    this.defaultAmountPerHead = 500.0,
     this.groupCode = 'LENDWUS',
     this.isMaintenanceMode = false,
     this.maintenanceMessage = '',
@@ -50,6 +52,7 @@ class AppSettings {
       qrAccountName: map['qrAccountName'] ?? '',
       qrAccountNumber: map['qrAccountNumber'] ?? '',
       qrImageUrl: map['qrImageUrl'] ?? '',
+      defaultAmountPerHead: (map['defaultAmountPerHead'] is num ? (map['defaultAmountPerHead'] as num).toDouble() : 500.0),
       groupCode: map['groupCode'] ?? 'LENDWUS',
       isMaintenanceMode: map['isMaintenanceMode'] ?? false,
       maintenanceMessage: map['maintenanceMessage'] ?? '',
@@ -71,6 +74,7 @@ class AppSettings {
       'qrAccountName': qrAccountName,
       'qrAccountNumber': qrAccountNumber,
       'qrImageUrl': qrImageUrl,
+      'defaultAmountPerHead': defaultAmountPerHead,
       'groupCode': groupCode,
       'isMaintenanceMode': isMaintenanceMode,
       'maintenanceMessage': maintenanceMessage,
@@ -91,6 +95,7 @@ class AppSettings {
     String? qrAccountName,
     String? qrAccountNumber,
     String? qrImageUrl,
+    double? defaultAmountPerHead,
     String? groupCode,
     bool? isMaintenanceMode,
     String? maintenanceMessage,
@@ -109,6 +114,7 @@ class AppSettings {
       qrAccountName: qrAccountName ?? this.qrAccountName,
       qrAccountNumber: qrAccountNumber ?? this.qrAccountNumber,
       qrImageUrl: qrImageUrl ?? this.qrImageUrl,
+      defaultAmountPerHead: defaultAmountPerHead ?? this.defaultAmountPerHead,
       groupCode: groupCode ?? this.groupCode,
       isMaintenanceMode: isMaintenanceMode ?? this.isMaintenanceMode,
       maintenanceMessage: maintenanceMessage ?? this.maintenanceMessage,

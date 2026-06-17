@@ -161,7 +161,7 @@ void main() {
       expect(m.headsCount, 1);
     });
 
-    test('fromMap defaults isActive to false (since missing != true)', () {
+    test('fromMap defaults isActive to true when field is missing', () {
       final m = Member.fromMap({
         'name': 'Bob',
         'headsCount': 1,
@@ -170,7 +170,7 @@ void main() {
         'joinedAt': '2026-01-01T00:00:00.000Z',
       });
 
-      expect(m.isActive, false);
+      expect(m.isActive, true);
     });
 
     test('toMap omits null linkedEmail, avatarPath, and memberId (Firestore rejects undefined)', () {
@@ -249,7 +249,6 @@ void main() {
         loanId: 'loan-1',
         type: PaymentType.loan,
         amount: 1500,
-        receiptPath: '/receipts/r1.png',
         status: PaymentStatus.approved,
         requestDate: requested,
         approvedDate: approved,
@@ -265,7 +264,7 @@ void main() {
       expect(restored.loanId, 'loan-1');
       expect(restored.type, PaymentType.loan);
       expect(restored.amount, 1500);
-      expect(restored.receiptPath, '/receipts/r1.png');
+      expect(restored.receiptPath, isNull);
       expect(restored.status, PaymentStatus.approved);
       expect(restored.requestDate, requested);
       expect(restored.approvedDate, approved);

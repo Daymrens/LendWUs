@@ -29,8 +29,7 @@ const String emulatorHost = 'localhost:8080'; // match firebase.json "firestore.
 const String projectId = 'lmsystemm'; // matches .firebaserc
 
 // NOTE: The app stores monetary values as doubles (actual currency amounts),
-// NOT centavos. Despite sinking_fund_logic.md §10 recommending centavos,
-// the app's models use double and format directly via CurrencyFormatter.format().
+// NOT centavos. All models use double, formatted via CurrencyFormatter.format().
 
 // ── Seed data ───────────────────────────────────────────────────────────
 //
@@ -52,7 +51,7 @@ final members = [
     'headsCount': 1,
     'amountPerHead': 150.0, // ₱150.00
     'linkedEmail': 'membera@example.com',
-    'active': true,
+    'isActive': true,
   },
   {
     'id': 'member_b',
@@ -60,7 +59,7 @@ final members = [
     'headsCount': 1,
     'amountPerHead': 150.0,
     'linkedEmail': 'memberb@example.com',
-    'active': true,
+    'isActive': true,
   },
   {
     'id': 'member_c',
@@ -68,7 +67,7 @@ final members = [
     'headsCount': 1,
     'amountPerHead': 150.0,
     'linkedEmail': 'memberc@example.com',
-    'active': true,
+    'isActive': true,
   },
 ];
 
@@ -114,7 +113,7 @@ final repayments = [
 // app_settings/fund_settings — needed for isAdmin() rule checks
 final appSettings = {
   'id': 'fund_settings',
-  'adminEmails': ['act.drapor@gmail.com', 'daymrens@gmail.com'],
+  'adminEmails': ['daymrens@gmail.com'],
   'currency': 'PHP',
   'loanInterestRate': 0.05,
   'paymentLimit': 10000.0, // ₱10,000.00
@@ -159,7 +158,7 @@ Future<void> main() async {
         'headsCount': member['headsCount'],
         'amountPerHead': member['amountPerHead'],
         'linkedEmail': member['linkedEmail'],
-        'active': member['active'],
+        'isActive': member['isActive'],
       });
     }
     stdout.writeln('  members: ${members.length} written');

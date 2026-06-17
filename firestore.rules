@@ -56,7 +56,7 @@ service cloud.firestore {
     // ─── users ──────────────────────────────────────────────
     match /users/{userId} {
       allow create: if isAuth() && (isOwner(userId) || isAdmin());
-      allow read: if isAuth() && (isOwner(userId) || isAdmin() || get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin');
+      allow read: if isAuth() && (isOwner(userId) || isAdmin());
       allow update: if isAuth() && (isOwner(userId) || isAdmin());
       allow delete: if isAdmin();
       allow list: if isAdmin();

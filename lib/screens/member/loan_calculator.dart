@@ -5,6 +5,7 @@ import '../../data/models/loan_request.dart';
 import '../../data/repositories/loan_request_repository.dart';
 import '../../data/repositories/member_repository.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/firebase/firebase_service.dart';
 
 class LoanCalculatorScreen extends ConsumerStatefulWidget {
   const LoanCalculatorScreen({super.key});
@@ -25,18 +26,33 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
   String _preApprovalMessage = '';
   bool _isSubmitting = false;
 
-  double _pow(double x, int n) {
-    double result = 1.0;
-    for (int i = 0; i < n; i++) {
-      result *= x;
-    }
-    return result;
-  }
+  double _memberContributions = 0;
 
   @override
   void initState() {
     super.initState();
-    _calculateLoan();
+    _loadMemberData();
+  }
+
+  Future<void> _loadMemberData() async {
+    final user = ref.read(currentUserProvider).state;
+    if (user?.memberId == null) return;
+    try {
+      final contribSnap = await FirebaseService.firestore
+          .collection('contributions')
+          .where('memberId', isEqualTo: user!.memberId)
+          .get();
+      final total = contribSnap.docs.fold<double>(
+          0.0, (s, d) => s + ((d.data()['amount'] as num?)?.toDouble() ?? 0));
+      if (mounted) {
+        setState(() {
+          _memberContributions = total;
+        });
+        _calculateLoan();
+      }
+    } catch (_) {
+      // Data load failure — proceed with 0 contributions
+    }
   }
 
   @override
@@ -63,36 +79,25 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
       return;
     }
 
-    final double monthlyRate = interestRate / 100 / 12;
-    final double monthlyPayment = monthlyRate == 0
-        ? amount / termMonths
-        : (amount * monthlyRate * _pow(1 + monthlyRate, termMonths)) /
-            (_pow(1 + monthlyRate, termMonths) - 1);
-
-    final double totalPayment = monthlyPayment * termMonths;
-    final double totalInterest = totalPayment - amount;
+    // Simple interest: total due = principal + (principal * rate)
+    // Monthly payment = total due / term
+    final double rateDecimal = interestRate / 100;
+    final double totalDue = amount + (amount * rateDecimal);
+    final double monthlyPayment = termMonths > 0 ? totalDue / termMonths : totalDue;
+    final double totalInterest = totalDue - amount;
 
     setState(() {
       _monthlyPayment = monthlyPayment;
       _totalInterest = totalInterest;
-      _totalPayment = totalPayment;
+      _totalPayment = totalDue;
       _isValidLoan = _checkPreApproval(amount, monthlyPayment);
       _preApprovalMessage = _getPreApprovalMessage(amount, monthlyPayment);
     });
   }
 
   bool _checkPreApproval(double amount, double monthlyPayment) {
-    // TODO: Query real data from Firestore (member's actual contributions, loans, history)
-    // instead of using hardcoded values. This is an estimate only.
-    const double totalContributions = 0;
-    const double existingLoans = 0;
-    const double repaymentHistory = 0;
-
-    final bool sufficientFunds = totalContributions >= amount;
-    final bool lowDebtRatio = existingLoans < totalContributions * 0.5;
-    final bool goodRepaymentHistory = repaymentHistory >= 70;
-
-    return sufficientFunds && lowDebtRatio && goodRepaymentHistory;
+    final bool sufficientFunds = _memberContributions >= amount * 0.5;
+    return sufficientFunds;
   }
 
   String _getPreApprovalMessage(double amount, double monthlyPayment) {

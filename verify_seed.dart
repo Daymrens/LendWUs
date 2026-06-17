@@ -18,7 +18,7 @@ Future<void> main() async {
     stdout.writeln('Members (${membersJson.length}):');
     for (final m in membersJson) {
       stdout.writeln('  ${m['name']}: headsCount=${m['headsCount']}, '
-          'amountPerHead=${m['amountPerHead']}, active=${m['active']}');
+          'amountPerHead=${m['amountPerHead']}, isActive=${m['isActive']}');
     }
 
     double totalContrib = 0;

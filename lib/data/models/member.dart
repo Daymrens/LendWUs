@@ -59,7 +59,7 @@ class Member {
       balance: (map['balance'] as num?)?.toDouble() ?? 0.0,
       avatarPath: map['avatarPath'],
       joinedAt: parseFirestoreDate(map['joinedAt']),
-      isActive: map['isActive'] == true || map['isActive'] == 1,
+      isActive: map['isActive'] != false,
       linkedEmail: map['linkedEmail'],
       contactNumber: map['contactNumber'],
     );

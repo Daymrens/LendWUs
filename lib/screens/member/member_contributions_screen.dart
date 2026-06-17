@@ -51,7 +51,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     final totalThisMonth = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
     final totalAll = contributions.fold<double>(0.0, (s, c) => s + c.amount);
     final memberHeads = member?.headsCount ?? 1;
-    final memberAmountPerHead = member?.amountPerHead ?? settings?.minPaymentPerHead ?? 0;
+    final memberAmountPerHead = member?.amountPerHead ?? 0;
     final memberTotalRequired = member?.totalRequired ?? 0.0;
     final requiredAmount = memberTotalRequired > 0
         ? memberTotalRequired
@@ -535,7 +535,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
 
     return Column(
       children: sortedKeys.map((key) {
-        final items = grouped[key]!;
+        final items = grouped[key]!..sort((a, b) => b.date.compareTo(a.date));
         final monthTotal = items.fold<double>(0.0, (s, c) => s + c.amount);
         final parts = key.split('-');
         final monthName = DateFormatter.formatMonthYear(DateTime(int.parse(parts[0]), int.parse(parts[1])));

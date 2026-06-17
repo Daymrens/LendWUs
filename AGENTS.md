@@ -20,9 +20,11 @@ Firebase Console setup (project `lmsystemm`):
 - Enable **Email/Password** and **Google Sign-In** under Authentication providers.
 - Google Sign-In debug SHA-1: `B5:BD:8F:C3:D7:F9:E7:57:83:2B:C8:EE:5D:DC:56:2F:FA:36:BF:FB`
 
-Hardcoded admin emails (auto-linked on Google sign-in):
-- `act.drapor@gmail.com`
+Hardcoded admin email (auto-linked on Google sign-in):
 - `daymrens@gmail.com`
+
+Super admin (`groups` collection in firestore.rules):
+- `admin001@lendwus.app`
 
 ## Run
 

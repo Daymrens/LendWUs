@@ -324,26 +324,26 @@ class CurrencyFormatter {
     decimalDigits: 2,
   );
 
-  /// Format centavos (int) to display string
-  /// e.g. 1245000 → "₱12,450.00"
-  static String format(int centavos) {
-    return _formatter.format(centavos / 100);
+  /// Format double to display string
+  /// e.g. 12450.0 → "₱12,450.00"
+  static String format(double amount) {
+    return _formatter.format(amount);
   }
 
-  /// Parse display string back to centavos
-  static int parse(String input) {
+  /// Parse display string back to double
+  static double parse(String input) {
     final cleaned = input.replaceAll(RegExp(r'[₱,\s]'), '');
-    return (double.parse(cleaned) * 100).round();
+    return double.parse(cleaned);
   }
 }
 ```
 
 ### Storage Rule
 
-- All monetary values stored as **`int` (centavos)** in Cloud Firestore — no floating point
-- `₱150.00` stored as `15000`
-- `₱12,450.00` stored as `1245000`
-- All arithmetic done in centavos; only convert to display on the UI layer
+- All monetary values stored as **`double`** in Cloud Firestore
+- `₱150.00` stored as `150.0`
+- `₱12,450.00` stored as `12450.0`
+- Display-only conversion via `CurrencyFormatter` on the UI layer
 
 ### Input Field
 
@@ -362,7 +362,7 @@ Maps to the `returns` collection (admin-write, member-readable — see `docs/fir
 ```
 totalInterestEarned = §8 totalInterestEarned (sum of excess repayments over principal, across all loans)
 totalHeads          = sum of headsCount across all ACTIVE members at computation time
-perHeadShare        = totalInterestEarned / totalHeads   (centavos; guard divide-by-zero)
+perHeadShare        = totalInterestEarned / totalHeads   (guard divide-by-zero)
 memberShare(m)      = m.headsCount * perHeadShare
 ```
 
@@ -376,7 +376,7 @@ ReturnsResult computeReturns(int year) {
     throw StateError('Cannot compute returns: totalHeads is 0');
   }
 
-  final perHeadShare = totalInterest ~/ totalHeads; // integer centavos
+  final perHeadShare = totalInterest / totalHeads;
 
   final memberShares = {
     for (final m in activeMembers)
@@ -395,7 +395,7 @@ ReturnsResult computeReturns(int year) {
 
 ### Rounding
 
-`perHeadShare` uses integer (floor) division on centavos. This means `totalInterestEarned - (perHeadShare * totalHeads)` may leave a small remainder (at most `totalHeads - 1` centavos) undistributed. This remainder stays in the fund balance for the next cycle rather than being distributed — document this behavior for members if precision matters at scale. An alternative (largest-remainder distribution) is not currently implemented.
+`perHeadShare` uses standard floating-point division. Since monetary values are stored as `double` (not centavos), the  remainder from integer-centavos floor division does not apply. At scale, the sum of member shares may differ from `totalInterestEarned` by a small rounding amount (< ₱0.01 per head) — this is an accepted approximation.
 
 ### Validation
 

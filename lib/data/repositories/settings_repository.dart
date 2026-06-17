@@ -17,7 +17,7 @@ class SettingsRepository {
         currencyCode: 'PHP',
         cutoffDay1: 13,
         cutoffDay2: 28,
-        adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
+        adminEmails: ['daymrens@gmail.com'],
         treasurerEmails: [],
       );
       await saveSettings(defaultSettings);
@@ -41,7 +41,7 @@ class SettingsRepository {
           currencyCode: 'PHP',
           cutoffDay1: 13,
           cutoffDay2: 28,
-          adminEmails: ['act.drapor@gmail.com', 'daymrens@gmail.com'],
+          adminEmails: ['daymrens@gmail.com'],
           treasurerEmails: [],
         );
       }

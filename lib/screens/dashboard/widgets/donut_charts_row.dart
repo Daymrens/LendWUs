@@ -56,7 +56,8 @@ class _LoanStatusChart extends ConsumerWidget {
               ),
               const Gap(8),
               if (total == 0)
-                Expanded(
+                SizedBox(
+                  height: 120,
                   child: Center(
                     child: Text('No loans yet',
                         style: TextStyle(
@@ -65,7 +66,8 @@ class _LoanStatusChart extends ConsumerWidget {
                   ),
                 )
               else
-                Expanded(
+                SizedBox(
+                  height: 120,
                   child: Row(
                     children: [
                       Expanded(
@@ -202,7 +204,8 @@ class _PaymentStatusChart extends ConsumerWidget {
               ),
               const Gap(8),
               if (total == 0)
-                Expanded(
+                SizedBox(
+                  height: 120,
                   child: Center(
                     child: Text('No members',
                         style: TextStyle(
@@ -211,7 +214,8 @@ class _PaymentStatusChart extends ConsumerWidget {
                   ),
                 )
               else
-                Expanded(
+                SizedBox(
+                  height: 120,
                   child: Row(
                     children: [
                       Expanded(

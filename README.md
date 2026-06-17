@@ -109,8 +109,7 @@ Enable **Email/Password** and **Google Sign-In** in the [Firebase Console](https
 
 Google Sign-In debug SHA-1: `B5:BD:8F:C3:D7:F9:E7:57:83:2B:C8:EE:5D:DC:56:2F:FA:36:BF:FB`
 
-Hardcoded admin emails (auto-linked on Google sign-in):
-- `act.drapor@gmail.com`
+Hardcoded admin email (auto-linked on Google sign-in):
 - `daymrens@gmail.com`
 
 Treasurer emails (configurable via `app_settings/fund_settings.treasurerEmails`):

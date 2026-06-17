@@ -1,10 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
+import '../../data/models/contribution.dart';
+import '../../data/models/loan.dart';
+import '../../data/models/repayment.dart';
 
 class GrowthSpotsCalculator {
   static List<FlSpot> compute(
-    List<dynamic> contributions,
-    List<dynamic> loans,
-    List<dynamic> repayments,
+    List<Contribution> contributions,
+    List<Loan> loans,
+    List<Repayment> repayments,
     int year,
     int month,
   ) {

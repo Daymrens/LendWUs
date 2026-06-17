@@ -48,6 +48,10 @@ final memberByIdProvider = StreamProvider.family<Member?, String>((ref, memberId
 });
 
 final contributionsStreamProvider = StreamProvider<List<Contribution>>((ref) {
+  // NOTE: intentionally unordered — the `contributions` collection may have
+  // mixed `date` types (String from Flutter, Timestamp from web), and
+  // Firestore's orderBy refuses to order across mixed types. Consumers that
+  // need sorted data should sort client-side.
   return ref.watch(contributionRepositoryProvider).watchAllContributions();
 });
 

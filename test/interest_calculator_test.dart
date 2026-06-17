@@ -178,9 +178,10 @@ void main() {
   });
 
   group('InterestCalculator.calculateMonthlyPayment', () {
-    test('calculates monthly payment for a standard loan', () {
+    test('calculates monthly payment for a standard loan (simple interest)', () {
+      // totalDue = 10000 + (10000 * 0.12) = 11200; monthly = 11200 / 12
       final payment = InterestCalculator.calculateMonthlyPayment(10000, 0.12, 12);
-      expect(payment, closeTo(888.49, 0.01));
+      expect(payment, closeTo(933.33, 0.01));
     });
 
     test('returns principal / term when interest rate is zero', () {
@@ -188,10 +189,10 @@ void main() {
       expect(payment, 1000.0);
     });
 
-    test('handles single month term (principal + monthly interest)', () {
+    test('handles single month term (simple interest)', () {
+      // totalDue = 5000 + (5000 * 0.12) = 5600; monthly = 5600 / 1
       final payment = InterestCalculator.calculateMonthlyPayment(5000, 0.12, 1);
-      // 5000 * 1.01 = 5050 (principal + 1% monthly interest)
-      expect(payment, closeTo(5050.0, 0.01));
+      expect(payment, closeTo(5600.0, 0.01));
     });
 
     test('handles zero rate with single month', () {

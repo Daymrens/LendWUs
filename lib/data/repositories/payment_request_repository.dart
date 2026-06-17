@@ -184,7 +184,7 @@ class PaymentRequestRepository {
               final balanceContribution = Contribution(
                 memberId: request.memberId,
                 amount: toApply,
-                date: DateTime.now(),
+                date: request.requestDate,
                 month: request.requestDate.month,
                 year: request.requestDate.year,
                 notes: 'Applied from balance',

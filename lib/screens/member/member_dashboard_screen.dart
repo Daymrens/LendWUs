@@ -201,7 +201,7 @@ class MemberDashboardScreen extends ConsumerWidget {
     final memberTotalRequired = member?.totalRequired ?? 0.0;
     final computedRequired = memberTotalRequired > 0
         ? memberTotalRequired
-        : memberHeads * (settings?.minPaymentPerHead ?? 0.0);
+        : memberHeads * (member?.amountPerHead ?? 0.0);
     final progress = computedRequired > 0 ? (monthlyTotal / computedRequired).clamp(0.0, 1.0) : 0.0;
     return Card(
       child: Padding(
@@ -264,7 +264,7 @@ class MemberDashboardScreen extends ConsumerWidget {
   Widget _memberInfoCard(BuildContext context, Member member, AppSettings? settings) {
     final colorScheme = Theme.of(context).colorScheme;
     final heads = member.headsCount;
-    final perHead = settings?.minPaymentPerHead ?? 500.0;
+    final perHead = member.amountPerHead ?? 500.0;
     final totalRequired = member.totalRequired > 0 ? member.totalRequired : heads * perHead;
     final balance = member.balance ?? 0.0;
     final isActive = member.isActive;

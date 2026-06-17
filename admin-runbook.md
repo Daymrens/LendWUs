@@ -2,7 +2,7 @@
 
 Practical "how do I..." guide for the fund admin(s). For schema details referenced below, see `docs/firestore-schema.md`. For formulas, see `sinking_fund_logic.md`.
 
-Admins are determined by either `users/{uid}.role == 'admin'` or being listed in `app_settings/fund_settings.adminEmails` (currently `act.drapor@gmail.com`, `daymrens@gmail.com`).
+Admins are determined by either `users/{uid}.role == 'admin'` or being listed in `app_settings/fund_settings.adminEmails` (currently `daymrens@gmail.com`).
 
 Treasurers are members with the `isTreasurer` flag, determined by either `users/{uid}.isTreasurer == true` or being listed in `app_settings/fund_settings.treasurerEmails`. Treasurers can view all payment requests and mark bank receipts as confirmed before admin approval.
 

@@ -47,7 +47,7 @@ When reviewing or improving Dart code, check for:
 
 Since there are **no Cloud Functions** (Spark plan), all validation happens client-side + Firestore rules — review both:
 
-- **firestore.rules**: every collection write should check `request.auth != null` and role (admin vs member); members should only write their own contribution/loan-request docs, not approve their own requests; admin email hardcoding (`act.drapor@gmail.com`, `daymrens@gmail.com`) should be reflected as a custom claim or role field check in rules, not assumed from client logic alone.
+- **firestore.rules**: every collection write should check `request.auth != null` and role (admin vs member); members should only write their own contribution/loan-request docs, not approve their own requests; admin email hardcoding (`daymrens@gmail.com`) should be reflected as a custom claim or role field check in rules, not assumed from client logic alone.
 - **No server-side enforcement**: flag any business logic (interest calculation, returns computation, balance updates) that's done purely client-side and trusted by rules — a malicious client could write arbitrary values. Suggest rule-level range/field checks (e.g. `request.resource.data.amount is number && request.resource.data.amount > 0`).
 - **firestore.indexes.json**: any new compound query (e.g. filter by member + date range) needs a matching index, or it'll fail at runtime in production even if it works in the emulator.
 

@@ -215,6 +215,7 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
             _sectionLabel('Currency', Icons.monetization_on),
             const Gap(8),
             DropdownButtonFormField<String>(
+              value: _selectedCurrencyCode,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: _currencies.map((c) => DropdownMenuItem(value: c['code'], child: Text('${c['code']} (${c['symbol']})'))).toList(),
               onChanged: (value) {

@@ -47,7 +47,6 @@ class PaymentRequest {
       'loanId': loanId,
       'type': type.name,
       'amount': amount,
-      'receiptPath': receiptPath,
       'receiptUrl': receiptUrl,
       'status': status.name,
       'requestDate': requestDate.toIso8601String(),

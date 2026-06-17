@@ -53,25 +53,20 @@ class LoanRepository {
   Future<String> addLoan(Loan loan) async {
     final firestore = FirebaseService.firestore;
 
-    return await firestore.runTransaction((txn) async {
-      final existingSnap = await firestore
-          .collection('loans')
-          .where('memberId', isEqualTo: loan.memberId)
-          .where('isFullyRepaid', isEqualTo: false)
-          .get();
+    // Snapshot check outside transaction — Firestore transactions cannot query
+    // collections. On Spark plan there is no server-side serialization, so a
+    // concurrent admin could still create a duplicate. This check catches the
+    // common case and the rare race is a documented limitation.
+    final hasActive = await hasActiveLoan(loan.memberId);
+    if (hasActive) {
+      throw Exception('Member already has an unpaid loan');
+    }
 
-      for (final doc in existingSnap.docs) {
-        final loanRef = firestore.collection('loans').doc(doc.id);
-        final refreshed = await txn.get(loanRef);
-        if (refreshed.exists && refreshed.data()?['isFullyRepaid'] == false) {
-          throw Exception('Member already has an unpaid loan');
-        }
-      }
-
-      final docRef = firestore.collection('loans').doc();
+    final docRef = firestore.collection('loans').doc();
+    await firestore.runTransaction((txn) async {
       txn.set(docRef, loan.toMap());
-      return docRef.id;
     });
+    return docRef.id;
   }
 
   Future<void> updateLoan(Loan loan) async {
