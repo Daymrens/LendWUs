@@ -5,7 +5,7 @@ import '../../../providers/loans_provider.dart';
 class ActivityItem {
   final DateTime date;
   final String type;
-  final double amount;
+  final int amount;
   final String memberName;
   final String? description;
 

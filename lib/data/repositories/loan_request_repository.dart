@@ -105,7 +105,7 @@ class LoanRequestRepository {
     final data = requestSnap.data()!;
     if (data['status'] != 'pending') return false;
     final memberId = data['memberId'] as String;
-    final principal = (data['amount'] as num).toDouble();
+    final principal = (data['amount'] as num).toInt();
     final interestRate = (data['interestRate'] as num?)?.toDouble() ?? 0;
     final dueDate = parseFirestoreDate(data['dueDate']);
 
@@ -157,33 +157,33 @@ class LoanRequestRepository {
     final loanSnap = await firestore.collection('loans').get();
     final repaySnap = await firestore.collection('repayments').get();
 
-    final totalContributions = contribSnap.docs.fold<double>(
-        0.0, (sum, d) => sum + ((d.data()['amount'] as num?)?.toDouble() ?? 0));
-    final totalLoansIssued = loanSnap.docs.fold<double>(
-        0.0, (sum, d) => sum + ((d.data()['principal'] as num?)?.toDouble() ?? 0));
-    final totalRepayments = repaySnap.docs.fold<double>(
-        0.0, (sum, d) => sum + ((d.data()['amountPaid'] as num?)?.toDouble() ?? 0));
+    final totalContributions = contribSnap.docs.fold<int>(
+        0, (sum, d) => sum + ((d.data()['amount'] as num?)?.toInt() ?? 0));
+    final totalLoansIssued = loanSnap.docs.fold<int>(
+        0, (sum, d) => sum + ((d.data()['principal'] as num?)?.toInt() ?? 0));
+    final totalRepayments = repaySnap.docs.fold<int>(
+        0, (sum, d) => sum + ((d.data()['amountPaid'] as num?)?.toInt() ?? 0));
     final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
 
-    double outstanding = 0.0;
-    final repayByLoan = <String, List<double>>{};
+    int outstanding = 0;
+    final repayByLoan = <String, List<int>>{};
     for (final doc in repaySnap.docs) {
       final r = doc.data();
       final loanId = r['loanId'] as String?;
-      final amount = (r['amountPaid'] as num?)?.toDouble() ?? 0;
+      final amount = (r['amountPaid'] as num?)?.toInt() ?? 0;
       repayByLoan.putIfAbsent(loanId!, () => []).add(amount);
     }
     final preCheckLoanIds = <String>{};
     for (final doc in loanSnap.docs) {
       final l = doc.data();
       if (l['isFullyRepaid'] == true) continue;
-      final loanPrincipal = (l['principal'] as num?)?.toDouble() ?? 0;
+      final loanPrincipal = (l['principal'] as num?)?.toInt() ?? 0;
       final rate = (l['interestRate'] as num?)?.toDouble() ?? 0;
       final loanId = doc.id;
       preCheckLoanIds.add(loanId);
       final totalRepaid =
-          (repayByLoan[loanId] ?? []).fold<double>(0.0, (s, a) => s + a);
-      final totalDue = loanPrincipal + (loanPrincipal * rate);
+          (repayByLoan[loanId] ?? []).fold<int>(0, (s, a) => s + a);
+      final totalDue = loanPrincipal + (loanPrincipal * rate).round();
       final remaining = totalDue - totalRepaid;
       if (remaining > 0) outstanding += remaining;
     }

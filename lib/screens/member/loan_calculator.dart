@@ -240,9 +240,9 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
           children: [
             const Text('Payment Summary', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
-            _buildResultRow('Monthly Payment', CurrencyFormatter.format(_monthlyPayment), Colors.blue),
-            _buildResultRow('Total Interest', CurrencyFormatter.format(_totalInterest), Colors.red),
-            _buildResultRow('Total Payment', CurrencyFormatter.format(_totalPayment), Colors.green),
+            _buildResultRow('Monthly Payment', CurrencyFormatter.format((_monthlyPayment * 100).round()), Colors.blue),
+            _buildResultRow('Total Interest', CurrencyFormatter.format((_totalInterest * 100).round()), Colors.red),
+            _buildResultRow('Total Payment', CurrencyFormatter.format((_totalPayment * 100).round()), Colors.green),
             const SizedBox(height: 16),
             if (_totalPayment > 0)
               Column(
@@ -303,8 +303,8 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
                   return ListTile(
                     dense: true,
                     title: Text('Month $month'),
-                    trailing: Text(CurrencyFormatter.format(_monthlyPayment)),
-                    subtitle: Text('Remaining: ${CurrencyFormatter.format(remaining)}'),
+                    trailing: Text(CurrencyFormatter.format((_monthlyPayment * 100).round())),
+                    subtitle: Text('Remaining: ${CurrencyFormatter.format((remaining * 100).round())}'),
                   );
                 },
               ),
@@ -368,10 +368,10 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Amount: ${CurrencyFormatter.format(double.tryParse(_amountController.text) ?? 0)}'),
+            Text('Amount: ${CurrencyFormatter.format(((double.tryParse(_amountController.text) ?? 0) * 100).round())}'),
             Text('Interest: ${_interestRateController.text}%'),
             Text('Term: ${_termController.text} months'),
-            Text('Monthly: ${CurrencyFormatter.format(_monthlyPayment)}'),
+            Text('Monthly: ${CurrencyFormatter.format((_monthlyPayment * 100).round())}'),
             const SizedBox(height: 16),
             const Text('Are you sure you want to submit this loan application?'),
           ],
@@ -398,7 +398,7 @@ class _LoanCalculatorScreenState extends ConsumerState<LoanCalculatorScreen> {
       final memberRepo = MemberRepository();
       final member = await memberRepo.getMemberById(user!.memberId!);
 
-      final double amount = double.tryParse(_amountController.text) ?? 0;
+      final amount = ((double.tryParse(_amountController.text) ?? 0) * 100).round();
       final double interestRate = double.tryParse(_interestRateController.text) ?? 0;
       final int termMonths = int.tryParse(_termController.text) ?? 1;
       final dueDate = DateTime.now().add(Duration(days: termMonths * 30));

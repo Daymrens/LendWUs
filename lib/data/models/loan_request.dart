@@ -6,7 +6,7 @@ class LoanRequest {
   String? id;
   String memberId;
   String memberName;
-  double amount;
+  int amount;
   double interestRate;
   DateTime dueDate;
   LoanRequestStatus status;
@@ -50,7 +50,7 @@ class LoanRequest {
       id: map['id'],
       memberId: map['memberId'] ?? '',
       memberName: map['memberName'] ?? 'Unknown',
-      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: (map['amount'] as num?)?.toInt() ?? 0,
       interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
       dueDate: parseFirestoreDate(map['dueDate']),
       status: LoanRequestStatus.values.firstWhere(

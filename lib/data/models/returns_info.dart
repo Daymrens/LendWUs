@@ -1,7 +1,7 @@
 class ReturnsInfo {
-  final double totalReturns;
+  final int totalReturns;
   final int totalHeads;
-  final double perHeadShare;
+  final int perHeadShare;
 
   ReturnsInfo({
     required this.totalReturns,
@@ -10,12 +10,12 @@ class ReturnsInfo {
   });
 
   factory ReturnsInfo.fromMap(Map<String, dynamic> map) {
-    final totalReturns = (map['totalReturns'] is num ? (map['totalReturns'] as num).toDouble() : 0.0);
+    final totalReturns = (map['totalReturns'] is num ? (map['totalReturns'] as num).toInt() : 0);
     final totalHeads = (map['totalHeads'] is num ? (map['totalHeads'] as num).toInt() : 1);
     return ReturnsInfo(
       totalReturns: totalReturns,
       totalHeads: totalHeads,
-      perHeadShare: totalHeads > 0 ? totalReturns / totalHeads : 0.0,
+      perHeadShare: totalHeads > 0 ? (totalReturns / totalHeads).round() : 0,
     );
   }
 

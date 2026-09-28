@@ -47,7 +47,7 @@ class _NewContributionModalState extends ConsumerState<NewContributionModal> {
     try {
       final contribution = Contribution(
         memberId: _selectedMemberId!,
-        amount: double.parse(_amountController.text),
+        amount: CurrencyFormatter.parse(_amountController.text),
         date: _selectedDate,
         month: _selectedDate.month,
         year: _selectedDate.year,

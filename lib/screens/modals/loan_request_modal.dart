@@ -70,7 +70,7 @@ class _LoanRequestModalState extends ConsumerState<LoanRequestModal> {
       final request = LoanRequest(
         memberId: user.memberId!,
         memberName: member?.name ?? 'Unknown',
-        amount: _amount,
+        amount: (_amount * 100).round(),
         interestRate: _interestRate,
         dueDate: dueDate,
         status: LoanRequestStatus.pending,
@@ -201,7 +201,7 @@ class _LoanRequestModalState extends ConsumerState<LoanRequestModal> {
                         if (v == null || v.isEmpty) return 'Enter amount';
                         final a = double.tryParse(v);
                         if (a == null || a <= 0) return 'Enter valid amount';
-                        if (a > 100000) return 'Max loan is ${CurrencyFormatter.format(100000)}';
+                        if (a > 100000) return 'Max loan is ${CurrencyFormatter.format(10000000)}';
                         return null;
                       },
                     ),
@@ -220,7 +220,7 @@ class _LoanRequestModalState extends ConsumerState<LoanRequestModal> {
                               border: Border.all(color: selected ? AppColors.info.withValues(alpha: 0.4) : Colors.transparent),
                             ),
                             child: Text(
-                              CurrencyFormatter.format(amt.toDouble()),
+                              CurrencyFormatter.format(amt * 100),
                               style: TextStyle(
                                 fontSize: 12, fontWeight: FontWeight.w600,
                                 color: selected ? AppColors.info : AppColors.textMuted,
@@ -280,13 +280,13 @@ class _LoanRequestModalState extends ConsumerState<LoanRequestModal> {
                         ),
                         child: Column(
                           children: [
-                            _summaryRow('Monthly Payment', CurrencyFormatter.format(_monthlyPayment), AppColors.info),
+                            _summaryRow('Monthly Payment', CurrencyFormatter.format((_monthlyPayment * 100).round()), AppColors.info),
                             const Divider(height: 20),
                             _summaryRow('Interest Rate', '$interestRate% p.a.', AppColors.textMuted),
                             const Divider(height: 20),
-                            _summaryRow('Total Interest', CurrencyFormatter.format(_totalInterest), AppColors.warning),
+                            _summaryRow('Total Interest', CurrencyFormatter.format((_totalInterest * 100).round()), AppColors.warning),
                             const Divider(height: 20),
-                            _summaryRow('Total Payment', CurrencyFormatter.format(_monthlyPayment * _term), AppColors.success),
+                            _summaryRow('Total Payment', CurrencyFormatter.format((_monthlyPayment * _term * 100).round()), AppColors.success),
                           ],
                         ),
                       ),

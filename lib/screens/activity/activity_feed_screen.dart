@@ -217,7 +217,7 @@ class _ActivityFeedScreenState extends ConsumerState<ActivityFeedScreen> {
 class _ActivityItem {
   final DateTime date;
   final String type;
-  final double amount;
+  final int amount;
   final String memberName;
   final String? memberId;
   final String description;

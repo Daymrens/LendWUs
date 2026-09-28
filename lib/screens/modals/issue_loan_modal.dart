@@ -53,7 +53,7 @@ class _IssueLoanModalState extends ConsumerState<IssueLoanModal> {
       _isSubmitting = true;
     });
 
-    final principal = double.parse(_principalController.text);
+    final principal = CurrencyFormatter.parse(_principalController.text);
     final interestRate = double.parse(_interestController.text) / 100;
 
     final loanRepo = ref.read(loanRepositoryProvider);

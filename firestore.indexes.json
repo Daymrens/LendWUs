@@ -34,6 +34,14 @@
       ]
     },
     {
+      "collectionGroup": "payment_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "memberId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "loan_requests",
       "queryScope": "COLLECTION",
       "fields": [

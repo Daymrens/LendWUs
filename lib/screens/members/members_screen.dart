@@ -43,7 +43,7 @@ class _MembersScreenState extends ConsumerState<MembersScreen> {
           final activeCount = allMembers.where((m) => m.paymentStatus == 'Paid').length;
           final pendingCount = allMembers.where((m) => m.paymentStatus == 'Pending').length;
           final overdueCount = allMembers.where((m) => m.paymentStatus == 'Overdue').length;
-          final totalContributions = allMembers.fold<double>(0.0, (sum, m) => sum + m.amountPaid);
+          final totalContributions = allMembers.fold<int>(0, (sum, m) => sum + m.amountPaid);
 
           return Column(
             children: [

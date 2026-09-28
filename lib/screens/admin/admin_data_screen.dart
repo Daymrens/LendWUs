@@ -540,7 +540,7 @@ Future<void> _editContribution(BuildContext context, WidgetRef ref, Contribution
   );
 
   if (result == true) {
-    item.amount = double.parse(amountCtl.text);
+    item.amount = int.parse(amountCtl.text);
     item.notes = notesCtl.text;
     await ref.read(contributionRepositoryProvider).updateContribution(item);
     ref.invalidate(_contributionsListProvider);
@@ -638,7 +638,7 @@ Future<void> _editLoan(BuildContext context, WidgetRef ref, Loan item) async {
   );
 
   if (result == true) {
-    item.principal = double.parse(principalCtl.text);
+    item.principal = int.parse(principalCtl.text);
     item.interestRate = double.parse(interestCtl.text) / 100;
     await ref.read(loanRepositoryProvider).updateLoan(item);
     ref.invalidate(_loansListProvider);
@@ -710,7 +710,7 @@ Future<void> _editRepayment(BuildContext context, WidgetRef ref, Repayment item)
   );
 
   if (result == true) {
-    item.amountPaid = double.parse(amountCtl.text);
+    item.amountPaid = int.parse(amountCtl.text);
     await ref.read(loanRepositoryProvider).updateRepayment(item);
     ref.invalidate(_repaymentsListProvider);
     if (context.mounted) {
@@ -815,9 +815,9 @@ Future<void> _editMember(BuildContext context, WidgetRef ref, Member item) async
   if (result == true) {
     item.name = nameCtl.text;
     item.headsCount = int.parse(headsCtl.text);
-    item.amountPerHead = double.parse(amountCtl.text);
+    item.amountPerHead = int.parse(amountCtl.text);
     item.totalRequired = item.headsCount * item.amountPerHead;
-    item.balance = double.tryParse(balanceCtl.text) ?? 0.0;
+    item.balance = int.tryParse(balanceCtl.text) ?? 0;
     await ref.read(memberRepositoryProvider).updateMember(item);
     ref.invalidate(_membersListProvider);
     if (context.mounted) {

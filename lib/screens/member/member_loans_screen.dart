@@ -122,8 +122,8 @@ class _MemberLoansScreenState extends ConsumerState<MemberLoansScreen> {
                         children: loans.map((loanData) {
                           final loan = loanData['loan'] as Loan?;
                           if (loan == null) return const SizedBox();
-                          final remainingBalance = (loanData['remainingBalance'] as num?)?.toDouble() ?? 0.0;
-                          final totalDue = loan.principal + (loan.principal * loan.interestRate);
+                          final remainingBalance = (loanData['remainingBalance'] as num?)?.toInt() ?? 0;
+                          final totalDue = loan.principal + (loan.principal * loan.interestRate).round();
                           final progress = totalDue > 0 ? ((totalDue - remainingBalance) / totalDue).clamp(0.0, 1.0) : 0.0;
                           final now = DateTime.now();
                           final isOverdue = loan.dueDate.isBefore(now);
@@ -290,7 +290,7 @@ class _RepaidLoansSection extends ConsumerWidget {
   }
 }
 
-void _showLoanDetailSheet(BuildContext context, Loan loan, double remainingBalance, double progress, double totalDue, bool isOverdue, int daysDiff) {
+void _showLoanDetailSheet(BuildContext context, Loan loan, int remainingBalance, double progress, int totalDue, bool isOverdue, int daysDiff) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -410,9 +410,9 @@ Future<void> _showReceiptDialog(BuildContext context, String loanId) async {
 
 class _ActiveLoanDetailSheet extends ConsumerStatefulWidget {
   final Loan loan;
-  final double remainingBalance;
+  final int remainingBalance;
   final double progress;
-  final double totalDue;
+  final int totalDue;
   final bool isOverdue;
   final int daysDiff;
 

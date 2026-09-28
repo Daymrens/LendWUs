@@ -22,7 +22,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
   String? _errorMessage;
 
   List<Loan> _activeLoans = const [];
-  Map<String, double> _balances = const {};
+  Map<String, int> _balances = const {};
   Map<String, String> _memberNames = const {};
   bool _loading = true;
 
@@ -42,7 +42,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
     final loanRepo = ref.read(loanRepositoryProvider);
     final loans = await loanRepo.getActiveLoans();
     final active = loans.where((l) => l.id != null).toList();
-    final balances = <String, double>{};
+    final balances = <String, int>{};
     for (final loan in active) {
       balances[loan.id!] = await loanRepo.getRemainingBalance(loan.id!);
     }
@@ -61,8 +61,8 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
     );
   }
 
-  double get _selectedBalance =>
-      _balances[_selectedLoanId] ?? 0.0;
+  int get _selectedBalance =>
+      _balances[_selectedLoanId] ?? 0;
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate() || _selectedLoanId == null) {
@@ -71,7 +71,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
 
     setState(() => _errorMessage = null);
 
-    final amount = double.parse(_amountController.text);
+    final amount = CurrencyFormatter.parse(_amountController.text);
 
     if (amount <= 0) {
       setState(() => _errorMessage = 'Repayment amount must be greater than zero');
@@ -224,7 +224,7 @@ class _RecordRepaymentModalState extends ConsumerState<RecordRepaymentModal> {
                   fillColor: AppColors.surfaceAlt,
                 ),
                 items: _activeLoans.map((loan) {
-                  final balance = _balances[loan.id!] ?? 0.0;
+                  final balance = _balances[loan.id!] ?? 0;
                   return DropdownMenuItem(
                     value: loan.id,
                     child: Text(

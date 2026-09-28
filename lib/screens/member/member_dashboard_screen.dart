@@ -28,9 +28,9 @@ final memberContributionsStreamProvider = StreamProvider.family<List<Contributio
   return ref.watch(contributionRepositoryProvider).watchMemberContributions(memberId);
 });
 
-final memberContributionsTotalProvider = FutureProvider.family<double, String>((ref, memberId) async {
+final memberContributionsTotalProvider = FutureProvider.family<int, String>((ref, memberId) async {
   final contribs = [...?ref.watch(memberContributionsStreamProvider(memberId)).asData?.value];
-  return contribs.fold<double>(0.0, (s, c) => s + c.amount);
+  return contribs.fold<int>(0, (s, c) => s + c.amount);
 });
 
 final memberActiveLoansProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, memberId) {
@@ -188,20 +188,19 @@ class MemberDashboardScreen extends ConsumerWidget {
   ));
   }
 
-  Widget _buildContributionCard(BuildContext context, WidgetRef ref, double total, String memberId, AppSettings? settings) {
+  Widget _buildContributionCard(BuildContext context, WidgetRef ref, int total, String memberId, AppSettings? settings) {
     final colorScheme = Theme.of(context).colorScheme;
     final contributionsAsync = ref.watch(memberContributionsStreamProvider(memberId));
     final memberAsync = ref.watch(memberByIdProvider(memberId));
     final memberContribs = contributionsAsync.asData?.value ?? [];
     final now = DateTime.now();
     final thisMonth = memberContribs.where((c) => c.date.month == now.month && c.date.year == now.year).toList();
-    final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
+    final monthlyTotal = thisMonth.fold<int>(0, (s, c) => s + c.amount);
     final member = memberAsync.asData?.value;
-    final memberHeads = member?.headsCount ?? 1;
-    final memberTotalRequired = member?.totalRequired ?? 0.0;
+    final memberTotalRequired = member?.totalRequired ?? 0;
     final computedRequired = memberTotalRequired > 0
         ? memberTotalRequired
-        : memberHeads * (member?.amountPerHead ?? 0.0);
+        : (member?.headsCount ?? 1) * (member?.amountPerHead ?? 0);
     final progress = computedRequired > 0 ? (monthlyTotal / computedRequired).clamp(0.0, 1.0) : 0.0;
     return Card(
       child: Padding(
@@ -264,9 +263,9 @@ class MemberDashboardScreen extends ConsumerWidget {
   Widget _memberInfoCard(BuildContext context, Member member, AppSettings? settings) {
     final colorScheme = Theme.of(context).colorScheme;
     final heads = member.headsCount;
-    final perHead = member.amountPerHead ?? 500.0;
+    final perHead = member.amountPerHead ?? 50000;
     final totalRequired = member.totalRequired > 0 ? member.totalRequired : heads * perHead;
-    final balance = member.balance ?? 0.0;
+    final balance = member.balance ?? 0;
     final isActive = member.isActive;
     final displayName = member.name ?? 'Member';
 
@@ -376,7 +375,7 @@ class MemberDashboardScreen extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            Text(isCurrency ? CurrencyFormatter.format((value as num).toDouble()) : '$value',
+            Text(isCurrency ? CurrencyFormatter.format((value as num).toInt()) : '$value',
               style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             Text(label, style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 10), textAlign: TextAlign.center),
@@ -397,7 +396,7 @@ class MemberDashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _statusBadge(double paid, double required) {
+  Widget _statusBadge(int paid, int required) {
     if (paid >= required) {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -455,8 +454,8 @@ class MemberDashboardScreen extends ConsumerWidget {
       children: loans.map((loanData) {
         final loan = loanData['loan'] as Loan?;
         if (loan == null) return const SizedBox();
-        final remainingBalance = (loanData['remainingBalance'] as num?)?.toDouble() ?? 0.0;
-        final totalDue = loan.principal + (loan.principal * loan.interestRate);
+        final remainingBalance = (loanData['remainingBalance'] as num?)?.toInt() ?? 0;
+        final totalDue = loan.principal + (loan.principal * loan.interestRate).round();
         final progress = totalDue > 0 ? ((totalDue - remainingBalance) / totalDue).clamp(0.0, 1.0) : 0.0;
         final now = DateTime.now();
         final isOverdue = loan.dueDate.isBefore(now);
@@ -630,7 +629,7 @@ void showPayContributionSheet(BuildContext context, WidgetRef ref, String member
   final thisMonth = allContribs.where((c) =>
     c.date.month == now.month && c.date.year == now.year
   ).toList();
-  final monthlyTotal = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
+  final monthlyTotal = thisMonth.fold<int>(0, (s, c) => s + c.amount);
   final member = ref.read(memberByIdProvider(memberId)).valueOrNull;
   final perHeadAmount = member?.amountPerHead ?? 0;
   final headCount = member?.headsCount ?? 1;

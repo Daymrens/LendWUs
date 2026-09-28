@@ -16,6 +16,10 @@ class AppSettings {
   final String groupCode;
   final bool isMaintenanceMode;
   final String maintenanceMessage;
+  final bool emailEnabled;
+  final String emailjsPublicKey;
+  final String emailjsServiceId;
+  final String emailjsTemplateId;
 
   AppSettings({
     required this.minPaymentPerHead,
@@ -35,6 +39,10 @@ class AppSettings {
     this.groupCode = 'LENDWUS',
     this.isMaintenanceMode = false,
     this.maintenanceMessage = '',
+    this.emailEnabled = false,
+    this.emailjsPublicKey = '',
+    this.emailjsServiceId = '',
+    this.emailjsTemplateId = '',
   });
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
@@ -56,6 +64,10 @@ class AppSettings {
       groupCode: map['groupCode'] ?? 'LENDWUS',
       isMaintenanceMode: map['isMaintenanceMode'] ?? false,
       maintenanceMessage: map['maintenanceMessage'] ?? '',
+      emailEnabled: map['emailEnabled'] ?? false,
+      emailjsPublicKey: map['emailjsPublicKey'] ?? '',
+      emailjsServiceId: map['emailjsServiceId'] ?? '',
+      emailjsTemplateId: map['emailjsTemplateId'] ?? '',
     );
   }
 
@@ -78,6 +90,10 @@ class AppSettings {
       'groupCode': groupCode,
       'isMaintenanceMode': isMaintenanceMode,
       'maintenanceMessage': maintenanceMessage,
+      'emailEnabled': emailEnabled,
+      'emailjsPublicKey': emailjsPublicKey,
+      'emailjsServiceId': emailjsServiceId,
+      'emailjsTemplateId': emailjsTemplateId,
     };
   }
 
@@ -99,6 +115,10 @@ class AppSettings {
     String? groupCode,
     bool? isMaintenanceMode,
     String? maintenanceMessage,
+    bool? emailEnabled,
+    String? emailjsPublicKey,
+    String? emailjsServiceId,
+    String? emailjsTemplateId,
   }) {
     return AppSettings(
       minPaymentPerHead: minPaymentPerHead ?? this.minPaymentPerHead,
@@ -118,6 +138,10 @@ class AppSettings {
       groupCode: groupCode ?? this.groupCode,
       isMaintenanceMode: isMaintenanceMode ?? this.isMaintenanceMode,
       maintenanceMessage: maintenanceMessage ?? this.maintenanceMessage,
+      emailEnabled: emailEnabled ?? this.emailEnabled,
+      emailjsPublicKey: emailjsPublicKey ?? this.emailjsPublicKey,
+      emailjsServiceId: emailjsServiceId ?? this.emailjsServiceId,
+      emailjsTemplateId: emailjsTemplateId ?? this.emailjsTemplateId,
     );
   }
 }

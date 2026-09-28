@@ -131,13 +131,13 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
           final lm = DateTime(now.year, now.month - 1);
           return c.date.month == lm.month && c.date.year == lm.year;
         }).toList();
-        final totalThisMonth = thisMonth.fold<double>(0.0, (sum, c) => sum + c.amount);
-        final totalLastMonth = lastMonth.fold<double>(0.0, (sum, c) => sum + c.amount);
-        final totalAll = contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
+        final totalThisMonth = thisMonth.fold<int>(0, (sum, c) => sum + c.amount);
+        final totalLastMonth = lastMonth.fold<int>(0, (sum, c) => sum + c.amount);
+        final totalAll = contributions.fold<int>(0, (sum, c) => sum + c.amount);
         final percentChange = totalLastMonth > 0 
           ? ((totalThisMonth - totalLastMonth) / totalLastMonth * 100)
           : 0.0;
-        final avg = contributions.isEmpty ? 0.0 : totalAll / contributions.length;
+        final avg = contributions.isEmpty ? 0 : totalAll ~/ contributions.length;
 
         return GridView.count(
           crossAxisCount: 2,
@@ -349,7 +349,7 @@ class _ContributionsScreenState extends ConsumerState<ContributionsScreen> {
       data: (contribList) {
         return membersAsync.when(
           data: (memberList) {
-            Map<String, double> memberTotals = {};
+            Map<String, int> memberTotals = {};
             for (var contrib in contribList) {
               memberTotals.update(contrib.memberId, (v) => v + contrib.amount, ifAbsent: () => contrib.amount);
             }

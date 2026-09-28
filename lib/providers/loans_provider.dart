@@ -5,12 +5,12 @@ import '../data/models/repayment.dart';
 
 final loanRepositoryProvider = Provider((ref) => LoanRepository());
 
-final totalLoansProvider = FutureProvider<double>((ref) async {
+final totalLoansProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(loanRepositoryProvider);
   return await repo.getTotalLoansIssued();
 });
 
-final totalInterestProvider = FutureProvider<double>((ref) async {
+final totalInterestProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(loanRepositoryProvider);
   return await repo.getTotalInterestEarned();
 });
@@ -39,7 +39,7 @@ final overdueLoansCountProvider = Provider<int>((ref) {
   return loans.where((l) => !l.isFullyRepaid && l.dueDate.isBefore(now)).length;
 });
 
-final totalRepaymentsProvider = FutureProvider<double>((ref) async {
+final totalRepaymentsProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(loanRepositoryProvider);
   return await repo.getTotalRepayments();
 });

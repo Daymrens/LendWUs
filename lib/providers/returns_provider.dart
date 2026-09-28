@@ -5,7 +5,7 @@ import '../data/repositories/loan_repository.dart';
 import '../core/utils/interest_calculator.dart';
 import 'members_provider.dart';
 
-final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
+final returnsInfoProvider = StreamProvider.autoDispose<ReturnsInfo>((ref) {
   final loanRepo = LoanRepository();
   final memberRepo = ref.watch(memberRepositoryProvider);
 
@@ -27,7 +27,7 @@ final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
       controller.add(ReturnsInfo(
         totalReturns: totalInterest,
         totalHeads: 0,
-        perHeadShare: 0.0,
+        perHeadShare: 0,
       ));
       return;
     }
@@ -41,14 +41,20 @@ final returnsInfoProvider = StreamProvider<ReturnsInfo>((ref) {
   final sub1 = loanRepo.watchAllLoans().listen((loans) {
     currentLoans = loans;
     emit();
+  }, onError: (e) {
+    controller.addError(e);
   });
   final sub2 = loanRepo.watchAllRepayments().listen((repayments) {
     currentRepayments = repayments;
     emit();
+  }, onError: (e) {
+    controller.addError(e);
   });
   final sub3 = memberRepo.watchAllMembers().listen((members) {
     currentMembers = members;
     emit();
+  }, onError: (e) {
+    controller.addError(e);
   });
 
   ref.onDispose(() {

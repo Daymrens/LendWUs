@@ -52,18 +52,32 @@ class LoanRepository {
 
   Future<String> addLoan(Loan loan) async {
     final firestore = FirebaseService.firestore;
-
-    // Snapshot check outside transaction — Firestore transactions cannot query
-    // collections. On Spark plan there is no server-side serialization, so a
-    // concurrent admin could still create a duplicate. This check catches the
-    // common case and the rare race is a documented limitation.
-    final hasActive = await hasActiveLoan(loan.memberId);
-    if (hasActive) {
-      throw Exception('Member already has an unpaid loan');
-    }
-
     final docRef = firestore.collection('loans').doc();
+    final claimRef = firestore.collection('loan_claims').doc(loan.memberId);
+
     await firestore.runTransaction((txn) async {
+      final claimDoc = await txn.get(claimRef);
+      if (claimDoc.exists) {
+        throw Exception('Member already has an unpaid loan');
+      }
+
+      final existingLoans = await firestore
+          .collection('loans')
+          .where('memberId', isEqualTo: loan.memberId)
+          .where('isFullyRepaid', isEqualTo: false)
+          .get();
+
+      for (final existing in existingLoans.docs) {
+        final loanDoc = await txn.get(existing.reference);
+        if (loanDoc.exists && loanDoc.data()?['isFullyRepaid'] != true) {
+          throw Exception('Member already has an unpaid loan');
+        }
+      }
+
+      txn.set(claimRef, {
+        'loanId': docRef.id,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
       txn.set(docRef, loan.toMap());
     });
     return docRef.id;
@@ -145,24 +159,25 @@ class LoanRepository {
 
       if (InterestCalculator.isLoanFullyRepaid(loan, repayments)) {
         txn.update(loanRef, {'isFullyRepaid': true});
+        txn.delete(firestore.collection('loan_claims').doc(loan.memberId));
       }
     });
   }
 
-  Future<double> getTotalLoansIssued() async {
+  Future<int> getTotalLoansIssued() async {
     final loans = await getAllLoans();
-    return loans.fold<double>(0.0, (sum, loan) => sum + loan.principal);
+    return loans.fold<int>(0, (sum, loan) => sum + loan.principal);
   }
 
-  Future<double> getTotalInterestEarned() async {
+  Future<int> getTotalInterestEarned() async {
     final loans = await getAllLoans();
     final repayments = await getAllRepayments();
     return InterestCalculator.calculateTotalInterestEarned(loans, repayments);
   }
 
-  Future<double> getTotalRepayments() async {
+  Future<int> getTotalRepayments() async {
     final repayments = await getAllRepayments();
-    return repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+    return repayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
   }
 
   Stream<List<Loan>> watchAllLoans() {
@@ -212,9 +227,9 @@ class LoanRepository {
             .toList());
   }
 
-  Future<double> getRemainingBalance(String loanId) async {
+  Future<int> getRemainingBalance(String loanId) async {
     final loanDoc = await FirebaseService.firestore.collection('loans').doc(loanId).get();
-    if (!loanDoc.exists) return 0.0;
+    if (!loanDoc.exists) return 0;
 
     final loan = Loan.fromMap({...loanDoc.data()!, 'id': loanDoc.id});
     final repayments = await getRepaymentsByLoan(loanId);

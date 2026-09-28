@@ -68,8 +68,8 @@ class MemberBalanceScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final item = data[index];
               final member = item['member'] as dynamic;
-              final balance = item['balance'] as double;
-              final totalPaid = item['totalPaid'] as double;
+              final balance = item['balance'] as int;
+              final totalPaid = item['totalPaid'] as int;
               return ListTile(
                 leading: CircleAvatar(
                   backgroundColor: balance > 0

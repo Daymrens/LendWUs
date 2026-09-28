@@ -5,12 +5,12 @@ import 'package:sinking_fund_app/data/models/member_with_status.dart';
 
 void main() {
   Member makeMember({
-    String id = 'm1',
-    String name = 'Alice',
+    required String id,
+    String name = 'Test Member',
     int heads = 1,
-    double amountPerHead = 500,
-    double totalRequired = 500,
-    double balance = 0,
+    int amountPerHead = 20000,
+    int totalRequired = 20000,
+    int balance = 0,
   }) {
     return Member(
       id: id,
@@ -25,7 +25,7 @@ void main() {
 
   Contribution makeContrib({
     required String memberId,
-    required double amount,
+    required int amount,
     required int month,
     required int year,
   }) {
@@ -41,26 +41,28 @@ void main() {
   group('MemberWithStatus.of', () {
     test('prefers stored totalRequired over heads*amountPerHead multiplication', () {
       final m = makeMember(
+        id: 'm1',
         heads: 3,
-        amountPerHead: 500,
-        totalRequired: 1500,
+        amountPerHead: 50000,
+        totalRequired: 150000,
       );
       final status = MemberWithStatus.of(m, const [], 6, 2026);
-      expect(status.requiredAmount, 1500);
+      expect(status.requiredAmount, 150000);
     });
 
     test('falls back to heads*amountPerHead when totalRequired is 0', () {
       final m = makeMember(
+        id: 'm1',
         heads: 4,
-        amountPerHead: 250,
+        amountPerHead: 25000,
         totalRequired: 0,
       );
       final status = MemberWithStatus.of(m, const [], 6, 2026);
-      expect(status.requiredAmount, 1000);
+      expect(status.requiredAmount, 100000);
     });
 
     test('unpaid member: status Pending, color orange', () {
-      final m = makeMember();
+      final m = makeMember(id: 'm1');
       final status = MemberWithStatus.of(m, const [], 6, 2026);
       expect(status.amountPaid, 0);
       expect(status.progress, 0);
@@ -69,41 +71,41 @@ void main() {
     });
 
     test('partial payment: shows percentage', () {
-      final m = makeMember();
-      final contribs = [makeContrib(memberId: 'm1', amount: 250, month: 6, year: 2026)];
+      final m = makeMember(id: 'm1', totalRequired: 50000, amountPerHead: 50000);
+      final contribs = [makeContrib(memberId: 'm1', amount: 25000, month: 6, year: 2026)];
       final status = MemberWithStatus.of(m, contribs, 6, 2026);
-      expect(status.amountPaid, 250);
+      expect(status.amountPaid, 25000);
       expect(status.progress, 0.5);
       expect(status.paymentStatus, '50%');
       expect(status.statusColor, 'blue');
     });
 
     test('full payment: status Paid, color green, progress capped at 1.0', () {
-      final m = makeMember();
+      final m = makeMember(id: 'm1', totalRequired: 60000, amountPerHead: 60000);
       final contribs = [
-        makeContrib(memberId: 'm1', amount: 300, month: 6, year: 2026),
-        makeContrib(memberId: 'm1', amount: 300, month: 6, year: 2026),
+        makeContrib(memberId: 'm1', amount: 30000, month: 6, year: 2026),
+        makeContrib(memberId: 'm1', amount: 30000, month: 6, year: 2026),
       ];
       final status = MemberWithStatus.of(m, contribs, 6, 2026);
-      expect(status.amountPaid, 600);
+      expect(status.amountPaid, 60000);
       expect(status.progress, 1.0);
       expect(status.paymentStatus, 'Paid');
       expect(status.statusColor, 'green');
     });
 
     test('overpayment: progress still capped at 1.0', () {
-      final m = makeMember(totalRequired: 500);
-      final contribs = [makeContrib(memberId: 'm1', amount: 700, month: 6, year: 2026)];
+      final m = makeMember(id: 'm1', totalRequired: 50000);
+      final contribs = [makeContrib(memberId: 'm1', amount: 70000, month: 6, year: 2026)];
       final status = MemberWithStatus.of(m, contribs, 6, 2026);
-      expect(status.amountPaid, 700);
+      expect(status.amountPaid, 70000);
       expect(status.progress, 1.0);
-      expect(status.remaining, -200);
+      expect(status.remaining, -20000);
       expect(status.paymentStatus, 'Paid');
     });
 
     test('ignores contributions from other months', () {
-      final m = makeMember();
-      final contribs = [makeContrib(memberId: 'm1', amount: 500, month: 5, year: 2026)];
+      final m = makeMember(id: 'm1');
+      final contribs = [makeContrib(memberId: 'm1', amount: 50000, month: 5, year: 2026)];
       final status = MemberWithStatus.of(m, contribs, 6, 2026);
       expect(status.amountPaid, 0);
     });
@@ -116,7 +118,7 @@ void main() {
     });
 
     test('handles zero required (avoids divide-by-zero)', () {
-      final m = makeMember(totalRequired: 0, amountPerHead: 0);
+      final m = makeMember(id: 'm1', totalRequired: 0, amountPerHead: 0);
       final status = MemberWithStatus.of(m, const [], 6, 2026);
       expect(status.progress, 0);
       expect(status.paymentStatus, 'Pending');

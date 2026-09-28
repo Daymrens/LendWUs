@@ -4,9 +4,9 @@ import 'loan.dart';
 
 class MemberWithStatus {
   final Member member;
-  final double requiredAmount;
-  final double amountPaid;
-  final double remaining;
+  final int requiredAmount;
+  final int amountPaid;
+  final int remaining;
   final double progress;
   final String paymentStatus;
   final String statusColor;
@@ -38,7 +38,7 @@ class MemberWithStatus {
           c.date.year == year;
     });
 
-    final amountPaid = memberContribs.fold<double>(0.0, (sum, c) => sum + c.amount);
+    final amountPaid = memberContribs.fold<int>(0, (sum, c) => sum + c.amount);
     final remaining = requiredAmount - amountPaid;
     final progress = requiredAmount > 0 ? (amountPaid / requiredAmount).clamp(0.0, 1.0) : 0.0;
 

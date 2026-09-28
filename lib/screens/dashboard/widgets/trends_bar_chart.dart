@@ -54,7 +54,7 @@ class TrendsBarChart extends ConsumerWidget {
                           final trend = trends[group.x.toInt()];
                           final label = rodIndex == 0 ? 'Contributions' : rodIndex == 1 ? 'Loans' : 'Repayments';
                           return BarTooltipItem(
-                            '${trend.label}\n$label: ${CurrencyFormatter.format(rod.toY)}',
+                            '${trend.label}\n$label: ${CurrencyFormatter.format(rod.toY.toInt())}',
                             TextStyle(
                               color: rodIndex == 0 ? AppColors.primary : rodIndex == 1 ? AppColors.warning : AppColors.secondary,
                               fontWeight: FontWeight.bold,

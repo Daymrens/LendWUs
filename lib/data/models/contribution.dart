@@ -3,13 +3,15 @@ import '../../core/utils/firestore_helpers.dart';
 class Contribution {
   String? id;
   String memberId;
-  double amount;
+  int amount;
   DateTime date;
   int month;
   int year;
   String? notes;
   String? createdBy;
   String? receiptUrl;
+  String? receiptHash;
+  String? sourceRequestId;
 
   Contribution({
     this.id,
@@ -21,6 +23,8 @@ class Contribution {
     this.notes,
     this.createdBy,
     this.receiptUrl,
+    this.receiptHash,
+    this.sourceRequestId,
   });
 
   Map<String, dynamic> toMap() {
@@ -34,6 +38,8 @@ class Contribution {
       'notes': notes,
       if (createdBy != null) 'createdBy': createdBy,
       'receiptUrl': receiptUrl,
+      'receiptHash': receiptHash,
+      if (sourceRequestId != null) 'sourceRequestId': sourceRequestId,
     };
   }
 
@@ -41,13 +47,14 @@ class Contribution {
     return Contribution(
       id: map['id'],
       memberId: map['memberId'] ?? '',
-      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: (map['amount'] as num?)?.toInt() ?? 0,
       date: parseFirestoreDate(map['date']),
       month: map['month'] ?? DateTime.now().month,
       year: map['year'] ?? DateTime.now().year,
       notes: map['notes'],
       createdBy: map['createdBy'],
       receiptUrl: map['receiptUrl'],
+      receiptHash: map['receiptHash'],
     );
   }
 }

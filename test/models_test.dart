@@ -21,7 +21,7 @@ void main() {
       final original = Loan(
         id: 'loan-1',
         memberId: 'member-1',
-        principal: 5000.0,
+        principal: 500000,
         interestRate: 0.05,
         issuedDate: issued,
         dueDate: due,
@@ -32,7 +32,7 @@ void main() {
 
       expect(restored.id, 'loan-1');
       expect(restored.memberId, 'member-1');
-      expect(restored.principal, 5000.0);
+      expect(restored.principal, 500000);
       expect(restored.interestRate, 0.05);
       expect(restored.issuedDate, issued);
       expect(restored.dueDate, due);
@@ -341,7 +341,7 @@ void main() {
       final original = Contribution(
         id: 'c-1',
         memberId: 'm-1',
-        amount: 500.0,
+        amount: 50000,
         date: date,
         month: 6,
         year: 2026,
@@ -351,7 +351,7 @@ void main() {
       final restored = Contribution.fromMap(original.toMap());
       expect(restored.id, 'c-1');
       expect(restored.memberId, 'm-1');
-      expect(restored.amount, 500.0);
+      expect(restored.amount, 50000);
       expect(restored.date, date);
       expect(restored.month, 6);
       expect(restored.year, 2026);
@@ -376,13 +376,13 @@ void main() {
       final original = Repayment(
         id: 'rep-1',
         loanId: 'loan-1',
-        amountPaid: 550.0,
+        amountPaid: 55000,
         date: date,
       );
       final restored = Repayment.fromMap(original.toMap());
       expect(restored.id, 'rep-1');
       expect(restored.loanId, 'loan-1');
-      expect(restored.amountPaid, 550.0);
+      expect(restored.amountPaid, 55000);
       expect(restored.date, date);
     });
 
@@ -416,7 +416,7 @@ void main() {
         id: 'lr-1',
         memberId: 'm-1',
         memberName: 'Alice',
-        amount: 5000.0,
+        amount: 500000,
         interestRate: 5.0,
         dueDate: due,
         status: LoanRequestStatus.approved,
@@ -429,7 +429,7 @@ void main() {
       expect(restored.id, 'lr-1');
       expect(restored.memberId, 'm-1');
       expect(restored.memberName, 'Alice');
-      expect(restored.amount, 5000.0);
+      expect(restored.amount, 500000);
       expect(restored.interestRate, 5.0);
       expect(restored.dueDate, due);
       expect(restored.status, LoanRequestStatus.approved);
@@ -717,14 +717,14 @@ void main() {
   group('ReturnsInfo model', () {
     test('toMap then fromMap round-trip preserves all fields', () {
       final original = ReturnsInfo(
-        totalReturns: 10000.0,
+        totalReturns: 1000000,
         totalHeads: 10,
-        perHeadShare: 1000.0,
+        perHeadShare: 100000,
       );
       final restored = ReturnsInfo.fromMap(original.toMap());
-      expect(restored.totalReturns, 10000.0);
+      expect(restored.totalReturns, 1000000);
       expect(restored.totalHeads, 10);
-      expect(restored.perHeadShare, 1000.0);
+      expect(restored.perHeadShare, 100000);
     });
 
     test('fromMap defaults totalHeads to 1 when missing', () {

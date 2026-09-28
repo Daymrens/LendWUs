@@ -3,7 +3,7 @@ import '../../core/utils/firestore_helpers.dart';
 class Repayment {
   String? id;
   String loanId;
-  double amountPaid;
+  int amountPaid;
   DateTime date;
 
   Repayment({
@@ -26,7 +26,7 @@ class Repayment {
     return Repayment(
       id: map['id'],
       loanId: map['loanId'] ?? '',
-      amountPaid: (map['amountPaid'] as num?)?.toDouble() ?? 0.0,
+      amountPaid: (map['amountPaid'] as num?)?.toInt() ?? 0,
       date: parseFirestoreDate(map['date']),
     );
   }

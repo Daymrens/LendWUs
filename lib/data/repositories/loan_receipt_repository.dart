@@ -7,7 +7,7 @@ class LoanReceiptRepository {
     required String loanId,
     required String memberId,
     required String memberName,
-    required double principal,
+    required int principal,
     required double interestRate,
     required DateTime issuedDate,
     required DateTime dueDate,

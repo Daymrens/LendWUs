@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'members_provider.dart';
 import 'loans_provider.dart';
-import 'members_with_status_provider.dart';
 
 class MonthlyTrend {
   final String label;
@@ -46,19 +45,19 @@ final monthlyTrendsProvider = FutureProvider<List<MonthlyTrend>>((ref) async {
 
     final monthContribs = contributions
         .where((c) => c.date.month == month && c.date.year == year)
-        .fold<double>(0.0, (s, c) => s + c.amount);
+        .fold<int>(0, (s, c) => s + c.amount);
     final monthLoans = loans
         .where((l) => l.issuedDate.month == month && l.issuedDate.year == year)
-        .fold<double>(0.0, (s, l) => s + l.principal);
+        .fold<int>(0, (s, l) => s + l.principal);
     final monthRepays = repayments
         .where((r) => r.date.month == month && r.date.year == year)
-        .fold<double>(0.0, (s, r) => s + r.amountPaid);
+        .fold<int>(0, (s, r) => s + r.amountPaid);
 
     trends.add(MonthlyTrend(
       label: '${monthNames[month]} ${year.toString().substring(2)}',
-      contributions: monthContribs,
-      loans: monthLoans,
-      repayments: monthRepays,
+      contributions: monthContribs.toDouble(),
+      loans: monthLoans.toDouble(),
+      repayments: monthRepays.toDouble(),
     ));
   }
 
@@ -83,10 +82,10 @@ final collectionRateTrendProvider = FutureProvider<List<CollectionRateTrend>>((r
 
     final monthContribs = contributions
         .where((c) => c.date.month == month && c.date.year == year)
-        .fold<double>(0.0, (s, c) => s + c.amount);
+        .fold<int>(0, (s, c) => s + c.amount);
 
-    final totalRequired = activeMembers.fold<double>(
-      0.0,
+    final totalRequired = activeMembers.fold<int>(
+      0,
       (s, m) => s + (m.totalRequired > 0 ? m.totalRequired : m.headsCount * m.amountPerHead),
     );
 
@@ -95,8 +94,8 @@ final collectionRateTrendProvider = FutureProvider<List<CollectionRateTrend>>((r
     trends.add(CollectionRateTrend(
       label: '${monthNames[month]} ${year.toString().substring(2)}',
       rate: rate,
-      collected: monthContribs,
-      required: totalRequired,
+      collected: monthContribs.toDouble(),
+      required: totalRequired.toDouble(),
     ));
   }
 

@@ -153,15 +153,15 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
 
     final activeLoans = loans.where((l) => !l.isFullyRepaid).length;
     final completedLoans = loans.where((l) => l.isFullyRepaid).length;
-    final totalLoaned = loans.fold<double>(0.0, (sum, l) => sum + l.principal);
-    final totalRepaid = repayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+    final totalLoaned = loans.fold<int>(0, (sum, l) => sum + l.principal);
+    final totalRepaid = repayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
 
-    double outstandingBalance = 0.0;
+    int outstandingBalance = 0;
     for (var loan in loans) {
       if (!loan.isFullyRepaid) {
         final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-        final totalLoanRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-        final totalDue = loan.principal + (loan.principal * loan.interestRate);
+        final totalLoanRepaid = loanRepayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
+        final totalDue = loan.principal + (loan.principal * loan.interestRate).round();
         outstandingBalance += (totalDue - totalLoanRepaid);
       }
     }
@@ -262,8 +262,8 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
         final daysDiff = now.difference(loan.dueDate).inDays;
 
         final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-        final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
-        final totalDue = loan.principal + (loan.principal * loan.interestRate);
+        final totalRepaid = loanRepayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
+        final totalDue = loan.principal + (loan.principal * loan.interestRate).round();
         final remaining = totalDue - totalRepaid;
         final progress = totalDue > 0 ? (totalRepaid / totalDue).clamp(0.0, 1.0) : 0.0;
         final repayCount = loanRepayments.length;
@@ -407,7 +407,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
         final loan = completedLoans[index];
         final memberName = memberMap[loan.memberId] ?? 'Unknown';
         final loanRepayments = repayments.where((r) => r.loanId == loan.id);
-        final totalRepaid = loanRepayments.fold<double>(0.0, (sum, r) => sum + r.amountPaid);
+        final totalRepaid = loanRepayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
         final interestPaid = totalRepaid - loan.principal;
 
         return Container(
@@ -439,7 +439,7 @@ class _LoansScreenState extends ConsumerState<LoansScreen> with SingleTickerProv
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(CurrencyFormatter.format(totalRepaid), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text('+${CurrencyFormatter.format(interestPaid)}', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
+                  Text('+${CurrencyFormatter.format(interestPaid < 0 ? 0 : interestPaid)}', style: TextStyle(color: AppColors.textMuted, fontSize: 10)),
                 ],
               ),
             ],

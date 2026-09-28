@@ -8,7 +8,7 @@ class ReturnsRepository {
   Stream<ReturnsInfo> watchReturns() {
     return _firestore.collection('returns').doc('current').snapshots().map((doc) {
       if (!doc.exists) {
-        return ReturnsInfo(totalReturns: 0.0, totalHeads: 0, perHeadShare: 0.0);
+        return ReturnsInfo(totalReturns: 0, totalHeads: 0, perHeadShare: 0);
       }
       return ReturnsInfo.fromMap(doc.data()!);
     });

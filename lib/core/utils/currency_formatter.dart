@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 class CurrencyFormatter {
   static String _symbol = '\u20B1';
   static String _locale = 'en_PH';
-  
+
   static NumberFormat _formatter = NumberFormat.currency(
     symbol: _symbol,
     locale: _locale,
@@ -12,13 +12,12 @@ class CurrencyFormatter {
 
   static void updateConfiguration(String symbol, String code) {
     _symbol = symbol;
-    // Basic mapping for common currencies, default to en_US for others
     if (code == 'PHP') {
       _locale = 'en_PH';
     } else if (code == 'USD') {
       _locale = 'en_US';
     } else if (code == 'EUR') {
-      _locale = 'en_IE'; // Irish English for Euro
+      _locale = 'en_IE';
     } else if (code == 'GBP') {
       _locale = 'en_GB';
     } else if (code == 'JPY') {
@@ -38,15 +37,21 @@ class CurrencyFormatter {
     );
   }
 
-  /// Format centavos (int) to display string
-  /// e.g. 1245000 → "₱12,450.00"
-  static String formatCentavos(int centavos) {
+  /// Format centavos (int) to display string.
+  /// e.g. 124500 → "₱1,245.00"
+  static String format(int centavos) {
     return _formatter.format(centavos / 100);
   }
 
-  /// Format double to display string (legacy support)
-  static String format(double amount) {
-    return _formatter.format(amount);
+  /// Alias for [format].
+  static String formatCentavos(int centavos) {
+    return format(centavos);
+  }
+
+  /// Format a double value (non-monetary) to display string.
+  /// For currency values, use [format] instead — this is for rates, percentages, etc.
+  static String formatDouble(double value) {
+    return _formatter.format(value);
   }
 
   /// Parse display string back to centavos.

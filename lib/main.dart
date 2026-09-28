@@ -4,7 +4,6 @@ import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'app.dart';
-import 'core/firebase/firebase_service.dart';
 import 'core/services/notification_service.dart';
 import 'screens/splash_screen.dart';
 
@@ -69,12 +68,7 @@ class _BootstrapAppState extends State<_BootstrapApp> {
       debugPrint('Notification init failed: $e');
     }
 
-    try {
-      setState(() => _status = 'Loading...');
-      await FirebaseService.seedDefaults().timeout(const Duration(seconds: 5));
-    } catch (e) {
-      debugPrint('seedDefaults failed: $e');
-    }
+    setState(() => _status = 'Loading...');
 
     if (mounted) {
       final elapsed = DateTime.now().difference(_startTime);

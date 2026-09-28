@@ -84,10 +84,9 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     }
   }
 
-  String? _amountValidator(String? value, double minAmount, double maxAmount) {
+  String? _amountValidator(String? value, int minAmount, int maxAmount) {
     if (value == null || value.isEmpty) return 'Please enter amount';
-    final parsed = double.tryParse(value);
-    if (parsed == null) return 'Please enter valid amount';
+    final parsed = CurrencyFormatter.parse(value);
     if (parsed <= 0) return 'Amount must be greater than 0';
     if (parsed < minAmount) return 'Minimum is ${CurrencyFormatter.format(minAmount)}';
     if (parsed > maxAmount) return 'Maximum is ${CurrencyFormatter.format(maxAmount)}';
@@ -110,19 +109,23 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
 
     try {
       String? receiptUrl;
+      String? receiptHash;
       if (_receiptImage != null) {
         final bytes = await _receiptImage!.readAsBytes();
-        receiptUrl = await StorageService.uploadReceipt(
+        final result = await StorageService.uploadReceipt(
           memberId: user!.memberId!,
           bytes: bytes,
         );
+        receiptUrl = result.url;
+        receiptHash = result.hash;
       }
 
       final repo = PaymentRequestRepository();
       final request = PaymentRequest(
         memberId: user!.memberId!,
-        amount: double.parse(_amountController.text),
+        amount: CurrencyFormatter.parse(_amountController.text),
         receiptUrl: receiptUrl,
+        receiptHash: receiptHash,
         status: PaymentStatus.pending,
         requestDate: DateTime.now(),
         type: PaymentType.contribution,
@@ -229,8 +232,8 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
     final user = ref.watch(currentUserProvider).state;
     final memberId = user?.memberId;
     final settings = ref.watch(settingsProvider).asData?.value;
-    final minAmount = settings?.minPaymentPerHead ?? 500.0;
-    final maxAmount = settings?.maxPaymentPerHead ?? 1000.0;
+    final minAmount = ((settings?.minPaymentPerHead ?? 500.0) * 100).round();
+    final maxAmount = ((settings?.maxPaymentPerHead ?? 1000.0) * 100).round();
 
     final contributionsAsync = ref.watch(contributionsStreamProvider);
     final contribs = [...?contributionsAsync.asData?.value];
@@ -240,25 +243,24 @@ class _MemberPaymentModalState extends ConsumerState<MemberPaymentModal> {
       c.date.month == now.month &&
       c.date.year == now.year
     ).toList();
-    final thisMonthTotal = thisMonthContribs.fold<double>(0.0, (s, c) => s + c.amount);
-    final effectiveRequired = minAmount.clamp(0.0, double.infinity);
-    final perHeadAmount = _member?.amountPerHead ?? (effectiveRequired / (_member?.headsCount ?? 1).clamp(1, double.infinity));
+    final thisMonthTotal = thisMonthContribs.fold<int>(0, (s, c) => s + c.amount);
+    final perHeadAmount = _member?.amountPerHead ?? minAmount ~/ (_member?.headsCount ?? 1).clamp(1, 999999);
     final headsCount = _member?.headsCount ?? 1;
     final perCutoffAmount = perHeadAmount * headsCount;
     final fullMonthlyRequired = perCutoffAmount * 2;
     final progress = fullMonthlyRequired > 0 ? (thisMonthTotal / fullMonthlyRequired).clamp(0.0, 1.0) : 0.0;
     final met = thisMonthTotal >= fullMonthlyRequired;
     final payAdvance = widget.defaultAdvance || (!met && thisMonthTotal > 0);
-    final balance = _member?.balance ?? 0.0;
+    final balance = _member?.balance ?? 0;
     final cutoffDay1 = settings?.cutoffDay1 ?? 13;
     final cutoffDay2 = settings?.cutoffDay2 ?? 28;
 
     // Dynamic quick amounts always based on per-cutoff amount (amountPerHead × headsCount)
-    final rawAmounts = [perCutoffAmount * 0.25, perCutoffAmount * 0.5, perCutoffAmount * 0.75, perCutoffAmount];
-    final quickAmounts = rawAmounts.map((a) => (a * 100).round() / 100).toList();
+    final rawAmounts = [(perCutoffAmount * 0.25).round(), (perCutoffAmount * 0.5).round(), (perCutoffAmount * 0.75).round(), perCutoffAmount];
+    final quickAmounts = rawAmounts.map((a) => a).toList();
 
     if (!_amountInitialized) {
-      _amountController.text = (payAdvance ? perCutoffAmount : fullMonthlyRequired).toStringAsFixed(2);
+      _amountController.text = CurrencyFormatter.toDouble(payAdvance ? perCutoffAmount : fullMonthlyRequired).toStringAsFixed(2);
       _amountInitialized = true;
     }
 

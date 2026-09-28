@@ -4,8 +4,38 @@ import '../../data/models/loan.dart';
 import '../../data/models/repayment.dart';
 import '../../data/models/returns_info.dart';
 import '../../data/models/monthly_report.dart';
+import 'emailjs_service.dart';
 
 class EmailNotificationService {
+  static String? _emailjsPublicKey;
+  static String? _emailjsServiceId;
+  static String? _emailjsTemplateId;
+  static bool _enabled = false;
+
+  static void configure({
+    required String publicKey,
+    required String serviceId,
+    required String templateId,
+    bool enabled = true,
+  }) {
+    _emailjsPublicKey = publicKey;
+    _emailjsServiceId = serviceId;
+    _emailjsTemplateId = templateId;
+    _enabled = enabled;
+  }
+
+  static void disable() {
+    _enabled = false;
+  }
+
+  static bool get isConfigured =>
+      _enabled &&
+      _emailjsPublicKey != null &&
+      _emailjsPublicKey!.isNotEmpty &&
+      _emailjsServiceId != null &&
+      _emailjsServiceId!.isNotEmpty &&
+      _emailjsTemplateId != null &&
+      _emailjsTemplateId!.isNotEmpty;
   static Future<void> sendMonthlyReportEmail(
     String userId,
     List<Contribution> contributions,
@@ -234,26 +264,33 @@ class EmailNotificationService {
     }
   }
 
-  /// This function logs to Firestore's `email_logs` collection.
-  /// A Firebase Cloud Function (e.g., `functions/processEmailLogs`) must read
-  /// documents from this collection and actually dispatch the emails via
-  /// nodemailer, SendGrid, or similar transport.
-  ///
-  /// Deployment guide for the Cloud Function:
-  /// ```bash
-  /// firebase init functions
-  /// cd functions && npm install nodemailer
-  /// # Write a onDocumentCreated handler for email_logs
-  /// ```
+  /// Sends email via EmailJS when configured, otherwise logs to email_logs.
   static Future<void> _sendEmail(String to, String subject, String body) async {
+    if (isConfigured) {
+      final success = await EmailJSService.send(
+        publicKey: _emailjsPublicKey!,
+        serviceId: _emailjsServiceId!,
+        templateId: _emailjsTemplateId!,
+        toEmail: to,
+        toName: to.split('@').first,
+        subject: subject,
+        messageHtml: body.replaceAll('\n', '<br>'),
+      );
+      if (success) {
+        print('Email sent via EmailJS to $to: $subject');
+        return;
+      }
+      print('EmailJS send failed, falling back to email_logs for $to');
+    }
+
     await FirebaseService.firestore.collection('email_logs').add({
       'to': to,
       'subject': subject,
       'body': body,
       'sent_at': DateTime.now().toIso8601String(),
-      'status': 'sent',
+      'status': _enabled ? 'failed' : 'logged',
     });
-    
+
     print('Email queued for $to: $subject');
   }
 
@@ -273,10 +310,10 @@ class EmailNotificationService {
     final userRepayments = repayments.where((r) => loans.any((l) => l.id == r.loanId && l.memberId == 'current_user_id')).toList();
     final userReturns = returns.toList();
     
-    final totalContributions = userContributions.fold(0.0, (sum, c) => sum + c.amount);
-    final totalLoans = userLoans.fold(0.0, (sum, l) => sum + l.principal);
-    final totalRepayments = userRepayments.fold(0.0, (sum, r) => sum + r.amountPaid);
-    final totalReturns = userReturns.fold(0.0, (sum, r) => sum + r.perHeadShare);
+    final totalContributions = userContributions.fold<int>(0, (sum, c) => sum + c.amount);
+    final totalLoans = userLoans.fold<int>(0, (sum, l) => sum + l.principal);
+    final totalRepayments = userRepayments.fold<int>(0, (sum, r) => sum + r.amountPaid);
+    final totalReturns = userReturns.fold<int>(0, (sum, r) => sum + r.perHeadShare);
     
     final monthlyReport = monthlyReports.firstWhere(
       (r) => r.year == currentYear && r.month == currentMonth,
@@ -540,7 +577,7 @@ LendWus Team
 
   /// Placeholder: requires a Firestore query on the repayments subcollection
   /// to compute the actual remaining balance. Returns "N/A" until implemented.
-  static String _calculateRemainingBalance(String loanId, double paymentAmount) {
+  static String _calculateRemainingBalance(String loanId, int paymentAmount) {
     return 'N/A';
   }
 

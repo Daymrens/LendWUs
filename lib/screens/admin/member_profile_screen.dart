@@ -65,18 +65,18 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
 
         final allContribs = [...?contributionsAsync.asData?.value];
         final memberContribs = allContribs.where((c) => c.memberId == widget.memberId).toList();
-        final totalContribs = memberContribs.fold<double>(0.0, (s, c) => s + c.amount);
+        final totalContribs = memberContribs.fold<int>(0, (s, c) => s + c.amount);
 
         final allLoans = [...?loansAsync.asData?.value];
         final memberLoans = allLoans.where((l) => l.memberId == widget.memberId).toList();
-        final totalLoans = memberLoans.fold<double>(0.0, (s, l) => s + l.principal);
+        final totalLoans = memberLoans.fold<int>(0, (s, l) => s + l.principal);
         final activeLoans = memberLoans.where((l) => !l.isFullyRepaid).length;
         final overdueLoans = memberLoans.where((l) => !l.isFullyRepaid && l.dueDate.isBefore(DateTime.now())).length;
 
         final loanIds = memberLoans.map((l) => l.id).whereType<String>().toSet();
         final allRepayments = [...?repaymentsAsync.asData?.value];
         final memberRepayments = allRepayments.where((r) => loanIds.contains(r.loanId)).toList();
-        final totalRepaid = memberRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
+        final totalRepaid = memberRepayments.fold<int>(0, (s, r) => s + r.amountPaid);
 
         final allPayments = [...?paymentsAsync.asData?.value];
         final memberPayments = allPayments.where((p) => p.memberId == widget.memberId).toList();
@@ -248,8 +248,8 @@ class _AdminMemberProfileScreenState extends ConsumerState<AdminMemberProfileScr
 }
 
 void _showLoanDetail(Loan loan, List<Repayment> loanRepayments) {
-  final totalPaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
-  final totalDue = loan.principal + (loan.principal * loan.interestRate);
+  final totalPaid = loanRepayments.fold<int>(0, (s, r) => s + r.amountPaid);
+  final totalDue = loan.principal + (loan.principal * loan.interestRate).round();
   final remaining = totalDue - totalPaid;
 
   showModalBottomSheet(
@@ -531,10 +531,10 @@ class _MemberHeader extends StatelessWidget {
 }
 
 class _StatsRow extends StatelessWidget {
-  final double totalContributions;
-  final double totalLoans;
+  final int totalContributions;
+  final int totalLoans;
   final int activeLoans;
-  final double totalRepaid;
+  final int totalRepaid;
   final int overdueLoans;
 
   const _StatsRow({
@@ -665,8 +665,8 @@ class _LoansTab extends StatelessWidget {
         final isOverdue = !loan.isFullyRepaid && loan.dueDate.isBefore(DateTime.now());
         final daysOverdue = isOverdue ? DateTime.now().difference(loan.dueDate).inDays : 0;
         final loanRepayments = repayments.where((r) => r.loanId == loan.id).toList();
-        final totalPaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
-        final remaining = (loan.principal + (loan.principal * loan.interestRate)) - totalPaid;
+        final totalPaid = loanRepayments.fold<int>(0, (s, r) => s + r.amountPaid);
+        final remaining = (loan.principal + (loan.principal * loan.interestRate).round()) - totalPaid;
 
         Color statusColor;
         String statusLabel;

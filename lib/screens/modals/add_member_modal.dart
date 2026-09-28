@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:gap/gap.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../data/models/member.dart';
 import '../../providers/members_provider.dart';
 import '../../providers/members_with_status_provider.dart';
@@ -32,7 +33,7 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
       final m = widget.existingMember!;
       _nameController.text = m.name;
       _headsController.text = m.headsCount.toString();
-      _amountController.text = m.amountPerHead.toStringAsFixed(2);
+      _amountController.text = (m.amountPerHead / 100).toStringAsFixed(2);
       _emailController.text = m.linkedEmail ?? '';
     }
   }
@@ -53,7 +54,7 @@ class _AddMemberModalState extends ConsumerState<AddMemberModal> {
     setState(() => _isSaving = true);
 
     final headsCount = int.parse(_headsController.text);
-    final amountPerHead = double.parse(_amountController.text);
+    final amountPerHead = CurrencyFormatter.parse(_amountController.text);
     final email = _emailController.text.trim();
     final linkedEmail = email.isEmpty ? null : email;
 

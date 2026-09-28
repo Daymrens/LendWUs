@@ -600,26 +600,26 @@ class _LoanApprovalCardState extends ConsumerState<_LoanApprovalCard> {
           firestore.collection('loans').get(),
           firestore.collection('repayments').get(),
         ]);
-        final totalContributions = contribSnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['amount'] as num?)?.toDouble() ?? 0));
-        final totalLoansIssued = loanSnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['principal'] as num?)?.toDouble() ?? 0));
-        final totalRepayments = repaySnap.docs.fold<double>(0.0, (s, d) => s + ((d.data()['amountPaid'] as num?)?.toDouble() ?? 0));
+        final totalContributions = contribSnap.docs.fold<int>(0, (s, d) => s + ((d.data()['amount'] as num?)?.toInt() ?? 0));
+        final totalLoansIssued = loanSnap.docs.fold<int>(0, (s, d) => s + ((d.data()['principal'] as num?)?.toInt() ?? 0));
+        final totalRepayments = repaySnap.docs.fold<int>(0, (s, d) => s + ((d.data()['amountPaid'] as num?)?.toInt() ?? 0));
         final fundBalance = totalContributions - totalLoansIssued + totalRepayments;
 
-        final repayByLoan = <String, double>{};
+        final repayByLoan = <String, int>{};
         for (final d in repaySnap.docs) {
           final r = d.data();
           final loanId = r['loanId'] as String?;
-          final amount = (r['amountPaid'] as num?)?.toDouble() ?? 0;
+          final amount = (r['amountPaid'] as num?)?.toInt() ?? 0;
           repayByLoan.update(loanId!, (v) => v + amount, ifAbsent: () => amount);
         }
-        double outstanding = 0;
+        int outstanding = 0;
         for (final d in loanSnap.docs) {
           final l = d.data();
           if (l['isFullyRepaid'] == true) continue;
-          final p = (l['principal'] as num?)?.toDouble() ?? 0;
+          final p = (l['principal'] as num?)?.toInt() ?? 0;
           final rate = (l['interestRate'] as num?)?.toDouble() ?? 0;
           final repaid = repayByLoan[d.id] ?? 0;
-          final totalDue = p + (p * rate);
+          final totalDue = p + (p * rate).round();
           final remaining = totalDue - repaid;
           if (remaining > 0) outstanding += remaining;
         }

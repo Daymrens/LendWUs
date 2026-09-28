@@ -22,6 +22,7 @@ import '../modals/record_repayment_modal.dart';
 import '../../providers/notification_provider.dart';
 import '../../core/utils/member_id_generator.dart';
 import '../../core/firebase/firebase_service.dart';
+import '../../core/services/reminder_service.dart';
 import 'widgets/popup_overlay.dart';
 import 'widgets/donut_charts_row.dart';
 import 'widgets/trends_bar_chart.dart';
@@ -311,6 +312,40 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onViewMembers: () => context.push('/members'),
               onViewReports: () => context.push('/reports'),
               onViewApprovals: () => context.push('/approvals'),
+              onSendReminders: () async {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Send Payment Reminders?'),
+                    content: const Text(
+                      'This will send in-app notifications to members with pending '
+                      'payment requests or unpaid loans, and notify admins.',
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Send Reminders'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true) return;
+                try {
+                  await ReminderService.sendPaymentReminders();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Reminders sent')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error sending reminders: $e'), backgroundColor: AppColors.error),
+                    );
+                  }
+                }
+              },
             ),
             const Gap(24),
             _ReturnsSection(),

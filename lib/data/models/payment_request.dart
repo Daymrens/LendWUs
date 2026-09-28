@@ -8,9 +8,10 @@ class PaymentRequest {
   String memberId;
   String? loanId;
   PaymentType type;
-  double amount;
+  int amount;
   String? receiptPath;
   String? receiptUrl;
+  String? receiptHash;
   PaymentStatus status;
   DateTime requestDate;
   DateTime? approvedDate;
@@ -29,6 +30,7 @@ class PaymentRequest {
     required this.amount,
     this.receiptPath,
     this.receiptUrl,
+    this.receiptHash,
     this.status = PaymentStatus.pending,
     required this.requestDate,
     this.approvedDate,
@@ -48,6 +50,7 @@ class PaymentRequest {
       'type': type.name,
       'amount': amount,
       'receiptUrl': receiptUrl,
+      'receiptHash': receiptHash,
       'status': status.name,
       'requestDate': requestDate.toIso8601String(),
       'approvedDate': approvedDate?.toIso8601String(),
@@ -69,9 +72,10 @@ class PaymentRequest {
         (e) => e.name == map['type'],
         orElse: () => PaymentType.contribution,
       ),
-      amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+      amount: (map['amount'] as num?)?.toInt() ?? 0,
       receiptPath: map['receiptPath'],
       receiptUrl: map['receiptUrl'],
+      receiptHash: map['receiptHash'],
       status: PaymentStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => PaymentStatus.pending,

@@ -18,43 +18,43 @@ void main() {
 
     test('filters contributions by month/year', () {
       final contribs = [
-        Contribution(memberId: 'm1', amount: 300, date: DateTime(2026, 6, 5), month: 6, year: 2026),
-        Contribution(memberId: 'm2', amount: 200, date: DateTime(2026, 6, 10), month: 6, year: 2026),
-        Contribution(memberId: 'm3', amount: 100, date: DateTime(2026, 5, 15), month: 5, year: 2026),
+        Contribution(memberId: 'm1', amount: 30000, date: DateTime(2026, 6, 5), month: 6, year: 2026),
+        Contribution(memberId: 'm2', amount: 20000, date: DateTime(2026, 6, 10), month: 6, year: 2026),
+        Contribution(memberId: 'm3', amount: 10000, date: DateTime(2026, 5, 15), month: 5, year: 2026),
       ];
-      final report = MonthlyReport.compute(6, 2026, contribs, [], [], 600);
-      expect(report.totalContribution, 500);
+      final report = MonthlyReport.compute(6, 2026, contribs, [], [], 60000);
+      expect(report.totalContribution, 50000);
       expect(report.loansIssued, 0);
       expect(report.interestGained, 0);
-      expect(report.endingBalance, 600);
+      expect(report.endingBalance, 60000);
     });
 
     test('filters loans by month/year', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 6, 1), dueDate: DateTime(2026, 7, 1)),
-        Loan(id: 'l2', memberId: 'm2', principal: 2000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 6, 1)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 6, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l2', memberId: 'm2', principal: 200000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 6, 1)),
       ];
       final report = MonthlyReport.compute(6, 2026, [], loans, [], 0);
-      expect(report.loansIssued, 1000);
+      expect(report.loansIssued, 100000);
     });
 
     test('interest gained from repayments in the month', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
       ];
       final repayments = [
-        Repayment(loanId: 'l1', amountPaid: 1100, date: DateTime(2026, 6, 15)),
+        Repayment(loanId: 'l1', amountPaid: 110000, date: DateTime(2026, 6, 15)),
       ];
-      final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 100);
-      expect(report.interestGained, 100);
+      final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 10000);
+      expect(report.interestGained, 10000);
     });
 
     test('no interest if repayment does not exceed principal', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
       ];
       final repayments = [
-        Repayment(loanId: 'l1', amountPaid: 500, date: DateTime(2026, 6, 15)),
+        Repayment(loanId: 'l1', amountPaid: 50000, date: DateTime(2026, 6, 15)),
       ];
       final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 0);
       expect(report.interestGained, 0);
@@ -62,22 +62,22 @@ void main() {
 
     test('interest from partial repayment that exceeds principal', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
       ];
       final repayments = [
-        Repayment(loanId: 'l1', amountPaid: 400, date: DateTime(2026, 6, 1)),
-        Repayment(loanId: 'l1', amountPaid: 700, date: DateTime(2026, 6, 15)),
+        Repayment(loanId: 'l1', amountPaid: 40000, date: DateTime(2026, 6, 1)),
+        Repayment(loanId: 'l1', amountPaid: 70000, date: DateTime(2026, 6, 15)),
       ];
-      final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 100);
-      expect(report.interestGained, 100);
+      final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 10000);
+      expect(report.interestGained, 10000);
     });
 
     test('ignores repayments from other months', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
       ];
       final repayments = [
-        Repayment(loanId: 'l1', amountPaid: 1100, date: DateTime(2026, 5, 15)),
+        Repayment(loanId: 'l1', amountPaid: 110000, date: DateTime(2026, 5, 15)),
       ];
       final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 0);
       expect(report.interestGained, 0);
@@ -85,20 +85,20 @@ void main() {
 
     test('multiple loans with interest in same month', () {
       final loans = [
-        Loan(id: 'l1', memberId: 'm1', principal: 1000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
-        Loan(id: 'l2', memberId: 'm2', principal: 2000, interestRate: 0.05, issuedDate: DateTime(2026, 5, 15), dueDate: DateTime(2026, 7, 15)),
+        Loan(id: 'l1', memberId: 'm1', principal: 100000, interestRate: 0.1, issuedDate: DateTime(2026, 5, 1), dueDate: DateTime(2026, 7, 1)),
+        Loan(id: 'l2', memberId: 'm2', principal: 200000, interestRate: 0.05, issuedDate: DateTime(2026, 5, 15), dueDate: DateTime(2026, 7, 15)),
       ];
       final repayments = [
-        Repayment(loanId: 'l1', amountPaid: 1100, date: DateTime(2026, 6, 1)),
-        Repayment(loanId: 'l2', amountPaid: 2100, date: DateTime(2026, 6, 10)),
+        Repayment(loanId: 'l1', amountPaid: 110000, date: DateTime(2026, 6, 1)),
+        Repayment(loanId: 'l2', amountPaid: 210000, date: DateTime(2026, 6, 10)),
       ];
       final report = MonthlyReport.compute(6, 2026, [], loans, repayments, 0);
-      expect(report.interestGained, 200);
+      expect(report.interestGained, 20000);
     });
 
     test('passes through endingBalance unchanged', () {
-      final report = MonthlyReport.compute(6, 2026, [], [], [], 12345.67);
-      expect(report.endingBalance, 12345.67);
+      final report = MonthlyReport.compute(6, 2026, [], [], [], 1234567);
+      expect(report.endingBalance, 1234567);
     });
   });
 }

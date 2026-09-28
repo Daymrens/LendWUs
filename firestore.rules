@@ -172,6 +172,11 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    // ─── loan_claims (one-active-loan guard) ─────────────────────
+    match /loan_claims/{memberId} {
+      allow read, write, delete: if isAdmin();
+    }
+
     // ─── backups ────────────────────────────────────────────────
     match /backups/{backupId} {
       allow read: if isAdmin();

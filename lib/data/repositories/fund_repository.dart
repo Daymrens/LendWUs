@@ -38,9 +38,9 @@ class FundRepository {
     return docRef.id;
   }
 
-  Future<double> getTotalContributions() async {
+  Future<int> getTotalContributions() async {
     final contributions = await getAllContributions();
-    return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
+    return contributions.fold<int>(0, (sum, c) => sum + c.amount);
   }
 
   Future<List<Contribution>> getMemberContributions(String memberId) async {
@@ -54,9 +54,9 @@ class FundRepository {
         .toList();
   }
 
-  Future<double> getMemberTotalContributions(String memberId) async {
+  Future<int> getMemberTotalContributions(String memberId) async {
     final contributions = await getMemberContributions(memberId);
-    return contributions.fold<double>(0.0, (sum, c) => sum + c.amount);
+    return contributions.fold<int>(0, (sum, c) => sum + c.amount);
   }
 
   Future<FundSummary> getFundSummary() async {
@@ -70,15 +70,15 @@ class FundRepository {
     );
   }
 
-  Future<double> getTotalRepayments() async {
+  Future<int> getTotalRepayments() async {
     final snapshot = await FirebaseService.firestore.collection('repayments').get();
-    return snapshot.docs.fold<double>(
-      0.0,
-      (sum, doc) => sum + (doc.data()['amountPaid'] as num).toDouble(),
+    return snapshot.docs.fold<int>(
+      0,
+      (sum, doc) => sum + ((doc.data()['amountPaid'] as num?)?.toInt() ?? 0),
     );
   }
 
-  Future<double> getAvailableToLoan() async {
+  Future<int> getAvailableToLoan() async {
     final summary = await getFundSummary();
     return summary.availableToLoan;
   }

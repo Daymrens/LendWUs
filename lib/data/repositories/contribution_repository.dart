@@ -17,9 +17,6 @@ class ContributionRepository {
     var query = FirebaseService.firestore
         .collection('contributions')
         .where('memberId', isEqualTo: memberId);
-    // Omit orderBy — the `date` field may have mixed types (String / Timestamp)
-    // between mobile and web clients, causing Firestore queries to fail.
-    // Sort client-side if needed.
     if (startAfter != null) {
       query = query.startAfterDocument(startAfter);
     }
@@ -32,10 +29,6 @@ class ContributionRepository {
         .toList();
   }
 
-  /// Fetches all contributions without server-side ordering.
-  /// Avoid `orderBy` at the collection level because the `date` field may
-  /// contain mixed types (String from Flutter, Timestamp from web).
-  /// Sort client-side if needed.
   Future<List<Contribution>> getAllContributions({int? limit, DocumentSnapshot? startAfter}) async {
     Query<Map<String, dynamic>> query = FirebaseService.firestore
         .collection('contributions');
@@ -51,14 +44,14 @@ class ContributionRepository {
         .toList();
   }
 
-  Future<double> getMemberTotalContributions(String memberId) async {
+  Future<int> getMemberTotalContributions(String memberId) async {
     final snapshot = await FirebaseService.firestore
         .collection('contributions')
         .where('memberId', isEqualTo: memberId)
         .get();
-    double total = 0.0;
+    int total = 0;
     for (var doc in snapshot.docs) {
-      total += (doc.data()['amount'] as num).toDouble();
+      total += (doc.data()['amount'] as num?)?.toInt() ?? 0;
     }
     return total;
   }
@@ -86,12 +79,6 @@ class ContributionRepository {
             .toList());
   }
 
-  /// Like [watchAllContributions] but ordered by date descending.
-  /// Avoid using [watchAllContributions] with `orderBy` at the collection level
-  /// if some documents store `date` as a String (Flutter) and others as a
-  /// Timestamp (web) — Firestore refuses to order across mixed types.
-  /// Use this when the UI needs sorted data and sort client-side as a fallback,
-  /// or migrate all `date` values to a single type.
   Stream<List<Contribution>> watchAllContributionsOrdered() {
     return FirebaseService.firestore
         .collection('contributions')

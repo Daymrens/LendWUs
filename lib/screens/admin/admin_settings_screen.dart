@@ -7,6 +7,7 @@ import '../../data/models/app_settings.dart';
 import '../../providers/settings_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/currency_formatter.dart';
+import '../../core/services/emailjs_service.dart';
 
 class AdminSettingsScreen extends ConsumerStatefulWidget {
   const AdminSettingsScreen({super.key});
@@ -34,6 +35,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
   bool _isMaintenanceMode = false;
   late TextEditingController _maintenanceMessageController;
   String _qrImageUrl = '';
+  bool _emailEnabled = false;
+  late TextEditingController _emailjsPublicKeyController;
+  late TextEditingController _emailjsServiceIdController;
+  late TextEditingController _emailjsTemplateIdController;
   final _imagePicker = ImagePicker();
 
   final List<Map<String, String>> _currencies = const [
@@ -65,6 +70,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrNumberController = TextEditingController();
     _paymentTatController = TextEditingController();
     _maintenanceMessageController = TextEditingController();
+    _emailjsPublicKeyController = TextEditingController();
+    _emailjsServiceIdController = TextEditingController();
+    _emailjsTemplateIdController = TextEditingController();
   }
 
   @override
@@ -80,6 +88,9 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrNumberController.dispose();
     _paymentTatController.dispose();
     _maintenanceMessageController.dispose();
+    _emailjsPublicKeyController.dispose();
+    _emailjsServiceIdController.dispose();
+    _emailjsTemplateIdController.dispose();
     super.dispose();
   }
 
@@ -100,6 +111,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     _qrImageUrl = settings.qrImageUrl;
     _isMaintenanceMode = settings.isMaintenanceMode;
     _maintenanceMessageController.text = settings.maintenanceMessage;
+    _emailEnabled = settings.emailEnabled;
+    _emailjsPublicKeyController.text = settings.emailjsPublicKey;
+    _emailjsServiceIdController.text = settings.emailjsServiceId;
+    _emailjsTemplateIdController.text = settings.emailjsTemplateId;
     _initialized = true;
   }
 
@@ -124,6 +139,8 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
                 _buildRolesCard(),
                 const Gap(16),
                 _buildPaymentInfoCard(),
+                const Gap(16),
+                _buildEmailCard(),
                 const Gap(16),
                 _buildMaintenanceCard(),
                 const Gap(32),
@@ -461,6 +478,81 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     );
   }
 
+  Widget _buildEmailCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              Icon(Icons.email_outlined, color: AppColors.secondary, size: 20),
+              const Gap(8),
+              const Text('Email Notifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ]),
+            const Gap(4),
+            Text('Send emails via EmailJS (200 free emails/month). Create a template at emailjs.com with variables: to_name, to_email, subject, message, from_name.',
+              style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+            ),
+            const Gap(12),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enable Email Notifications'),
+              subtitle: Text(
+                _emailEnabled ? 'Emails will be sent via EmailJS' : 'Emails are logged only (no delivery)',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+              ),
+              value: _emailEnabled,
+              onChanged: (val) => setState(() => _emailEnabled = val),
+            ),
+            if (_emailEnabled) ...[
+              const Gap(12),
+              TextFormField(
+                controller: _emailjsPublicKeyController,
+                decoration: const InputDecoration(
+                  labelText: 'Public Key (user_id)',
+                  border: OutlineInputBorder(),
+                  helperText: 'From EmailJS > API Keys',
+                ),
+              ),
+              const Gap(12),
+              TextFormField(
+                controller: _emailjsServiceIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Service ID',
+                  border: OutlineInputBorder(),
+                  helperText: 'e.g. service_abc123',
+                ),
+              ),
+              const Gap(12),
+              TextFormField(
+                controller: _emailjsTemplateIdController,
+                decoration: const InputDecoration(
+                  labelText: 'Template ID',
+                  border: OutlineInputBorder(),
+                  helperText: 'e.g. template_xyz789',
+                ),
+              ),
+              const Gap(16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _testEmail,
+                  icon: const Icon(Icons.send, size: 18),
+                  label: const Text('Send Test Email'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMaintenanceCard() {
     return Card(
       child: Padding(
@@ -551,6 +643,10 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
       qrImageUrl: _qrImageUrl,
       isMaintenanceMode: _isMaintenanceMode,
       maintenanceMessage: _maintenanceMessageController.text.trim(),
+      emailEnabled: _emailEnabled,
+      emailjsPublicKey: _emailjsPublicKeyController.text.trim(),
+      emailjsServiceId: _emailjsServiceIdController.text.trim(),
+      emailjsTemplateId: _emailjsTemplateIdController.text.trim(),
     );
 
     try {
@@ -570,6 +666,37 @@ class _AdminSettingsScreenState extends ConsumerState<AdminSettingsScreen> {
     final bytes = await pickedFile.readAsBytes();
     final b64 = base64Encode(bytes);
     setState(() => _qrImageUrl = 'data:image/png;base64,$b64');
+  }
+
+  Future<void> _testEmail() async {
+    final pk = _emailjsPublicKeyController.text.trim();
+    final sid = _emailjsServiceIdController.text.trim();
+    final tid = _emailjsTemplateIdController.text.trim();
+
+    if (pk.isEmpty || sid.isEmpty || tid.isEmpty) {
+      _showError('Fill in all EmailJS fields first');
+      return;
+    }
+
+    final adminEmail = _adminEmails.isNotEmpty ? _adminEmails.first : null;
+    if (adminEmail == null) {
+      _showError('Add at least one admin email to receive the test');
+      return;
+    }
+
+    final ok = await EmailJSService.testConnection(
+      publicKey: pk,
+      serviceId: sid,
+      templateId: tid,
+      toEmail: adminEmail,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ok ? 'Test email sent to $adminEmail' : 'Failed to send test email. Check your EmailJS config.'),
+        backgroundColor: ok ? AppColors.primary : AppColors.error,
+      ));
+    }
   }
 
   void _showError(String message) {

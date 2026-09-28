@@ -5,9 +5,9 @@ class Member {
   String? memberId;
   String name;
   int headsCount;
-  double amountPerHead;
-  double totalRequired;
-  double balance;
+  int amountPerHead;
+  int totalRequired;
+  int balance;
   String? avatarPath;
   DateTime joinedAt;
   bool isActive;
@@ -21,7 +21,7 @@ class Member {
     required this.headsCount,
     required this.amountPerHead,
     required this.totalRequired,
-    this.balance = 0.0,
+    this.balance = 0,
     this.avatarPath,
     required this.joinedAt,
     this.isActive = true,
@@ -54,9 +54,9 @@ class Member {
       memberId: map['memberId'],
       name: map['name'] ?? '',
       headsCount: map['headsCount'] ?? 1,
-      amountPerHead: (map['amountPerHead'] as num?)?.toDouble() ?? 0.0,
-      totalRequired: (map['totalRequired'] as num?)?.toDouble() ?? 0.0,
-      balance: (map['balance'] as num?)?.toDouble() ?? 0.0,
+      amountPerHead: (map['amountPerHead'] as num?)?.toInt() ?? 0,
+      totalRequired: (map['totalRequired'] as num?)?.toInt() ?? 0,
+      balance: (map['balance'] as num?)?.toInt() ?? 0,
       avatarPath: map['avatarPath'],
       joinedAt: parseFirestoreDate(map['joinedAt']),
       isActive: map['isActive'] != false,

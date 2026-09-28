@@ -14,6 +14,7 @@ class PaymentRequestRepository {
   PaymentRequestRepository({ActivityLogRepository? activityLog})
       : _activityLog = activityLog ?? ActivityLogRepository();
   static const int _defaultPageSize = 100;
+
   Future<String> createPaymentRequest(PaymentRequest request) async {
     final docRef = await FirebaseService.firestore
         .collection('payment_requests')
@@ -112,7 +113,6 @@ class PaymentRequestRepository {
     final firestore = FirebaseService.firestore;
     final requestRef = firestore.collection('payment_requests').doc(requestId);
 
-    // Idempotent claim: only proceed if the request is still pending.
     final existingData = await firestore.runTransaction((tx) async {
       final snap = await tx.get(requestRef);
       if (!snap.exists) return null;
@@ -133,74 +133,60 @@ class PaymentRequestRepository {
 
     try {
       if (request.type == PaymentType.contribution) {
-        final contribution = Contribution(
-          memberId: request.memberId,
-          amount: request.amount,
-          date: request.requestDate,
-          month: request.requestDate.month,
-          year: request.requestDate.year,
-          createdBy: 'member',
-          receiptUrl: request.receiptUrl,
-        );
-
-        await FirebaseService.firestore
+        // Idempotency: check if a contribution already exists for this request
+        final existingContrib = await firestore
             .collection('contributions')
-            .add(contribution.toMap());
-
-        // Track overpayment as balance
-        final contribsSnap = await FirebaseService.firestore
-            .collection('contributions')
-            .where('memberId', isEqualTo: request.memberId)
-            .where('month', isEqualTo: request.requestDate.month)
-            .where('year', isEqualTo: request.requestDate.year)
-            .get();
-        double monthTotal = contribsSnap.docs.fold<double>(
-          0.0, (s, d) => s + (d.data()['amount'] as num).toDouble(),
-        );
-
-        final memberDoc = await FirebaseService.firestore
-            .collection('members')
-            .doc(request.memberId)
+            .where('sourceRequestId', isEqualTo: requestId)
+            .limit(1)
             .get();
 
-        if (memberDoc.exists) {
-          final memberData = memberDoc.data()!;
-          final required = (memberData['totalRequired'] as num?)?.toDouble() ?? 0.0;
-          double currentBalance = (memberData['balance'] as num?)?.toDouble() ?? 0.0;
+        if (existingContrib.docs.isEmpty) {
+          // Use WriteBatch for atomicity
+          final batch = firestore.batch();
 
-          if (monthTotal > required) {
-            final excess = monthTotal - required;
-            await FirebaseService.firestore
-                .collection('members')
-                .doc(request.memberId)
-                .update({'balance': currentBalance + excess});
-          } else if (monthTotal < required && currentBalance > 0) {
-            // Apply balance if current month total is below required
-            final needed = required - monthTotal;
-            final toApply = currentBalance >= needed ? needed : currentBalance;
+          final contributionRef = firestore.collection('contributions').doc();
+          batch.set(contributionRef, {
+            'memberId': request.memberId,
+            'amount': request.amount,
+            'date': request.requestDate.toIso8601String(),
+            'month': request.requestDate.month,
+            'year': request.requestDate.year,
+            'createdBy': 'member',
+            'receiptUrl': request.receiptUrl,
+            'receiptHash': request.receiptHash,
+            'sourceRequestId': requestId,
+          });
 
-            if (toApply > 0) {
-              // Record the balance application as a contribution
-              final balanceContribution = Contribution(
-                memberId: request.memberId,
-                amount: toApply,
-                date: request.requestDate,
-                month: request.requestDate.month,
-                year: request.requestDate.year,
-                notes: 'Applied from balance',
-                createdBy: 'system',
-              );
+          // Query member balance and monthly total for overpayment tracking
+          final contribsSnap = await firestore
+              .collection('contributions')
+              .where('memberId', isEqualTo: request.memberId)
+              .where('month', isEqualTo: request.requestDate.month)
+              .where('year', isEqualTo: request.requestDate.year)
+              .get();
 
-              await FirebaseService.firestore
-                  .collection('contributions')
-                  .add(balanceContribution.toMap());
+          int monthTotal = contribsSnap.docs.fold<int>(
+            0, (s, d) => s + ((d.data()['amount'] as num?)?.toInt() ?? 0),
+          );
+          monthTotal += request.amount; // include the new contribution
 
-              await FirebaseService.firestore
-                  .collection('members')
-                  .doc(request.memberId)
-                  .update({'balance': currentBalance - toApply});
+          final memberDoc = await firestore
+              .collection('members')
+              .doc(request.memberId)
+              .get();
+
+          if (memberDoc.exists) {
+            final memberData = memberDoc.data()!;
+            final required = (memberData['totalRequired'] as num?)?.toInt() ?? 0;
+            int currentBalance = (memberData['balance'] as num?)?.toInt() ?? 0;
+
+            if (monthTotal > required) {
+              final excess = monthTotal - required;
+              batch.update(memberDoc.reference, {'balance': currentBalance + excess});
             }
           }
+
+          await batch.commit();
         }
       } else if (request.type == PaymentType.loan && request.loanId != null) {
         final repayment = Repayment(
@@ -236,7 +222,6 @@ class PaymentRequestRepository {
         type: 'payment_request_approved',
       );
     } catch (e) {
-      // Post-transaction work failed; revert the approval
       await requestRef.update({
         'status': 'pending',
         'approvedDate': null,

@@ -46,6 +46,7 @@ import 'core/utils/currency_formatter.dart';
 import 'providers/settings_provider.dart';
 import 'providers/theme_provider.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/email_notification_service.dart';
 
 final onboardingCompleteProvider = StateProvider<bool>((ref) => false);
 
@@ -332,6 +333,12 @@ class _SinkingFundAppState extends ConsumerState<SinkingFundApp> {
         CurrencyFormatter.updateConfiguration(
           settings.currencySymbol,
           settings.currencyCode,
+        );
+        EmailNotificationService.configure(
+          publicKey: settings.emailjsPublicKey,
+          serviceId: settings.emailjsServiceId,
+          templateId: settings.emailjsTemplateId,
+          enabled: settings.emailEnabled,
         );
       });
     });

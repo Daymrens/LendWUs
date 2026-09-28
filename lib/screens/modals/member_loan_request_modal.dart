@@ -82,7 +82,7 @@ class _MemberLoanRequestModalState extends ConsumerState<MemberLoanRequestModal>
       final request = LoanRequest(
         memberId: user.memberId!,
         memberName: member?.name ?? 'Unknown',
-        amount: double.parse(_amountController.text),
+        amount: CurrencyFormatter.parse(_amountController.text),
         interestRate: double.parse(_interestRateController.text),
         dueDate: _dueDate,
         status: LoanRequestStatus.pending,

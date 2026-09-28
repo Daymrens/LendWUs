@@ -36,7 +36,7 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
   final _amountController = TextEditingController();
   File? _receiptImage;
   bool _isSubmitting = false;
-  double? _remainingBalance;
+  int? _remainingBalance;
   bool _isLoadingBalance = false;
   bool _showQR = true;
   Member? _member;
@@ -105,19 +105,23 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
     final memberId = ref.read(currentUserProvider).state!.memberId!;
 
     String? receiptUrl;
+    String? receiptHash;
     if (_receiptImage != null) {
       final bytes = await _receiptImage!.readAsBytes();
-      receiptUrl = await StorageService.uploadReceipt(
+      final result = await StorageService.uploadReceipt(
         memberId: memberId,
         bytes: bytes,
       );
+      receiptUrl = result.url;
+      receiptHash = result.hash;
     }
 
     final paymentRequest = PaymentRequest(
       memberId: memberId,
       loanId: widget.loanId,
-      amount: double.parse(_amountController.text.replaceAll(',', '')),
+      amount: CurrencyFormatter.parse(_amountController.text),
       receiptPath: _receiptImage?.path,
+      receiptHash: receiptHash,
       receiptUrl: receiptUrl,
       status: PaymentStatus.pending,
       requestDate: DateTime.now(),
@@ -148,9 +152,9 @@ class _MemberPayScreenState extends ConsumerState<MemberPayScreen> {
     final colorScheme = Theme.of(context).colorScheme;
     final isLoan = widget.paymentType == PaymentType.loan;
     final settings = ref.watch(settingsProvider).asData?.value;
-    final perHead = settings?.minPaymentPerHead ?? 500.0;
+    final perHead = ((settings?.minPaymentPerHead ?? 500.0) * 100).round();
     final heads = _member?.headsCount ?? 1;
-    final totalRequired = (_member?.totalRequired ?? 0.0) > 0 ? _member!.totalRequired : heads * perHead;
+    final totalRequired = (_member?.totalRequired ?? 0) > 0 ? _member!.totalRequired : heads * perHead;
     final qrImageUrl = settings?.qrImageUrl ?? '';
     final qrName = settings?.qrAccountName ?? '';
     final qrNumber = settings?.qrAccountNumber ?? '';

@@ -6,10 +6,10 @@ class LoanReceipt {
   String receiptNumber;
   String memberId;
   String memberName;
-  double principal;
+  int principal;
   double interestRate;
-  double interestAmount;
-  double totalAmountDue;
+  int interestAmount;
+  int totalAmountDue;
   DateTime issuedDate;
   DateTime dueDate;
   String status;
@@ -59,10 +59,10 @@ class LoanReceipt {
       receiptNumber: map['receiptNumber'] ?? '',
       memberId: map['memberId'] ?? '',
       memberName: map['memberName'] ?? '',
-      principal: (map['principal'] as num?)?.toDouble() ?? 0.0,
+      principal: (map['principal'] as num?)?.toInt() ?? 0,
       interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
-      interestAmount: (map['interestAmount'] as num?)?.toDouble() ?? 0.0,
-      totalAmountDue: (map['totalAmountDue'] as num?)?.toDouble() ?? 0.0,
+      interestAmount: (map['interestAmount'] as num?)?.toInt() ?? 0,
+      totalAmountDue: (map['totalAmountDue'] as num?)?.toInt() ?? 0,
       issuedDate: parseFirestoreDate(map['issuedDate']),
       dueDate: parseFirestoreDate(map['dueDate']),
       status: map['status'] ?? 'active',

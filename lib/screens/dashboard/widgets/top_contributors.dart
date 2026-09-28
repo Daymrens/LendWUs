@@ -31,7 +31,7 @@ class TopContributors extends ConsumerWidget {
               c.date.month == now.month && c.date.year == now.year
             ).toList();
 
-            final memberTotals = <String, double>{};
+            final memberTotals = <String, int>{};
             for (final c in monthContribs) {
               memberTotals[c.memberId] = (memberTotals[c.memberId] ?? 0) + c.amount;
             }
@@ -65,7 +65,7 @@ class TopContributors extends ConsumerWidget {
                       final entryData = entry.value;
                       final member = members.where((m) => m.id == entryData.key).firstOrNull;
                       final name = member?.name ?? 'Unknown';
-                      final amount = entryData.value;
+                      final int amount = entryData.value;
                       final pct = maxAmount > 0 ? amount / maxAmount : 0.0;
                       final barColor = i == 0 ? AppColors.primary : i == 1 ? AppColors.secondary : AppColors.textMuted.withAlpha(100);
 

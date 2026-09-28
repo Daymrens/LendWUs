@@ -104,7 +104,7 @@ class _MemberLoanRequestScreenState extends ConsumerState<MemberLoanRequestScree
       final loanRequest = LoanRequest(
         memberId: currentUser.memberId!,
         memberName: member?.name ?? currentUser.username,
-        amount: double.parse(amountText),
+        amount: CurrencyFormatter.parse(amountText),
         interestRate: _kFixedInterestRate,
         notes: _purposeController.text,
         dueDate: _dueDate,

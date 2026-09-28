@@ -65,17 +65,17 @@ void main() {
   group('CurrencyFormatter.format', () {
     test('formats PHP', () {
       CurrencyFormatter.updateConfiguration('\u20B1', 'PHP');
-      expect(CurrencyFormatter.format(1500.00), contains('1,500.00'));
+      expect(CurrencyFormatter.format(150000), contains('1,500.00'));
     });
 
     test('formats USD', () {
       CurrencyFormatter.updateConfiguration('\$', 'USD');
-      expect(CurrencyFormatter.format(1500.00), contains('1,500.00'));
+      expect(CurrencyFormatter.format(150000), contains('1,500.00'));
     });
 
     test('formats EUR', () {
       CurrencyFormatter.updateConfiguration('€', 'EUR');
-      expect(CurrencyFormatter.format(1500.00), contains('1,500.00'));
+      expect(CurrencyFormatter.format(150000), contains('1,500.00'));
     });
   });
 

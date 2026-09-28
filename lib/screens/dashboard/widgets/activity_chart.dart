@@ -232,7 +232,7 @@ class _ActivityChartState extends ConsumerState<ActivityChart> {
                             final isComp = compSpots != null &&
                                 spot.barIndex == 1;
                             return LineTooltipItem(
-                              'Day ${spot.x.toInt()}\n${CurrencyFormatter.format(spot.y)}',
+                              'Day ${spot.x.toInt()}\n${CurrencyFormatter.format(spot.y.toInt())}',
                               TextStyle(
                                 color: isComp ? AppColors.secondary : AppColors.primary,
                                 fontWeight: FontWeight.bold,

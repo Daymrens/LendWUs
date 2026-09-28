@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/models/member.dart';
+import '../../core/utils/currency_formatter.dart';
 import '../../providers/members_provider.dart';
 
 class IntroductionScreen extends StatefulWidget {
@@ -231,8 +232,8 @@ class _QuickSetupScreenState extends ConsumerState<QuickSetupScreen> {
       final members = List.generate(numberOfMembers, (i) => Member(
         name: 'Member ${i + 1}',
         headsCount: 1,
-        amountPerHead: defaultContribution,
-        totalRequired: defaultContribution,
+        amountPerHead: (defaultContribution * 100).round(),
+        totalRequired: (defaultContribution * 100).round(),
         joinedAt: DateTime.now(),
       ));
       await repo.addMembersSequential(members);

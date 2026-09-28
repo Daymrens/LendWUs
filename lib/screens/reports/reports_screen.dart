@@ -113,15 +113,15 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       final monthRepays = repayments.where((r) =>
                           r.date.month == _selectedMonth.month && r.date.year == _selectedMonth.year);
 
-                      final monthContribTotal = monthContribs.fold<double>(0.0, (s, c) => s + c.amount);
-                      final monthLoanTotal = monthLoans.fold<double>(0.0, (s, l) => s + l.principal);
+                      final monthContribTotal = monthContribs.fold<int>(0, (s, c) => s + c.amount);
+                      final monthLoanTotal = monthLoans.fold<int>(0, (s, l) => s + l.principal);
 
-                      double monthInterest = 0.0;
+                      int monthInterest = 0;
                       for (final r in monthRepays) {
                         final loan = loans.where((l) => l.id == r.loanId).firstOrNull;
                         if (loan != null) {
                           final allRepayments = repayments.where((r2) => r2.loanId == loan.id);
-                          final totalRepaid = allRepayments.fold<double>(0.0, (s, r2) => s + r2.amountPaid);
+                          final totalRepaid = allRepayments.fold<int>(0, (s, r2) => s + r2.amountPaid);
                           final excess = totalRepaid - loan.principal;
                           if (excess > 0) {
                             // Only count interest from this month's repayments
@@ -129,7 +129,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                                 .where((r2) => r2.loanId == loan.id &&
                                     (r2.date.year < _selectedMonth.year ||
                                      (r2.date.year == _selectedMonth.year && r2.date.month < _selectedMonth.month)))
-                                .fold<double>(0.0, (s, r2) => s + r2.amountPaid);
+                                .fold<int>(0, (s, r2) => s + r2.amountPaid);
                             final beforeExcess = beforeMonthRepaid - loan.principal;
                             monthInterest += excess - (beforeExcess > 0 ? beforeExcess : 0);
                           }
@@ -137,7 +137,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                       }
                       if (monthInterest < 0) monthInterest = 0;
 
-                      final monthEndingBalance = monthContribTotal - monthLoanTotal + monthRepays.fold<double>(0.0, (s, r) => s + r.amountPaid);
+                      final monthEndingBalance = monthContribTotal - monthLoanTotal + monthRepays.fold<int>(0, (s, r) => s + r.amountPaid);
 
                       final activeMembers = members.where((m) => m.isActive).length;
                       final activeLoans = loans.where((l) => !l.isFullyRepaid).length;
@@ -229,12 +229,12 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return membersAsync.when(
       data: (members) {
             final memberMap = {for (var m in members) m.id: m.name};
-            Map<String, double> totals = {};
+            Map<String, int> totals = {};
             for (var c in contributions) {
               totals.update(c.memberId, (v) => v + c.amount, ifAbsent: () => c.amount);
             }
             var sorted = totals.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-            final grandTotal = contributions.fold<double>(0.0, (s, c) => s + c.amount);
+            final grandTotal = contributions.fold<int>(0, (s, c) => s + c.amount);
 
             if (sorted.isEmpty) {
               return Container(
@@ -353,8 +353,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           Divider(color: AppColors.surfaceAlt, height: 16),
                           ...activeLoans.take(5).map((l) {
                             final loanRepayments = repayments.where((r) => r.loanId == l.id);
-                            final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
-                            final totalDue = l.principal + (l.principal * l.interestRate);
+                            final repaid = loanRepayments.fold<int>(0, (s, r) => s + r.amountPaid);
+                            final totalDue = l.principal + (l.principal * l.interestRate).round();
                             final isOverdue = l.dueDate.isBefore(DateTime.now());
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),
@@ -392,7 +392,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                           Divider(color: AppColors.surfaceAlt, height: 16),
                           ...paidLoans.take(5).map((l) {
                             final loanRepayments = repayments.where((r) => r.loanId == l.id);
-                            final repaid = loanRepayments.fold<double>(0.0, (s, r) => s + r.amountPaid);
+                            final repaid = loanRepayments.fold<int>(0, (s, r) => s + r.amountPaid);
                             final interest = repaid - l.principal;
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 8),

@@ -3,7 +3,7 @@ import '../../core/utils/firestore_helpers.dart';
 class Loan {
   String? id;
   String memberId;
-  double principal;
+  int principal;
   double interestRate;
   DateTime issuedDate;
   DateTime dueDate;
@@ -35,7 +35,7 @@ class Loan {
     return Loan(
       id: map['id'],
       memberId: map['memberId'] ?? '',
-      principal: (map['principal'] as num?)?.toDouble() ?? 0.0,
+      principal: (map['principal'] as num?)?.toInt() ?? 0,
       interestRate: (map['interestRate'] as num?)?.toDouble() ?? 0.0,
       issuedDate: parseFirestoreDate(map['issuedDate']),
       dueDate: parseFirestoreDate(map['dueDate']),

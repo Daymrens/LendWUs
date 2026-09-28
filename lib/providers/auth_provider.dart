@@ -708,7 +708,7 @@ class CurrentUserNotifier extends ChangeNotifier {
       final firestore = FirebaseService.firestore;
 
       final name = displayName ?? firebaseUser.displayName ?? firebaseUser.email!.split('@')[0];
-      final amountPerHead = settings.asData?.value.defaultAmountPerHead ?? 500.0;
+      final amountPerHead = (settings.asData?.value.defaultAmountPerHead ?? 500.0).toInt();
       final totalRequired = headsCount * amountPerHead;
 
       String? memberDocId;

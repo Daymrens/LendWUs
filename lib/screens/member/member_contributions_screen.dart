@@ -48,15 +48,15 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     final thisMonth = contributions.where((c) =>
       c.date.month == now.month && c.date.year == now.year
     ).toList();
-    final totalThisMonth = thisMonth.fold<double>(0.0, (s, c) => s + c.amount);
-    final totalAll = contributions.fold<double>(0.0, (s, c) => s + c.amount);
+    final totalThisMonth = thisMonth.fold<int>(0, (s, c) => s + c.amount);
+    final totalAll = contributions.fold<int>(0, (s, c) => s + c.amount);
     final memberHeads = member?.headsCount ?? 1;
     final memberAmountPerHead = member?.amountPerHead ?? 0;
-    final memberTotalRequired = member?.totalRequired ?? 0.0;
+    final memberTotalRequired = member?.totalRequired ?? 0;
     final requiredAmount = memberTotalRequired > 0
         ? memberTotalRequired
         : memberHeads * memberAmountPerHead;
-    final balance = member?.balance ?? 0.0;
+    final balance = member?.balance ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -209,7 +209,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     );
   }
 
-  Widget _buildProgressCard(double totalThisMonth, double totalAll, double requiredPerHead, int count, double balance, int cutoffDay1, int cutoffDay2) {
+  Widget _buildProgressCard(int totalThisMonth, int totalAll, int requiredPerHead, int count, int balance, int cutoffDay1, int cutoffDay2) {
     final progress = requiredPerHead > 0 ? (totalThisMonth / requiredPerHead).clamp(0.0, 1.0) : 0.0;
     final met = totalThisMonth >= requiredPerHead;
 
@@ -313,13 +313,13 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     );
   }
 
-  Widget _buildStatCards(List<Contribution> data, double totalThisMonth, double totalAll) {
+  Widget _buildStatCards(List<Contribution> data, int totalThisMonth, int totalAll) {
     final now = DateTime.now();
     final lastMonth = data.where((c) {
       final lm = DateTime(now.year, now.month - 1);
       return c.date.month == lm.month && c.date.year == lm.year;
     }).toList();
-    final totalLastMonth = lastMonth.fold<double>(0.0, (s, c) => s + c.amount);
+    final totalLastMonth = lastMonth.fold<int>(0, (s, c) => s + c.amount);
     String changeLabel;
     Color changeColor;
     if (totalLastMonth <= 0 && totalThisMonth > 0) {
@@ -366,7 +366,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
         ),
         _statCard(
           'Average',
-          CurrencyFormatter.format(avg),
+          CurrencyFormatter.format(avg.toInt()),
           'per transaction',
           AppColors.textMuted,
           Icons.calculate,
@@ -536,7 +536,7 @@ class _MemberContributionsScreenState extends ConsumerState<MemberContributionsS
     return Column(
       children: sortedKeys.map((key) {
         final items = grouped[key]!..sort((a, b) => b.date.compareTo(a.date));
-        final monthTotal = items.fold<double>(0.0, (s, c) => s + c.amount);
+        final monthTotal = items.fold<int>(0, (s, c) => s + c.amount);
         final parts = key.split('-');
         final monthName = DateFormatter.formatMonthYear(DateTime(int.parse(parts[0]), int.parse(parts[1])));
 

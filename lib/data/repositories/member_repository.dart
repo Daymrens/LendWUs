@@ -70,7 +70,7 @@ class MemberRepository {
         .update({'linkedEmail': email});
   }
 
-  Future<void> updateMemberBalance(String memberId, double balance) async {
+  Future<void> updateMemberBalance(String memberId, int balance) async {
     await FirebaseService.firestore
         .collection('members')
         .doc(memberId)

@@ -6,12 +6,12 @@ import 'loans_provider.dart';
 
 final fundRepositoryProvider = Provider((ref) => FundRepository(loanRepo: ref.watch(loanRepositoryProvider)));
 
-final totalContributionsProvider = FutureProvider<double>((ref) async {
+final totalContributionsProvider = FutureProvider<int>((ref) async {
   final repo = ref.watch(fundRepositoryProvider);
   return await repo.getTotalContributions();
 });
 
-final fundBalanceProvider = FutureProvider<double>((ref) async {
+final fundBalanceProvider = FutureProvider<int>((ref) async {
   final summary = await ref.watch(fundSummaryProvider.future);
   return summary.fundBalance;
 });

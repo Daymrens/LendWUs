@@ -142,7 +142,7 @@ class _BulkLoanProcessingScreenState extends ConsumerState<BulkLoanProcessingScr
                   itemCount: _parsed.length,
                   itemBuilder: (_, i) => ListTile(
                     dense: true,
-                    title: Text('${_parsed[i]['memberId']} — ${CurrencyFormatter.format(double.tryParse(_parsed[i]['principal'] ?? '0') ?? 0)}'),
+                    title: Text('${_parsed[i]['memberId']} — ${CurrencyFormatter.format((double.tryParse(_parsed[i]['principal'] ?? '0') ?? 0).toInt())}'),
                     subtitle: Text('Rate: ${_parsed[i]['interestRate']}%  Due: ${_parsed[i]['dueDate'] ?? '180 days'}'),
                   ),
                 ),

@@ -24,6 +24,7 @@ class ActionButtonsRow extends StatelessWidget {
   final VoidCallback? onViewMembers;
   final VoidCallback? onViewReports;
   final VoidCallback? onViewApprovals;
+  final VoidCallback? onSendReminders;
 
   const ActionButtonsRow({
     super.key,
@@ -34,6 +35,7 @@ class ActionButtonsRow extends StatelessWidget {
     this.onViewMembers,
     this.onViewReports,
     this.onViewApprovals,
+    this.onSendReminders,
   });
 
   @override
@@ -50,6 +52,8 @@ class ActionButtonsRow extends StatelessWidget {
         QuickAction(icon: Icons.assessment, label: 'Reports', color: AppColors.textMuted, onTap: onViewReports!),
       if (onViewApprovals != null)
         QuickAction(icon: Icons.approval, label: 'Approvals', color: AppColors.success, onTap: onViewApprovals!),
+      if (onSendReminders != null)
+        QuickAction(icon: Icons.notifications_active, label: 'Reminders', color: AppColors.warning, onTap: onSendReminders!),
     ];
 
     return GridView.builder(

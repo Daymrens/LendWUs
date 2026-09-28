@@ -12,7 +12,7 @@ void main() {
       testLoan = Loan(
         id: 'loan1',
         memberId: 'member1',
-        principal: 10000.0,
+        principal: 1000000,
         interestRate: 0.10,
         issuedDate: DateTime.now().subtract(const Duration(days: 30)),
         dueDate: DateTime.now().add(const Duration(days: 30)),
@@ -23,13 +23,13 @@ void main() {
         Repayment(
           id: 'rep1',
           loanId: 'loan1',
-          amountPaid: 3000.0,
+          amountPaid: 300000,
           date: DateTime.now().subtract(const Duration(days: 10)),
         ),
         Repayment(
           id: 'rep2',
           loanId: 'loan1',
-          amountPaid: 4000.0,
+          amountPaid: 400000,
           date: DateTime.now().subtract(const Duration(days: 5)),
         ),
       ];
@@ -37,17 +37,17 @@ void main() {
 
     test('calculateLoanInterest returns correct interest', () {
       final interest = InterestCalculator.calculateLoanInterest(testLoan);
-      expect(interest, 1000.0);
+      expect(interest, 100000);
     });
 
     test('calculateTotalDue returns principal + interest', () {
       final totalDue = InterestCalculator.calculateTotalDue(testLoan);
-      expect(totalDue, 11000.0);
+      expect(totalDue, 1100000);
     });
 
     test('calculateTotalRepaid sums all repayments', () {
       final total = InterestCalculator.calculateTotalRepaid(testRepayments);
-      expect(total, 7000.0);
+      expect(total, 700000);
     });
 
     test('calculateInterestEarned returns excess over principal', () {
@@ -56,24 +56,24 @@ void main() {
         Repayment(
           id: 'rep3',
           loanId: 'loan1',
-          amountPaid: 4000.0,
+          amountPaid: 400000,
           date: DateTime.now(),
         ),
       ];
       final interest = InterestCalculator.calculateInterestEarned(testLoan, fullRepayments);
-      expect(interest, 1000.0);
+      expect(interest, 100000);
     });
 
     test('calculateInterestEarned returns 0 when not fully repaid', () {
       final interest = InterestCalculator.calculateInterestEarned(testLoan, testRepayments);
-      expect(interest, 0.0);
+      expect(interest, 0);
     });
 
     test('calculateTotalInterestEarned sums across multiple loans', () {
       final loan2 = Loan(
         id: 'loan2',
         memberId: 'member2',
-        principal: 5000.0,
+        principal: 500000,
         interestRate: 0.20,
         issuedDate: DateTime.now().subtract(const Duration(days: 10)),
         dueDate: DateTime.now().add(const Duration(days: 50)),
@@ -84,7 +84,7 @@ void main() {
         Repayment(
           id: 'rep3',
           loanId: 'loan1',
-          amountPaid: 4000.0,
+          amountPaid: 400000,
           date: DateTime.now(),
         ),
       ];
@@ -92,7 +92,7 @@ void main() {
         Repayment(
           id: 'rep4',
           loanId: 'loan2',
-          amountPaid: 6000.0,
+          amountPaid: 600000,
           date: DateTime.now(),
         ),
       ];
@@ -101,22 +101,22 @@ void main() {
         [testLoan, loan2],
         [...fullRepaymentsLoan1, ...repayments2],
       );
-      expect(total, 1000.0 + 1000.0);
+      expect(total, 100000 + 100000);
     });
 
     test('calculatePerHeadShare divides interest by heads', () {
-      final share = InterestCalculator.calculatePerHeadShare(10000.0, 10);
-      expect(share, 1000.0);
+      final share = InterestCalculator.calculatePerHeadShare(1000000, 10);
+      expect(share, 100000);
     });
 
     test('calculatePerHeadShare returns 0 for 0 heads', () {
-      final share = InterestCalculator.calculatePerHeadShare(10000.0, 0);
-      expect(share, 0.0);
+      final share = InterestCalculator.calculatePerHeadShare(1000000, 0);
+      expect(share, 0);
     });
 
     test('calculateRemainingBalance returns correct balance', () {
       final balance = InterestCalculator.calculateRemainingBalance(testLoan, testRepayments);
-      expect(balance, 4000.0);
+      expect(balance, 400000);
     });
 
     test('calculateRemainingBalance returns 0 when fully repaid', () {
@@ -125,12 +125,12 @@ void main() {
         Repayment(
           id: 'rep3',
           loanId: 'loan1',
-          amountPaid: 4000.0,
+          amountPaid: 400000,
           date: DateTime.now(),
         ),
       ];
       final balance = InterestCalculator.calculateRemainingBalance(testLoan, fullRepayments);
-      expect(balance, 0.0);
+      expect(balance, 0);
     });
 
     test('calculateRepaymentProgress returns correct percentage', () {
@@ -142,7 +142,7 @@ void main() {
       final zeroLoan = Loan(
         id: 'loan0',
         memberId: 'member1',
-        principal: 0.0,
+        principal: 0,
         interestRate: 0.10,
         issuedDate: DateTime.now(),
         dueDate: DateTime.now().add(const Duration(days: 30)),
@@ -158,7 +158,7 @@ void main() {
         Repayment(
           id: 'rep3',
           loanId: 'loan1',
-          amountPaid: 4000.0,
+          amountPaid: 400000,
           date: DateTime.now(),
         ),
       ];
@@ -171,7 +171,7 @@ void main() {
 
     test('isLoanFullyRepaid returns true when total repaid exactly equals total due', () {
       final exactRepayments = [
-        Repayment(loanId: 'loan1', amountPaid: 11000.0, date: DateTime.now()),
+        Repayment(loanId: 'loan1', amountPaid: 1100000, date: DateTime.now()),
       ];
       expect(InterestCalculator.isLoanFullyRepaid(testLoan, exactRepayments), true);
     });
@@ -179,25 +179,25 @@ void main() {
 
   group('InterestCalculator.calculateMonthlyPayment', () {
     test('calculates monthly payment for a standard loan (simple interest)', () {
-      // totalDue = 10000 + (10000 * 0.12) = 11200; monthly = 11200 / 12
-      final payment = InterestCalculator.calculateMonthlyPayment(10000, 0.12, 12);
-      expect(payment, closeTo(933.33, 0.01));
+      // principal=1000000 centavos (₱10000); totalDue=1120000; monthly=1120000/12≈93333
+      final payment = InterestCalculator.calculateMonthlyPayment(1000000, 0.12, 12);
+      expect(payment, 93333);
     });
 
     test('returns principal / term when interest rate is zero', () {
-      final payment = InterestCalculator.calculateMonthlyPayment(12000, 0.0, 12);
-      expect(payment, 1000.0);
+      final payment = InterestCalculator.calculateMonthlyPayment(1200000, 0.0, 12);
+      expect(payment, 100000);
     });
 
     test('handles single month term (simple interest)', () {
-      // totalDue = 5000 + (5000 * 0.12) = 5600; monthly = 5600 / 1
-      final payment = InterestCalculator.calculateMonthlyPayment(5000, 0.12, 1);
-      expect(payment, closeTo(5600.0, 0.01));
+      // principal=500000 centavos (₱5000); totalDue=560000; monthly=560000/1=560000
+      final payment = InterestCalculator.calculateMonthlyPayment(500000, 0.12, 1);
+      expect(payment, 560000);
     });
 
     test('handles zero rate with single month', () {
-      final payment = InterestCalculator.calculateMonthlyPayment(5000, 0.0, 1);
-      expect(payment, 5000.0);
+      final payment = InterestCalculator.calculateMonthlyPayment(500000, 0.0, 1);
+      expect(payment, 500000);
     });
   });
 }
